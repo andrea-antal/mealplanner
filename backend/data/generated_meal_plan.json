@@ -1,0 +1,201 @@
+{
+  "week_start_date": "2025-12-08",
+  "days": [
+    {
+      "date": "2025-12-08",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_002",
+          "recipe_title": "Cheesy Scrambled Eggs",
+          "notes": "Quick Sunday breakfast"
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_003",
+          "recipe_title": "Simple Pasta with Tomato Sauce",
+          "notes": "Weekend lunch"
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_001",
+          "recipe_title": "One-Pot Chicken and Rice",
+          "notes": "Weekend cooking, make extra for leftovers"
+        },
+        {
+          "meal_type": "snack",
+          "for_who": "Test Person",
+          "recipe_id": "test_recipe",
+          "recipe_title": "Test Dish",
+          "notes": "Uses available apple, banana, carrot as sides"
+        }
+      ]
+    },
+    {
+      "date": "2025-12-09",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Test Person",
+          "recipe_id": "test_recipe",
+          "recipe_title": "Test Dish",
+          "notes": "Quick weekday breakfast with available banana"
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_001",
+          "recipe_title": "One-Pot Chicken and Rice",
+          "notes": "Leftover from Sunday dinner"
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_003",
+          "recipe_title": "Simple Pasta with Tomato Sauce",
+          "notes": "Quick weeknight dinner"
+        }
+      ]
+    },
+    {
+      "date": "2025-12-10",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_002",
+          "recipe_title": "Cheesy Scrambled Eggs",
+          "notes": "Quick breakfast"
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_003",
+          "recipe_title": "Simple Pasta with Tomato Sauce",
+          "notes": "Leftover from Monday dinner"
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Test Person",
+          "recipe_id": "test_recipe",
+          "recipe_title": "Test Dish",
+          "notes": "Quick weeknight meal with available carrot"
+        },
+        {
+          "meal_type": "snack",
+          "for_who": "Test Person",
+          "recipe_id": "test_recipe",
+          "recipe_title": "Test Dish",
+          "notes": "Uses available apple"
+        }
+      ]
+    },
+    {
+      "date": "2025-12-11",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Test Person",
+          "recipe_id": "test_recipe",
+          "recipe_title": "Test Dish",
+          "notes": "Quick breakfast"
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_001",
+          "recipe_title": "One-Pot Chicken and Rice",
+          "notes": "Batch cooked portion"
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_002",
+          "recipe_title": "Cheesy Scrambled Eggs",
+          "notes": "Quick weeknight dinner"
+        }
+      ]
+    },
+    {
+      "date": "2025-12-12",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_002",
+          "recipe_title": "Cheesy Scrambled Eggs",
+          "notes": "Quick breakfast"
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Test Person",
+          "recipe_id": "test_recipe",
+          "recipe_title": "Test Dish",
+          "notes": "Light lunch"
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_003",
+          "recipe_title": "Simple Pasta with Tomato Sauce",
+          "notes": "Quick weeknight dinner"
+        }
+      ]
+    },
+    {
+      "date": "2025-12-13",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Test Person",
+          "recipe_id": "test_recipe",
+          "recipe_title": "Test Dish",
+          "notes": "Friday breakfast"
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_003",
+          "recipe_title": "Simple Pasta with Tomato Sauce",
+          "notes": "Leftover from Thursday"
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_001",
+          "recipe_title": "One-Pot Chicken and Rice",
+          "notes": "Friday dinner"
+        }
+      ]
+    },
+    {
+      "date": "2025-12-14",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_002",
+          "recipe_title": "Cheesy Scrambled Eggs",
+          "notes": "Weekend breakfast"
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Test Person",
+          "recipe_id": "recipe_001",
+          "recipe_title": "One-Pot Chicken and Rice",
+          "notes": "Leftover from Friday"
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Test Person",
+          "recipe_id": "test_recipe",
+          "recipe_title": "Test Dish",
+          "notes": "Saturday dinner"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import type { Recipe } from '@/lib/api';
+
+interface RecipeFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (recipe: Recipe) => void;
+}
+
+export function RecipeForm({ open, onOpenChange, onSubmit }: RecipeFormProps) {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    ingredients: '',
+    instructions: '',
+    tags: '',
+    prep_time_minutes: '',
+    active_cooking_time_minutes: '',
+    serves: '',
+    required_appliances: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Generate a simple ID from title (lowercase, replace spaces with hyphens)
+    const id = formData.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    const recipe: Recipe = {
+      id,
+      title: formData.title,
+      description: formData.description || undefined,
+      ingredients: formData.ingredients.split('\n').filter(i => i.trim()),
+      instructions: formData.instructions,
+      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+      prep_time_minutes: parseInt(formData.prep_time_minutes) || 0,
+      active_cooking_time_minutes: parseInt(formData.active_cooking_time_minutes) || 0,
+      serves: parseInt(formData.serves) || 1,
+      required_appliances: formData.required_appliances.split(',').map(a => a.trim()).filter(a => a),
+    };
+
+    onSubmit(recipe);
+
+    // Reset form
+    setFormData({
+      title: '',
+      description: '',
+      ingredients: '',
+      instructions: '',
+      tags: '',
+      prep_time_minutes: '',
+      active_cooking_time_minutes: '',
+      serves: '',
+      required_appliances: '',
+    });
+
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">Add New Recipe</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="title">Recipe Title *</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+              placeholder="e.g., Chicken Stir Fry"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Brief description of the recipe"
+              rows={2}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="ingredients">Ingredients (one per line) *</Label>
+            <Textarea
+              id="ingredients"
+              value={formData.ingredients}
+              onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
+              required
+              placeholder="2 chicken breasts&#10;1 cup rice&#10;2 cups broccoli"
+              rows={6}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="instructions">Instructions *</Label>
+            <Textarea
+              id="instructions"
+              value={formData.instructions}
+              onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+              required
+              placeholder="1. Step one.&#10;2. Step two.&#10;3. Step three."
+              rows={6}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="prep_time">Prep Time (minutes) *</Label>
+              <Input
+                id="prep_time"
+                type="number"
+                value={formData.prep_time_minutes}
+                onChange={(e) => setFormData({ ...formData, prep_time_minutes: e.target.value })}
+                required
+                min="0"
+                placeholder="15"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="cook_time">Cook Time (minutes) *</Label>
+              <Input
+                id="cook_time"
+                type="number"
+                value={formData.active_cooking_time_minutes}
+                onChange={(e) => setFormData({ ...formData, active_cooking_time_minutes: e.target.value })}
+                required
+                min="0"
+                placeholder="30"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="serves">Serves (number of people) *</Label>
+            <Input
+              id="serves"
+              type="number"
+              value={formData.serves}
+              onChange={(e) => setFormData({ ...formData, serves: e.target.value })}
+              required
+              min="1"
+              placeholder="4"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="tags">Tags (comma-separated)</Label>
+            <Input
+              id="tags"
+              value={formData.tags}
+              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+              placeholder="quick, healthy, toddler-friendly"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="appliances">Required Appliances (comma-separated)</Label>
+            <Input
+              id="appliances"
+              value={formData.required_appliances}
+              onChange={(e) => setFormData({ ...formData, required_appliances: e.target.value })}
+              placeholder="stove, oven, blender"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button type="submit" className="flex-1">
+              Add Recipe
+            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

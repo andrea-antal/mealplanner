@@ -16,23 +16,32 @@ Build a working meal planning app that generates weekly meal plans using RAG (Re
 3. As a user, I can input my cooking preferences and appliances/tools available
 4. As a user, I can add/edit recipes to the knowledge base with tags (toddler-friendly, quick, daycare-safe, husband-approved, etc.)
 
+### Dynamic Recipe Generation (US1 - v0.2 Feature)
+5. As a user, I can select ingredients from my grocery list and generate a custom recipe using AI
+   - Select multiple ingredients via checkboxes on the Groceries page
+   - Click "Cook with Selected" to open recipe generation modal
+   - Configure recipe preferences: meal type, servings, max cooking time, ingredient portions
+   - AI generates a personalized recipe using Claude based on my selections
+   - Generated recipes are saved to my recipe library with an "AI" badge
+   - Navigate to Recipes page to view the newly generated recipe
+
 ### Meal Plan Generation
-4. As a user, I can generate a weekly meal plan that:
+6. As a user, I can generate a weekly meal plan that:
    - Respects all dietary constraints and preferences
    - Prioritizes available groceries
    - Includes appropriate meals for different contexts (daycare lunch, home dinner, snacks)
    - Accounts for preparation complexity (weeknight vs weekend)
 
-5. As a user, I can see the generated meal plan with:
+7. As a user, I can see the generated meal plan with:
    - Day-by-day breakdown
    - Meal type (breakfast, lunch, dinner, snacks)
    - Recipe details (ingredients, instructions)
    - Which family members each meal is for
 
 ### RAG System (Behind the Scenes)
-6. The system embeds recipes and preferences into a vector database
-7. The system retrieves relevant recipes based on constraints and context
-8. The system uses Claude API to generate coherent weekly plans
+8. The system embeds recipes and preferences into a vector database
+9. The system retrieves relevant recipes based on constraints and context
+10. The system uses Claude API to generate coherent weekly plans
 
 ---
 
@@ -63,13 +72,29 @@ Build a working meal planning app that generates weekly meal plans using RAG (Re
 {
   "id": "string",
   "title": "string",
+  "description": "string (optional)",
   "ingredients": ["string"],
   "instructions": "string",
   "tags": ["toddler-friendly", "quick", "daycare-safe", "husband-approved", "batch-cookable"],
   "prep_time_minutes": "number",
   "active_cooking_time_minutes": "number",
   "serves": "number",
-  "required_appliances": ["oven", "instant_pot", "blender", "microwave"]
+  "required_appliances": ["oven", "instant_pot", "blender", "microwave"],
+  "is_generated": "boolean (optional, true for AI-generated recipes)"
+}
+```
+
+### Dynamic Recipe Request (v0.2)
+```json
+{
+  "ingredients": ["chicken", "rice", "broccoli"],
+  "portions": {
+    "chicken": "1 lb",
+    "rice": "2 cups"
+  },
+  "meal_type": "dinner",
+  "servings": 4,
+  "cooking_time_max": 30
 }
 ```
 

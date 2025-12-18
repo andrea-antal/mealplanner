@@ -1,0 +1,17 @@
+{
+  "id": "recipe_002",
+  "title": "Cheesy Scrambled Eggs",
+  "ingredients": [
+    "6 eggs",
+    "1/4 cup milk",
+    "1/2 cup cheddar cheese, shredded",
+    "2 tbsp butter",
+    "Salt and pepper to taste"
+  ],
+  "instructions": "1. Whisk eggs and milk together. 2. Melt butter in pan over medium heat. 3. Pour in eggs, stir gently. 4. When almost set, add cheese. 5. Continue stirring until cooked through. 6. Season with salt and pepper.",
+  "tags": ["toddler-friendly", "quick", "breakfast"],
+  "prep_time_minutes": 5,
+  "active_cooking_time_minutes": 10,
+  "serves": 3,
+  "required_appliances": ["oven"]
+}

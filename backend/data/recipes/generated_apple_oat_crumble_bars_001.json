@@ -1,0 +1,33 @@
+{
+  "id": "generated_apple_oat_crumble_bars_001",
+  "title": "Apple Oat Crumble Bars",
+  "ingredients": [
+    "2 medium apples, peeled and diced",
+    "1\u00bd cups rolled oats",
+    "1 cup all-purpose flour",
+    "\u00bd cup unsalted butter, melted",
+    "\u00bd cup brown sugar",
+    "\u00bc cup granulated sugar",
+    "1 teaspoon ground cinnamon",
+    "\u00bc teaspoon salt",
+    "\u00bd teaspoon vanilla extract",
+    "1 tablespoon lemon juice",
+    "1 tablespoon cornstarch"
+  ],
+  "instructions": "1. Preheat oven to 350\u00b0F (175\u00b0C) and line an 8x8 inch baking pan with parchment paper. 2. In a medium bowl, combine diced apples, granulated sugar, cinnamon, lemon juice, and cornstarch; toss well and set aside. 3. In a large bowl, mix together rolled oats, flour, brown sugar, and salt. 4. Pour melted butter and vanilla extract over the oat mixture and stir until crumbly and well combined. 5. Press two-thirds of the oat mixture firmly into the bottom of the prepared pan to form a crust. 6. Spread the apple mixture evenly over the crust. 7. Sprinkle the remaining oat mixture over the apples, creating a crumble topping. 8. Bake for 35-40 minutes until the top is golden brown and apples are tender. 9. Allow to cool completely in the pan for at least 1 hour before cutting into 12 bars. 10. Store in an airtight container at room temperature for up to 3 days or refrigerate for up to 5 days.",
+  "tags": [
+    "snack",
+    "family-friendly",
+    "baked",
+    "fruit",
+    "portable"
+  ],
+  "prep_time_minutes": 15,
+  "active_cooking_time_minutes": 40,
+  "serves": 12,
+  "required_appliances": [
+    "oven"
+  ],
+  "is_generated": true,
+  "description": "Delicious homemade snack bars with tender cinnamon apples layered between a buttery oat crumble crust. Perfect for lunchboxes or afternoon snacks."
+}

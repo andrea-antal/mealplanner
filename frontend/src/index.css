@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
+
+@layer base {
+  :root {
+    /* Warm, inviting meal planner palette - saturated but soft */
+    --background: 30 25% 97%;
+    --foreground: 25 30% 18%;
+
+    --card: 30 20% 99%;
+    --card-foreground: 25 30% 18%;
+
+    --popover: 30 20% 99%;
+    --popover-foreground: 25 30% 18%;
+
+    /* Rich terracotta primary */
+    --primary: 14 72% 48%;
+    --primary-foreground: 30 20% 98%;
+
+    /* Soft sage secondary */
+    --secondary: 150 35% 90%;
+    --secondary-foreground: 150 45% 28%;
+
+    --muted: 30 18% 92%;
+    --muted-foreground: 25 15% 42%;
+
+    /* Vibrant sage accent */
+    --accent: 155 55% 38%;
+    --accent-foreground: 30 20% 98%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 20% 86%;
+    --input: 30 20% 86%;
+    --ring: 14 72% 48%;
+
+    --radius: 0.75rem;
+
+    /* Tag colors - more saturated */
+    --tag-toddler: 155 60% 40%;
+    --tag-quick: 42 95% 48%;
+    --tag-daycare: 205 75% 50%;
+    --tag-approved: 265 55% 55%;
+    --tag-onepot: 22 85% 52%;
+    --tag-batch: 170 60% 40%;
+    --tag-breakfast: 345 65% 60%;
+    --tag-leftover: 200 30% 48%;
+
+    /* Shadows */
+    --shadow-soft: 0 2px 8px -2px hsl(25 30% 18% / 0.06);
+    --shadow-medium: 0 4px 16px -4px hsl(25 30% 18% / 0.10);
+    --shadow-glow: 0 0 24px hsl(14 72% 48% / 0.18);
+
+    /* Sidebar */
+    --sidebar-background: 30 22% 95%;
+    --sidebar-foreground: 25 25% 25%;
+    --sidebar-primary: 14 72% 48%;
+    --sidebar-primary-foreground: 30 20% 98%;
+    --sidebar-accent: 150 35% 90%;
+    --sidebar-accent-foreground: 150 45% 28%;
+    --sidebar-border: 30 18% 88%;
+    --sidebar-ring: 14 72% 48%;
+  }
+
+  .dark {
+    --background: 25 25% 10%;
+    --foreground: 30 20% 94%;
+
+    --card: 25 22% 13%;
+    --card-foreground: 30 20% 94%;
+
+    --popover: 25 22% 13%;
+    --popover-foreground: 30 20% 94%;
+
+    --primary: 14 68% 55%;
+    --primary-foreground: 25 25% 10%;
+
+    --secondary: 150 25% 18%;
+    --secondary-foreground: 150 30% 82%;
+
+    --muted: 25 20% 18%;
+    --muted-foreground: 30 15% 58%;
+
+    --accent: 155 50% 38%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 25 20% 20%;
+    --input: 25 20% 20%;
+    --ring: 14 68% 55%;
+
+    --sidebar-background: 25 22% 11%;
+    --sidebar-foreground: 30 18% 88%;
+    --sidebar-primary: 14 68% 55%;
+    --sidebar-primary-foreground: 25 25% 10%;
+    --sidebar-accent: 25 20% 16%;
+    --sidebar-accent-foreground: 30 18% 88%;
+    --sidebar-border: 25 18% 18%;
+    --sidebar-ring: 14 68% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from { 
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to { 
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}

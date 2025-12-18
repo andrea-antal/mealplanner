@@ -564,63 +564,230 @@ vercel --prod
 
 ---
 
-## Implementation Checklist
+## Implementation Checklist with Gating
+
+> **Testing Philosophy**: Lightweight validation points + critical unit tests only. Each phase has a "gate" - you cannot proceed until all checkpoint criteria pass.
 
 ### Phase 1: Backend Foundation
-- [ ] Set up FastAPI project structure
-- [ ] Create Pydantic models (Recipe, Household, MealPlan)
-- [ ] Implement `data_manager.py` for JSON I/O
-- [ ] Create sample data files (household, groceries, 5 recipes)
-- [ ] Test data loading/saving
+
+#### 1.1 Project Setup
+- [ ] Create directory structure (`backend/app/models`, `backend/app/services`, etc.)
+- [ ] Create `requirements.txt` with dependencies
+- [ ] Create `.env.example` template
+- **Checkpoint**: `pip install -r requirements.txt` succeeds without errors
+- **Test**: Run `python --version` (should be 3.11+)
+
+#### 1.2 Data Models (Pydantic)
+- [ ] Create `app/models/__init__.py`
+- [ ] Create `app/models/recipe.py` with Recipe model
+- [ ] Create `app/models/household.py` with HouseholdProfile, FamilyMember, etc.
+- [ ] Create `app/models/meal_plan.py` with MealPlan, Day, Meal models
+- **Checkpoint**: Can import models and create instances with valid data
+- **Test**: Pydantic validation rejects invalid data (e.g., missing required fields)
+
+#### 1.3 Data Manager (JSON I/O)
+- [ ] Create `app/data/__init__.py`
+- [ ] Implement `app/data/data_manager.py` with all CRUD functions
+- [ ] Create `data/household_profile.json` with sample data
+- [ ] Create `data/groceries.json` with sample grocery list
+- [ ] Create 3 sample recipe files in `data/recipes/`
+- **Checkpoint**: Can load and save all data types successfully
+- **Test**: Write `tests/test_data_manager.py` - test load/save for each data type
+- **Manual Test**: Run `pytest tests/test_data_manager.py -v`
+
+#### 1.4 Basic FastAPI App
+- [ ] Create `app/config.py` with Settings class
+- [ ] Create `app/main.py` with FastAPI app + health check endpoint
+- [ ] Add logging configuration
+- **Checkpoint**: `uvicorn app.main:app --reload` starts without errors
+- **Test**: `curl http://localhost:8000/health` returns `{"status": "ok"}`
+
+**🚪 GATE TO PHASE 2**
+- ✅ All Phase 1 checkpoints pass
+- ✅ Can load household profile, groceries, and recipes from JSON
+- ✅ FastAPI server runs and health check responds
+- ✅ `pytest tests/test_data_manager.py` passes
+
+---
 
 ### Phase 2: RAG Pipeline
-- [ ] Set up Chroma DB integration (`chroma_manager.py`)
-- [ ] Create recipe embedding script (`seed_recipes.py`)
-- [ ] Implement `rag_service.py` - `retrieve_relevant_context()`
-- [ ] Test recipe retrieval with different queries
+
+#### 2.1 Chroma DB Setup
+- [ ] Add chromadb to `requirements.txt`
+- [ ] Create `app/data/chroma_manager.py`
+- [ ] Implement `initialize_chroma()` function
+- **Checkpoint**: Chroma DB initializes without errors
+- **Test**: Create collection, verify it persists to `data/chroma_db/`
+
+#### 2.2 Recipe Embedding
+- [ ] Implement `embed_recipes()` in `chroma_manager.py`
+- [ ] Create `scripts/seed_recipes.py` to populate Chroma
+- [ ] Run seed script with sample recipes
+- **Checkpoint**: All recipes embedded successfully
+- **Test**: Query Chroma directly, get non-empty results
+
+#### 2.3 RAG Service
+- [ ] Create `app/services/__init__.py`
+- [ ] Implement `app/services/rag_service.py`
+- [ ] Implement `retrieve_relevant_context()` function
+- [ ] Add metadata filtering (appliances, tags, time constraints)
+- **Checkpoint**: Can retrieve recipes based on query + filters
+- **Test**: Write `tests/test_rag_service.py` - test retrieval with different constraints
+- **Manual Test**: Query "toddler-friendly chicken recipes" → returns relevant results
+
+**🚪 GATE TO PHASE 3**
+- ✅ Chroma DB persists embeddings correctly
+- ✅ Can retrieve recipes semantically (not just keyword match)
+- ✅ Metadata filters work (e.g., filter by required_appliances)
+- ✅ `pytest tests/test_rag_service.py` passes
+
+---
 
 ### Phase 3: Claude Integration
-- [ ] Implement `claude_service.py`
-- [ ] Design prompt template for meal plan generation
-- [ ] Implement `meal_plan_service.py` - `generate_meal_plan()`
-- [ ] Test end-to-end: constraints → recipes → Claude → meal plan
+
+#### 3.1 Claude Service
+- [ ] Add anthropic SDK to `requirements.txt`
+- [ ] Implement `app/services/claude_service.py`
+- [ ] Implement `generate_plan_with_claude()` function
+- [ ] Add error handling and retries
+- **Checkpoint**: Can call Claude API successfully
+- **Test**: Send simple prompt, get response
+
+#### 3.2 Prompt Engineering
+- [ ] Design meal plan generation prompt template
+- [ ] Include household constraints in prompt
+- [ ] Include candidate recipes in prompt
+- [ ] Request structured JSON response
+- **Checkpoint**: Claude returns valid JSON matching MealPlan schema
+- **Test**: Parse response into MealPlan Pydantic model
+
+#### 3.3 Meal Plan Service
+- [ ] Implement `app/services/meal_plan_service.py`
+- [ ] Implement `generate_meal_plan()` function
+- [ ] Integrate RAG retrieval + Claude generation
+- [ ] Add constraint validation
+- **Checkpoint**: Can generate complete 7-day meal plan
+- **Test**: Write `tests/test_meal_plan_service.py` - test full flow
+- **Manual Test**: Generate plan, verify it respects daycare "no nuts" rule
+
+**🚪 GATE TO PHASE 4**
+- ✅ Claude API integration works reliably
+- ✅ Generated meal plans are valid MealPlan objects
+- ✅ At least 1 hard constraint is respected (e.g., allergies, daycare rules)
+- ✅ `pytest tests/test_meal_plan_service.py` passes
+
+---
 
 ### Phase 4: API Endpoints
-- [ ] Implement recipe endpoints (CRUD)
-- [ ] Implement household/groceries endpoints
-- [ ] Implement meal plan generation endpoint
-- [ ] Add CORS middleware
-- [ ] Test all endpoints with Postman/curl
+
+#### 4.1 Recipe Endpoints
+- [ ] Create `app/routers/__init__.py`
+- [ ] Implement `app/routers/recipes.py` with CRUD endpoints
+- [ ] Add endpoints: GET /recipes, GET /recipes/{id}, POST /recipes, PUT /recipes/{id}
+- **Checkpoint**: All recipe endpoints return correct status codes
+- **Test**: Use `curl` to create, read, update recipe
+
+#### 4.2 Household & Groceries Endpoints
+- [ ] Implement `app/routers/household.py`
+- [ ] Add endpoints: GET /household, PUT /household, GET /groceries, PUT /groceries
+- **Checkpoint**: Can retrieve and update household data via API
+- **Test**: Use `curl` to update household profile
+
+#### 4.3 Meal Plan Generation Endpoint
+- [ ] Implement `app/routers/meal_plans.py`
+- [ ] Add endpoint: POST /meal-plans/generate
+- [ ] Add CORS middleware to `main.py`
+- **Checkpoint**: POST request returns complete meal plan
+- **Test**: Write `tests/test_api_endpoints.py` - smoke test each endpoint
+
+**🚪 GATE TO PHASE 5**
+- ✅ All API endpoints return 200 for valid requests
+- ✅ Can generate meal plan via POST /meal-plans/generate
+- ✅ CORS configured for frontend origin
+- ✅ FastAPI auto-docs accessible at /docs
+
+---
 
 ### Phase 5: Frontend
-- [ ] Set up React/Vite project (or Lovable)
-- [ ] Create API client (`api.js`)
-- [ ] Build `HouseholdSetup` component
-- [ ] Build `GroceryInput` component
-- [ ] Build `RecipeManager` component
-- [ ] Build `MealPlanView` component
-- [ ] Connect all components to backend
-- [ ] Test full user flow
+
+#### 5.1 Frontend Setup
+- [ ] Initialize Vite + React project (or use Lovable)
+- [ ] Create `frontend/package.json`
+- [ ] Create `frontend/.env.example`
+- [ ] Set up basic routing (if needed)
+- **Checkpoint**: `npm run dev` starts frontend successfully
+
+#### 5.2 API Client
+- [ ] Implement `src/services/api.js` with all backend calls
+- **Checkpoint**: Can fetch data from backend API
+
+#### 5.3 UI Components
+- [ ] Build `HouseholdSetup.jsx` - form for family members, constraints
+- [ ] Build `GroceryInput.jsx` - input for available groceries
+- [ ] Build `RecipeManager.jsx` - list/add/edit recipes
+- [ ] Build `MealPlanView.jsx` - display generated meal plan
+- [ ] Wire up `App.jsx` with all components
+- **Checkpoint**: Can interact with all features via UI
+- **Manual Test**: Full user flow - set household → add groceries → generate plan
+
+**🚪 GATE TO PHASE 6**
+- ✅ Frontend connects to backend successfully
+- ✅ Can generate meal plan through UI
+- ✅ Meal plan displays correctly in browser
+- ✅ No console errors
+
+---
 
 ### Phase 6: Recipe Library
 - [ ] Add 20-30 real family recipes as JSON files
-- [ ] Tag appropriately (toddler-friendly, daycare-safe, etc.)
-- [ ] Re-seed Chroma with full recipe library
-- [ ] Test meal plan generation with real data
+- [ ] Tag each recipe appropriately (toddler-friendly, daycare-safe, husband-approved, etc.)
+- [ ] Re-run `scripts/seed_recipes.py` to embed all recipes
+- [ ] Test meal plan generation with full recipe library
+- **Checkpoint**: Generated plans use variety of recipes
+- **Manual Test**: Generate 3 different meal plans, verify diversity
+
+**🚪 GATE TO PHASE 7**
+- ✅ At least 20 recipes in library
+- ✅ Meal plans are practical and usable
+- ✅ Constraint satisfaction works with real data
+
+---
 
 ### Phase 7: Deployment
+
+#### 7.1 Backend Deployment (Render)
+- [ ] Create `render.yaml` configuration
 - [ ] Deploy backend to Render
-- [ ] Configure environment variables
-- [ ] Test backend in production
+- [ ] Set environment variables in Render dashboard
+- [ ] Test backend API in production
+- **Checkpoint**: Production API responds successfully
+
+#### 7.2 Frontend Deployment (Vercel)
+- [ ] Create `vercel.json` configuration
 - [ ] Deploy frontend to Vercel
+- [ ] Set VITE_API_URL environment variable
 - [ ] Test end-to-end in production
-- [ ] Fix any CORS/deployment issues
+- **Checkpoint**: Can generate meal plan in production
+
+**🚪 GATE TO PHASE 8**
+- ✅ Both frontend and backend deployed successfully
+- ✅ Production app works end-to-end
+- ✅ No CORS errors
+
+---
 
 ### Phase 8: Documentation
-- [ ] Write README with setup instructions
-- [ ] Document architecture decisions
-- [ ] Create case study (problem, solution, learnings, what I'd do differently)
+- [ ] Write backend README with setup instructions
+- [ ] Write frontend README
+- [ ] Update root README with deployment links
+- [ ] Create case study document (problem, solution, learnings, trade-offs)
 - [ ] Prepare demo script for interviews
+- [ ] Document architectural decisions
+
+**✅ PROJECT COMPLETE**
+- All phases complete
+- App is usable in daily life
+- Portfolio materials ready
 
 ---
 

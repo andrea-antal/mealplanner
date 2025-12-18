@@ -4,31 +4,26 @@ A RAG-powered meal planning application that generates weekly meal plans based o
 
 ## Overview
 
-This is a portfolio project demonstrating:
-- RAG (Retrieval Augmented Generation) implementation
-- Operational complexity problem-solving with AI
-- Full-stack development with modern tech stack
+A RAG-powered meal planning application that solves the multi-constraint optimization problem of weekly meal planning:
+- Complex dietary restrictions and preferences
+- Available groceries and pantry items
+- Time constraints and cooking capabilities
+- Picky eaters and daycare lunch rules
 
-**Built by**: Andrea (Senior PM learning AI implementation)
-**Purpose**: Portfolio artifact for job search + functional daily meal planning tool
+**Tech Stack**: FastAPI + React + Chroma + Claude Opus 4
 
-## Tech Stack
+## Documentation
 
-- **Backend**: FastAPI (Python)
-- **Frontend**: Lovable/Figma Make (or React)
-- **Vector DB**: Chroma (local, open source)
-- **LLM**: Claude API (Anthropic)
-- **Deployment**: Vercel (frontend) + Render (backend)
+- **[Claude Code Guide](docs/CLAUDE.md)** - Development modes, best practices, and patterns
+- **[Project Context](docs/PROJECT_CONTEXT.md)** - Current state, philosophy, and recent work
+- **[Sprint Plan](docs/SPRINT_PLAN.md)** - Feature roadmap and upcoming sprints
+- **[Product Requirements](docs/PRODUCT_REQUIREMENTS.md)** - Detailed specs and data schemas
+- **[Implementation Plan](docs/IMPLEMENTATION_PLAN.md)** - v0.1 architecture and phases
+- **[Changelog](docs/CHANGELOG.md)** - Technical decisions and development history
 
-## Quick Links
+## Features
 
-- [Project Context](docs/PROJECT_CONTEXT.md) - Why this project exists and what it demonstrates
-- [Product Requirements](docs/PRODUCT_REQUIREMENTS.md) - Detailed feature specs and data schemas
-- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) - Architecture and development roadmap
-- [Agent Instructions](docs/AGENTS.md) - Instructions for AI coding assistants
-
-## Features (v0.1)
-
+### v0.1 (Complete)
 - ✅ Input household dietary constraints (allergies, dislikes, daycare rules)
 - ✅ Input available groceries
 - ✅ Input cooking preferences and available appliances
@@ -36,11 +31,59 @@ This is a portfolio project demonstrating:
 - ✅ Admin UI to manage recipes
 - ✅ Constraint satisfaction across multiple competing requirements
 
+### v0.2 - Dynamic Recipe Generation (Complete)
+- ✅ **Sprint 1**: Cook with Selected Ingredients
+  - Select ingredients from your grocery list via checkboxes
+  - Configure meal type, servings, cooking time, and ingredient portions
+  - AI-powered recipe generation using Claude Opus 4
+  - Generated recipes automatically saved to recipe library
+  - Auto-open generated recipe with navigation state
+
+- ✅ **Sprint 1.1**: Enhanced Recipe Generation
+  - Cuisine type selection (Italian, Mexican, Chinese, Korean, Japanese, Greek, Healthy, or custom)
+  - "Generate Again" button for AI-generated recipes
+  - Confirmation dialog before recipe deletion
+  - Navigate to Groceries page to select fresh ingredients for regeneration
+
+- ✅ **Sprint 1.2**: Bug Fixes
+  - Fixed meal plan generation Pydantic validation error (recipe_id can now be null for simple snacks)
+  - Fixed RecipeModal button spacing issue
+
+- ✅ **Sprint 1.3**: Meal Plan UX Improvements
+  - Recipe titles in meal plan now clickable to view full recipe details
+  - Meal plan persists across navigation using localStorage
+  - Removed non-functional Export/Print buttons (deferred to future sprint)
+  - Added configurable Claude model via MODEL_NAME environment variable
+
 ## Project Status
 
-🚧 **In Development** - Phase 0: Project setup and planning complete
+✅ **v0.1 Backend Complete** (2025-12-03 12:30 PM PST)
+- 4 phases complete: Backend Foundation, RAG Pipeline, Claude Integration, API Endpoints
+- 11 REST API endpoints operational
+- 12 unit + integration tests passing
 
-See [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) for detailed roadmap.
+🎨 **v0.1 Frontend Complete** (2025-12-03 3:45 PM PST)
+- Built with Lovable, merged from pixel-perfect-clone repo
+- 5 pages: Home, Meal Plans, Recipes, Household, Groceries
+- Full shadcn-ui component library integrated
+- Fully connected to backend API with React Query
+
+✨ **v0.3 Smart Grocery Management Complete** (2025-12-10)
+- Sprint 2: Full grocery expiry tracking and expiry-aware meal planning
+- Backend: GroceryItem model with dates, `/groceries` REST API, expiry validation
+- Frontend: Redesigned Groceries page with progressive disclosure form
+- Claude prompts enhanced with ⚠️ "USE SOON" markers for expiring items
+- Visual expiry indicators (red/yellow/green badges) and "Expiring Soon" banner
+
+**Previous Milestones**:
+- v0.2 (2025-12-04): Dynamic Recipe Generation - "Cook with Selected" feature
+- v0.1 (2025-12-03): RAG-Powered Meal Planning - Core meal plan generation
+
+**Next Steps**:
+- 🚀 **Sprint 3+**: Future enhancements (navigation improvements, sorting/filtering, etc.)
+- See [Sprint Plan](docs/SPRINT_PLAN.md) for full roadmap
+
+See [Project Context](docs/PROJECT_CONTEXT.md) for detailed timeline.
 
 ## Development Setup
 

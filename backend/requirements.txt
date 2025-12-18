@@ -1,0 +1,26 @@
+# FastAPI and server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Pydantic for data models (compatible with Python 3.13)
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Anthropic Claude API
+anthropic>=0.39.0  # Upgraded for Messages API and Claude 3+ models
+
+# Vector database for RAG
+chromadb==0.4.18
+numpy<2.0.0  # ChromaDB 0.4.18 not compatible with NumPy 2.0
+
+# Utilities
+python-dotenv==1.0.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
+
+# CORS
+python-jose[cryptography]==3.3.0

@@ -1,0 +1,20 @@
+{
+  "id": "recipe_001",
+  "title": "One-Pot Chicken and Rice",
+  "ingredients": [
+    "2 lbs chicken breast, diced",
+    "2 cups rice",
+    "4 cups chicken broth",
+    "1 cup frozen peas",
+    "1 onion, diced",
+    "2 cloves garlic, minced",
+    "2 tbsp olive oil",
+    "Salt and pepper to taste"
+  ],
+  "instructions": "1. Heat olive oil in large pot. 2. Sauté onion and garlic until fragrant. 3. Add chicken, cook until browned. 4. Add rice and broth, bring to boil. 5. Reduce heat, cover and simmer 20 minutes. 6. Stir in peas, cook 5 more minutes. 7. Season with salt and pepper.",
+  "tags": ["toddler-friendly", "quick", "husband-approved", "batch-cookable", "one-pot"],
+  "prep_time_minutes": 10,
+  "active_cooking_time_minutes": 25,
+  "serves": 6,
+  "required_appliances": ["oven"]
+}

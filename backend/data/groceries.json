@@ -1,0 +1,130 @@
+{
+  "items": [
+    {
+      "name": "apple",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "banana",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "carrot",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Eggplant",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Pear",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Zucchini",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "White onion",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Sweet potato",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Butternut squash",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "chicken breast",
+      "date_added": "2025-12-10",
+      "purchase_date": "2025-12-09",
+      "expiry_type": "expiry_date",
+      "expiry_date": "2025-12-12"
+    },
+    {
+      "name": "milk",
+      "date_added": "2025-12-10",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "salmon",
+      "date_added": "2025-12-10",
+      "purchase_date": "2025-12-09",
+      "expiry_type": "expiry_date",
+      "expiry_date": "2025-12-11"
+    },
+    {
+      "name": "cottage cheese",
+      "date_added": "2025-12-11",
+      "purchase_date": null,
+      "expiry_type": "expiry_date",
+      "expiry_date": "2025-12-13"
+    },
+    {
+      "name": "salad",
+      "date_added": "2025-12-11",
+      "purchase_date": null,
+      "expiry_type": "expiry_date",
+      "expiry_date": "2025-12-08"
+    },
+    {
+      "name": "rolled oats",
+      "date_added": "2025-12-11",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "all purpose flour",
+      "date_added": "2025-12-11",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "oat flour",
+      "date_added": "2025-12-11",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "greek yogurt",
+      "date_added": "2025-12-11",
+      "purchase_date": null,
+      "expiry_type": "expiry_date",
+      "expiry_date": "2025-12-28"
+    }
+  ]
+}
