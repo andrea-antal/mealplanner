@@ -34,6 +34,59 @@ None currently - users can manually ignore the extra daycare lunch on weekends.
 
 ---
 
+### 2. Orphaned Recipe Ratings After Member Deletion
+**Priority**: Low
+**Discovered**: 2025-12-22
+**Status**: Open
+
+**Description**:
+When a household member is deleted from the household profile, their ratings on recipes persist in the `recipe_ratings.json` file but are no longer displayed in the UI. This creates invisible/orphaned rating data.
+
+**Expected Behavior**:
+One of the following:
+- **Option A**: When a member is deleted, automatically clean up their ratings from all recipes
+- **Option B**: Display orphaned ratings with "(deleted member)" label
+- **Option C**: Provide admin UI to view and clean up orphaned ratings
+
+**Actual Behavior**:
+- Member ratings remain in `recipe_ratings.json` after member deletion
+- UI only displays ratings for current household members
+- Aggregate counts (e.g., "2👍 1👎") may appear incomplete to users who knew there were more ratings
+
+**Example**:
+1. Household has members: Andrea, Adam, Nathan
+2. Recipe X has ratings: Andrea (like), Adam (dislike), Nathan (like)
+3. Nathan is removed from household
+4. Recipe X still shows only Andrea (like), Adam (dislike) in UI
+5. But `recipe_ratings.json` still contains Nathan's "like" rating
+
+**Impact**:
+- Low user impact - orphaned data is invisible in UI
+- Potential confusion if member is re-added later (old ratings resurface)
+- Data hygiene issue - stale references in database
+
+**Workaround**:
+Manually edit `backend/data/recipe_ratings.json` to remove deleted member's ratings.
+
+**Potential Fix**:
+Add a cleanup hook when updating household profile:
+- `POST /household/profile` endpoint checks for removed members
+- Iterates through all recipe ratings
+- Removes ratings from deleted members
+- Logs cleanup action
+
+**Related Files**:
+- `backend/data/recipe_ratings.json` (rating storage)
+- `backend/app/routers/household.py` (household update endpoint)
+- `backend/app/routers/recipes.py` (lines 47-83: GET /ratings endpoint)
+- `frontend/src/components/RecipeRating.tsx` (rating display)
+
+**Future Considerations**:
+- Consider soft-delete pattern (mark members as inactive instead of deleting)
+- Add data migration script to clean up orphaned ratings in existing data
+
+---
+
 ## Resolved Issues
 
 ### Week Starting on Sunday Instead of Monday

@@ -27,8 +27,11 @@ def temp_data_dir(tmp_path, monkeypatch):
 
     # Mock the DATA_DIR config to point to temp directory
     from app import config
+    from app.data import data_manager
     monkeypatch.setattr(config.settings, "DATA_DIR", str(test_data_dir))
     monkeypatch.setattr(config.settings, "CHROMA_PERSIST_DIR", str(test_data_dir / "chroma_db"))
+    # CRITICAL: Also patch data_manager.DATA_DIR since it uses its own variable
+    monkeypatch.setattr(data_manager, "DATA_DIR", test_data_dir)
 
     yield test_data_dir
 
