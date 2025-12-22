@@ -1,166 +1,106 @@
-# Meal Planner with RAG
+# Meal Planner
 
-A RAG-powered meal planning application that generates weekly meal plans based on complex household constraints, available groceries, and cooking preferences.
+AI-powered meal planning for families with complex dietary constraints. Uses RAG + Claude to generate weekly meal plans that balance allergies, preferences, available groceries, daycare rules, and cooking time limits.
 
-## Overview
+**Tech Stack**: FastAPI · React · Chroma · Claude Opus 4 · TanStack Query · shadcn/ui
 
-A RAG-powered meal planning application that solves the multi-constraint optimization problem of weekly meal planning:
-- Complex dietary restrictions and preferences
-- Available groceries and pantry items
-- Time constraints and cooking capabilities
-- Picky eaters and daycare lunch rules
+## Quick Start
 
-**Tech Stack**: FastAPI + React + Chroma + Claude Opus 4
+**Prerequisites**: Python 3.11+, Node 18+, Anthropic API key
 
-## Documentation
-
-- **[Claude Code Guide](docs/CLAUDE.md)** - Development modes, best practices, and patterns
-- **[Project Context](docs/PROJECT_CONTEXT.md)** - Current state, philosophy, and recent work
-- **[Sprint Plan](docs/SPRINT_PLAN.md)** - Feature roadmap and upcoming sprints
-- **[Product Requirements](docs/PRODUCT_REQUIREMENTS.md)** - Detailed specs and data schemas
-- **[Implementation Plan](docs/IMPLEMENTATION_PLAN.md)** - v0.1 architecture and phases
-- **[Changelog](docs/CHANGELOG.md)** - Technical decisions and development history
-
-## Features
-
-### v0.1 (Complete)
-- ✅ Input household dietary constraints (allergies, dislikes, daycare rules)
-- ✅ Input available groceries
-- ✅ Input cooking preferences and available appliances
-- ✅ Generate weekly meal plans with RAG-powered recipe retrieval
-- ✅ Admin UI to manage recipes
-- ✅ Constraint satisfaction across multiple competing requirements
-
-### v0.2 - Dynamic Recipe Generation (Complete)
-- ✅ **Sprint 1**: Cook with Selected Ingredients
-  - Select ingredients from your grocery list via checkboxes
-  - Configure meal type, servings, cooking time, and ingredient portions
-  - AI-powered recipe generation using Claude Opus 4
-  - Generated recipes automatically saved to recipe library
-  - Auto-open generated recipe with navigation state
-
-- ✅ **Sprint 1.1**: Enhanced Recipe Generation
-  - Cuisine type selection (Italian, Mexican, Chinese, Korean, Japanese, Greek, Healthy, or custom)
-  - "Generate Again" button for AI-generated recipes
-  - Confirmation dialog before recipe deletion
-  - Navigate to Groceries page to select fresh ingredients for regeneration
-
-- ✅ **Sprint 1.2**: Bug Fixes
-  - Fixed meal plan generation Pydantic validation error (recipe_id can now be null for simple snacks)
-  - Fixed RecipeModal button spacing issue
-
-- ✅ **Sprint 1.3**: Meal Plan UX Improvements
-  - Recipe titles in meal plan now clickable to view full recipe details
-  - Meal plan persists across navigation using localStorage
-  - Removed non-functional Export/Print buttons (deferred to future sprint)
-  - Added configurable Claude model via MODEL_NAME environment variable
-
-## Project Status
-
-✅ **v0.1 Backend Complete** (2025-12-03 12:30 PM PST)
-- 4 phases complete: Backend Foundation, RAG Pipeline, Claude Integration, API Endpoints
-- 11 REST API endpoints operational
-- 12 unit + integration tests passing
-
-🎨 **v0.1 Frontend Complete** (2025-12-03 3:45 PM PST)
-- Built with Lovable, merged from pixel-perfect-clone repo
-- 5 pages: Home, Meal Plans, Recipes, Household, Groceries
-- Full shadcn-ui component library integrated
-- Fully connected to backend API with React Query
-
-✨ **v0.3 Smart Grocery Management Complete** (2025-12-10)
-- Sprint 2: Full grocery expiry tracking and expiry-aware meal planning
-- Backend: GroceryItem model with dates, `/groceries` REST API, expiry validation
-- Frontend: Redesigned Groceries page with progressive disclosure form
-- Claude prompts enhanced with ⚠️ "USE SOON" markers for expiring items
-- Visual expiry indicators (red/yellow/green badges) and "Expiring Soon" banner
-
-**Previous Milestones**:
-- v0.2 (2025-12-04): Dynamic Recipe Generation - "Cook with Selected" feature
-- v0.1 (2025-12-03): RAG-Powered Meal Planning - Core meal plan generation
-
-**Next Steps**:
-- 🚀 **Sprint 3+**: Future enhancements (navigation improvements, sorting/filtering, etc.)
-- See [Sprint Plan](docs/SPRINT_PLAN.md) for full roadmap
-
-See [Project Context](docs/PROJECT_CONTEXT.md) for detailed timeline.
-
-## Development Setup
-
-### Option 1: GitHub Codespaces (Recommended)
-
-The easiest way to get started - no local setup required!
-
-1. **Create a GitHub repository** and push this code
-2. **Open in Codespaces**:
-   - Go to your repo on GitHub
-   - Click "Code" → "Codespaces" → "Create codespace on main"
-3. **Set environment secrets**:
-   - In your repo: Settings → Secrets and variables → Codespaces
-   - Add secret: `ANTHROPIC_API_KEY` with your Claude API key
-4. **Start development**:
-   ```bash
-   # Terminal 1: Backend
-   cd backend
-   pip install -r requirements.txt
-   uvicorn app.main:app --reload --port 8000
-
-   # Terminal 2: Frontend
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-Codespaces automatically forwards ports 8000 (backend) and 5173 (frontend) to your browser!
-
-### Option 2: Local Development
-
-If you prefer to run locally:
-
-**Prerequisites:**
-- Python 3.11+
-- Node.js 18+
-- Anthropic API key
-
-**Backend Setup:**
 ```bash
+# Backend
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your ANTHROPIC_API_KEY
+cp .env.example .env  # Add your ANTHROPIC_API_KEY
 uvicorn app.main:app --reload --port 8000
-```
 
-**Frontend Setup:**
-```bash
+# Frontend (new terminal)
 cd frontend
 npm install
-cp .env.example .env
-# Edit .env with VITE_API_URL=http://localhost:8000
 npm run dev
 ```
 
-## Architecture Highlights
+Visit `http://localhost:5173`
 
-- **Clean separation of concerns**: Two-function RAG design (`retrieve_relevant_context` + `generate_meal_plan`) allows future multi-agent refactoring
-- **Type-safe data models**: Pydantic models match JSON schemas exactly
-- **Future-proof storage**: JSON file abstraction layer makes DB migration simple
-- **Readable code**: Optimized for learning and interview discussions over cleverness
+## Features
+
+### Core Meal Planning
+- **RAG-Powered Recipe Selection**: Vector search finds recipes matching household needs
+- **Multi-Constraint Optimization**: Balances allergies, preferences, groceries, time limits
+- **Smart Grocery Management**: Expiry tracking with "USE SOON" prioritization
+- **Daycare Compliance**: Ensures lunch/snack rules are met Monday-Friday
+
+### Recipe Management
+- **Recipe Library**: Browse, search, and manage recipes
+- **AI Recipe Generation**: Create recipes from selected ingredients or meal plan gaps
+- **Recipe Ratings**: Rate recipes per household member (👍/👎)
+- **Family Favorites**: Recipes loved by everyone get highlighted
+
+### Household Management
+- **Individual Preferences**: Per-member dietary preferences (pescetarian, low-carb, etc.)
+- **Flexible Constraints**: Allergies (hard rules) vs dislikes (soft preferences)
+- **Cooking Profiles**: Appliances, methods, weeknight/weekend time limits
+
+## Current Status
+
+**Latest**: [v0.4.0 - Recipe Rating System + UI Polish](https://github.com/dreachan/mealplanner/releases/tag/v0.4.0) (Dec 19, 2025)
+
+**All Releases**:
+- ✅ [v0.4.0](https://github.com/dreachan/mealplanner/releases/tag/v0.4.0): Recipe ratings, individual preferences, UI improvements
+- ✅ [v0.3.0](https://github.com/dreachan/mealplanner/releases/tag/v0.3.0): Grocery expiry tracking
+- ✅ [v0.2.0](https://github.com/dreachan/mealplanner/releases/tag/v0.2.0): Dynamic recipe generation from ingredients
+- ✅ [v0.1.0](https://github.com/dreachan/mealplanner/releases/tag/v0.1.0): RAG + Claude meal plan generation
+
+**Recent Highlights**:
+- Recipe rating system (👍/👎 per household member)
+- Redesigned meal plan UI with week selector and day navigation
+- Fixed timezone bugs (week now correctly starts Monday)
+- Progress modal for meal plan generation
+- Recipe linking from meal plans
+
+See [Releases](https://github.com/dreachan/mealplanner/releases) for detailed release notes.
+
+## Documentation
+
+- **[Project Context](docs/PROJECT_CONTEXT.md)** - Development history and current state
+- **[Sprint Plan](docs/SPRINT_PLAN.md)** - Feature roadmap
+- **[Known Issues](docs/KNOWN_ISSUES.md)** - Active bugs and workarounds
+- **[Changelog](docs/CHANGELOG.md)** - Technical decisions and learnings
+- **[Product Requirements](docs/PRODUCT_REQUIREMENTS.md)** - Detailed specs
+
+## Architecture
+
+```
+Backend (FastAPI)
+├── RAG Pipeline: Chroma vector DB for semantic recipe search
+├── Claude Integration: Prompt engineering for meal plan generation
+└── REST API: 15+ endpoints for recipes, meal plans, household data
+
+Frontend (React)
+├── TanStack Query: Server state management with caching
+├── shadcn/ui: Accessible component library (Radix + Tailwind)
+└── Type-safe API: TypeScript interfaces matching Pydantic models
+```
+
+**Key Patterns**:
+- Clean separation: `retrieve_relevant_recipes()` + `generate_meal_plan_with_claude()`
+- Type safety: Pydantic models → TypeScript interfaces
+- Future-proof: JSON abstraction layer for easy DB migration
+- Optimized for readability and interview discussions
 
 ## Success Metrics
 
-1. ✅ Generates usable meal plans for real household use
-2. ✅ Demonstrates explainable RAG architecture
-3. ✅ Can be demoed and discussed intelligently in interviews
-4. ✅ Documentation covers problem, solution, learnings, trade-offs
-5. ✅ Code is readable for technical reviewers
+- ✅ Generates usable meal plans for real family use
+- ✅ Explainable RAG architecture for technical discussions
+- ✅ Comprehensive documentation of decisions and trade-offs
+- ✅ Readable code for portfolio/interview review
 
 ## License
 
-Private portfolio project - not licensed for public use
+Private portfolio project - All rights reserved
 
 ---
 
-**Note**: This is a learning project prioritizing shipping working software over perfect code. Readability > cleverness, working > perfect.
+**Philosophy**: Ship working software. Readability > cleverness. Documentation > perfection.

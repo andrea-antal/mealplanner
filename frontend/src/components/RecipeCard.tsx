@@ -1,7 +1,8 @@
-import { Clock, Users, ChefHat, Sparkles } from 'lucide-react';
-import { RecipeTag } from './RecipeTag';
+import { Clock, Users, Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Badge } from '@/components/ui/badge';
 import type { Recipe } from '@/lib/api';
-import { Button } from '@/components/ui/button';
+import { recipesAPI, householdAPI } from '@/lib/api';
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -9,10 +10,33 @@ interface RecipeCardProps {
 }
 
 export function RecipeCard({ recipe, onViewDetails }: RecipeCardProps) {
+  // Fetch household members
+  const { data: household } = useQuery({
+    queryKey: ['householdProfile'],
+    queryFn: householdAPI.getProfile,
+    staleTime: 60000, // Cache for 1 minute
+  });
+
+  // Fetch ratings for this recipe
+  const { data: ratings } = useQuery({
+    queryKey: ['recipeRatings', recipe.id],
+    queryFn: () => recipesAPI.getRatings(recipe.id),
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
+  // Calculate aggregate ratings
+  const likes = ratings ? Object.values(ratings).filter((r) => r === 'like').length : 0;
+  const dislikes = ratings ? Object.values(ratings).filter((r) => r === 'dislike').length : 0;
+  const hasRatings = likes > 0 || dislikes > 0;
+
+  // Check if all household members liked this recipe
+  const totalMembers = household?.family_members.length || 0;
+  const lovedByAll = totalMembers > 0 && likes === totalMembers;
+
   return (
-    <div className="rounded-2xl bg-card shadow-soft overflow-hidden transition-all duration-300 hover:shadow-medium group">
+    <div className="rounded-2xl bg-card shadow-soft overflow-hidden transition-all duration-300 hover:shadow-medium group cursor-pointer" onClick={() => onViewDetails(recipe)}>
       <div className="p-5">
-        <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-start justify-between gap-2 mb-3">
           <h3 className="font-display text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
             {recipe.title}
           </h3>
@@ -24,18 +48,28 @@ export function RecipeCard({ recipe, onViewDetails }: RecipeCardProps) {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {recipe.tags.slice(0, 3).map((tag) => (
-            <RecipeTag key={tag} tag={tag} />
-          ))}
-          {recipe.tags.length > 3 && (
-            <span className="text-xs text-muted-foreground self-center">
-              +{recipe.tags.length - 3} more
-            </span>
-          )}
-        </div>
+        {/* Aggregate Ratings Badge */}
+        {hasRatings && (
+          <div className="flex items-center gap-2 mb-3">
+            <Badge
+              variant="outline"
+              className={`text-xs gap-1 ${
+                lovedByAll
+                  ? 'bg-green-600 border-green-600 text-white hover:bg-green-600'
+                  : ''
+              }`}
+            >
+              <ThumbsUp className="h-3 w-3" />
+              {likes}
+            </Badge>
+            <Badge variant="outline" className="text-xs gap-1">
+              <ThumbsDown className="h-3 w-3" />
+              {dislikes}
+            </Badge>
+          </div>
+        )}
 
-        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <Clock className="h-4 w-4" />
             <span>{recipe.prep_time_minutes + recipe.active_cooking_time_minutes} min</span>
@@ -45,15 +79,6 @@ export function RecipeCard({ recipe, onViewDetails }: RecipeCardProps) {
             <span>Serves {recipe.serves}</span>
           </div>
         </div>
-
-        <Button
-          variant="secondary"
-          className="w-full"
-          onClick={() => onViewDetails(recipe)}
-        >
-          <ChefHat className="h-4 w-4" />
-          View Recipe
-        </Button>
       </div>
     </div>
   );

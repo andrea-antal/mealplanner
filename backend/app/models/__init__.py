@@ -8,6 +8,7 @@ from .household import (
     HouseholdProfile,
 )
 from .meal_plan import Meal, Day, MealPlan
+from .recipe_rating import RecipeRating, RatingUpdate
 
 __all__ = [
     "Recipe",
@@ -19,4 +20,6 @@ __all__ = [
     "Meal",
     "Day",
     "MealPlan",
+    "RecipeRating",
+    "RatingUpdate",
 ]

@@ -64,39 +64,11 @@
       "expiry_date": null
     },
     {
-      "name": "chicken breast",
-      "date_added": "2025-12-10",
-      "purchase_date": "2025-12-09",
-      "expiry_type": "expiry_date",
-      "expiry_date": "2025-12-12"
-    },
-    {
       "name": "milk",
       "date_added": "2025-12-10",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
-    },
-    {
-      "name": "salmon",
-      "date_added": "2025-12-10",
-      "purchase_date": "2025-12-09",
-      "expiry_type": "expiry_date",
-      "expiry_date": "2025-12-11"
-    },
-    {
-      "name": "cottage cheese",
-      "date_added": "2025-12-11",
-      "purchase_date": null,
-      "expiry_type": "expiry_date",
-      "expiry_date": "2025-12-13"
-    },
-    {
-      "name": "salad",
-      "date_added": "2025-12-11",
-      "purchase_date": null,
-      "expiry_type": "expiry_date",
-      "expiry_date": "2025-12-08"
     },
     {
       "name": "rolled oats",

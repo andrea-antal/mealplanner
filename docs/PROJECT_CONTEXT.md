@@ -424,10 +424,51 @@ interface GroceryItem {
 
 ---
 
+### ✅ Sprint 3 Phase 2 Complete: Recipe Rating System
+**Timestamp**: 2025-12-18
+**Duration**: ~4 hours
+**Status**: ✅ Fully implemented and tested
+
+**Goal**: Allow household members to rate recipes (👍 like / 👎 dislike) to personalize meal plan generation.
+
+**What was built**:
+
+**Backend** (~130 lines):
+- Created `RecipeRating` Pydantic model with validation
+- Added rating data manager functions (`save_recipe_rating`, `get_recipe_rating`, `delete_recipe_rating`)
+- Implemented RESTful API endpoints: `POST /recipes/{id}/rating` and `GET /recipes/{id}/ratings`
+- Updated recipe deletion to cascade-delete ratings
+- Integrated ratings into meal plan generation via Claude prompt context
+
+**Frontend** (~110 lines):
+- Created `RecipeRating` component with thumbs up/down UI
+- Added rating UI to `RecipeModal` (full interaction panel)
+- Added aggregate rating badges to `RecipeCard` (👍 2 | 👎 1)
+- Implemented toggle behavior (click same button to remove rating)
+- Added API client functions with React Query mutations
+
+**Test Results**:
+- ✅ Phase 2.0 test validated prompt-based approach works effectively
+- ✅ Claude prioritized liked recipes and avoided disliked ones
+- ✅ Token usage: ~5,132 tokens (2.5% of 200k limit)
+- ✅ "Simple Pasta" (all liked) appeared twice in generated meal plan
+- ✅ "Chinese Stir-Fry" (majority disliked) correctly avoided
+
+**Key Decisions**:
+1. Prompt-based integration (simpler than metadata filtering)
+2. Majority rule conflict resolution (more likes than dislikes = include)
+3. Separate `recipe_ratings.json` storage
+4. Two-level UI (RecipeCard overview + RecipeModal detail)
+5. Toggle UX for rating removal
+
+**Impact**: Meal plans now intelligently prioritize household-liked recipes while avoiding majority-disliked ones, creating a personalized feedback loop.
+
+---
+
 ### ✅ Sprint 3 Phase 1 Complete: Individual Dietary Preferences
 **Timestamp**: 2025-12-17
 **Duration**: ~3 hours
-**Status**: ✅ All tests passed, Phase 2 (Ratings) ready to start
+**Status**: ✅ All tests passed, Phase 2 (Ratings) complete
 
 **Goal**: Allow household members to have individual dietary preferences that Claude considers during meal planning (e.g., "lactose-intolerant", "mostly pescetarian", "low-carb").
 

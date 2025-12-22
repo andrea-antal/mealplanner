@@ -14,7 +14,7 @@ from app.models.meal_plan import MealPlan
 from app.models.household import HouseholdProfile
 from app.services.rag_service import retrieve_relevant_recipes, prepare_context_for_llm
 from app.services.claude_service import generate_meal_plan_with_claude
-from app.data.data_manager import load_household_profile, load_groceries
+from app.data.data_manager import load_household_profile, load_groceries, load_recipe_ratings
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,10 @@ def generate_meal_plan(
     groceries = load_groceries()
     logger.info(f"Loaded {len(groceries)} available groceries")
 
+    # Load recipe ratings
+    recipe_ratings = load_recipe_ratings()
+    logger.info(f"Loaded ratings for {len(recipe_ratings)} recipes")
+
     # Step 1: Retrieve relevant recipes using RAG
     logger.info(f"Retrieving {num_recipes} relevant recipes...")
     recipes = retrieve_relevant_recipes(
@@ -80,7 +84,8 @@ def generate_meal_plan(
     context = prepare_context_for_llm(
         household=household,
         recipes=recipes,
-        available_groceries=groceries
+        available_groceries=groceries,
+        recipe_ratings=recipe_ratings
     )
 
     # Step 3: Generate meal plan with Claude

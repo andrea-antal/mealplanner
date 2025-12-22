@@ -1,199 +1,234 @@
 {
-  "week_start_date": "2025-12-08",
+  "week_start_date": "2025-12-22",
   "days": [
     {
-      "date": "2025-12-08",
+      "date": "2025-12-22",
       "meals": [
         {
           "meal_type": "breakfast",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_002",
-          "recipe_title": "Cheesy Scrambled Eggs",
-          "notes": "Quick Sunday breakfast"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_oatmeal_banana_cinnamon_001",
+          "recipe_title": "Oatmeal with banana and cinnamon",
+          "notes": "Uses available bananas, milk, and rolled oats. Toddler-friendly and quick."
         },
         {
           "meal_type": "lunch",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_003",
-          "recipe_title": "Simple Pasta with Tomato Sauce",
-          "notes": "Weekend lunch"
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Cottage cheese with pear slices",
+          "notes": "For daycare - meets all safety rules (no nuts, no honey). Uses available cottage cheese and pear."
         },
         {
           "meal_type": "dinner",
-          "for_who": "Test Person",
+          "for_who": "Andrea, Adam, Nathan",
           "recipe_id": "recipe_001",
           "recipe_title": "One-Pot Chicken and Rice",
-          "notes": "Weekend cooking, make extra for leftovers"
+          "notes": "URGENT: Uses chicken breast that expired 5 days ago - prioritizing to avoid waste. Andrea and Nathan like this. 25 min active cooking fits weeknight constraint."
         },
         {
           "meal_type": "snack",
-          "for_who": "Test Person",
-          "recipe_id": "test_recipe",
-          "recipe_title": "Test Dish",
-          "notes": "Uses available apple, banana, carrot as sides"
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Apple slices with Greek yogurt",
+          "notes": "Uses available apples and Greek yogurt."
         }
       ]
     },
     {
-      "date": "2025-12-09",
+      "date": "2025-12-23",
       "meals": [
         {
           "meal_type": "breakfast",
-          "for_who": "Test Person",
-          "recipe_id": "test_recipe",
-          "recipe_title": "Test Dish",
-          "notes": "Quick weekday breakfast with available banana"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": null,
+          "recipe_title": "Greek yogurt with banana and rolled oats",
+          "notes": "Uses available Greek yogurt, banana, and rolled oats. Quick and healthy."
         },
         {
           "meal_type": "lunch",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_001",
-          "recipe_title": "One-Pot Chicken and Rice",
-          "notes": "Leftover from Sunday dinner"
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Sweet potato cubes with milk",
+          "notes": "For daycare - meets all safety rules. Uses available sweet potato and milk."
         },
         {
           "meal_type": "dinner",
-          "for_who": "Test Person",
+          "for_who": "Andrea, Adam, Nathan",
           "recipe_id": "recipe_003",
           "recipe_title": "Simple Pasta with Tomato Sauce",
-          "notes": "Quick weeknight dinner"
-        }
-      ]
-    },
-    {
-      "date": "2025-12-10",
-      "meals": [
-        {
-          "meal_type": "breakfast",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_002",
-          "recipe_title": "Cheesy Scrambled Eggs",
-          "notes": "Quick breakfast"
-        },
-        {
-          "meal_type": "lunch",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_003",
-          "recipe_title": "Simple Pasta with Tomato Sauce",
-          "notes": "Leftover from Monday dinner"
-        },
-        {
-          "meal_type": "dinner",
-          "for_who": "Test Person",
-          "recipe_id": "test_recipe",
-          "recipe_title": "Test Dish",
-          "notes": "Quick weeknight meal with available carrot"
+          "notes": "URGENT: Serve with baked salmon (expired 6 days ago) on the side for Andrea and Nathan. Adam can have pasta only (dislikes meat). Whole family likes this recipe. 20 min active cooking."
         },
         {
           "meal_type": "snack",
-          "for_who": "Test Person",
-          "recipe_id": "test_recipe",
-          "recipe_title": "Test Dish",
-          "notes": "Uses available apple"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": null,
+          "recipe_title": "Carrot sticks with cottage cheese dip",
+          "notes": "Uses available carrots and cottage cheese."
         }
       ]
     },
     {
-      "date": "2025-12-11",
+      "date": "2025-12-24",
       "meals": [
         {
           "meal_type": "breakfast",
-          "for_who": "Test Person",
-          "recipe_id": "test_recipe",
-          "recipe_title": "Test Dish",
-          "notes": "Quick breakfast"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": null,
+          "recipe_title": "Banana with Greek yogurt and rolled oats",
+          "notes": "Quick breakfast using available ingredients."
         },
         {
           "meal_type": "lunch",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_001",
-          "recipe_title": "One-Pot Chicken and Rice",
-          "notes": "Batch cooked portion"
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Butternut squash cubes with milk",
+          "notes": "For daycare - meets all safety rules. Uses available butternut squash."
         },
         {
           "meal_type": "dinner",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_002",
-          "recipe_title": "Cheesy Scrambled Eggs",
-          "notes": "Quick weeknight dinner"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_veggie_hash_001",
+          "recipe_title": "Colorful Sweet Potato and Zucchini Hash",
+          "notes": "Uses available sweet potatoes and zucchini. Andrea and Adam both like this. 25 min active cooking fits weeknight. Serve with salad on the side."
+        },
+        {
+          "meal_type": "snack",
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Pear slices with cottage cheese",
+          "notes": "Uses available pear and cottage cheese."
         }
       ]
     },
     {
-      "date": "2025-12-12",
+      "date": "2025-12-25",
       "meals": [
         {
           "meal_type": "breakfast",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_002",
-          "recipe_title": "Cheesy Scrambled Eggs",
-          "notes": "Quick breakfast"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_oatmeal_banana_cinnamon_001",
+          "recipe_title": "Oatmeal with banana and cinnamon",
+          "notes": "Holiday breakfast - family favorite using available ingredients."
         },
         {
           "meal_type": "lunch",
-          "for_who": "Test Person",
-          "recipe_id": "test_recipe",
-          "recipe_title": "Test Dish",
-          "notes": "Light lunch"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": null,
+          "recipe_title": "Salad with cottage cheese and apple slices",
+          "notes": "Light holiday lunch using available salad, cottage cheese, and apples."
         },
         {
           "meal_type": "dinner",
-          "for_who": "Test Person",
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_butternut_squash_carrot_soup_001",
+          "recipe_title": "Roasted butternut squash soup with carrots",
+          "notes": "Christmas dinner - uses available butternut squash, carrots, and white onion. 50 min active cooking acceptable for holiday. Serve with bread."
+        },
+        {
+          "meal_type": "snack",
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": null,
+          "recipe_title": "Apple slices with Greek yogurt",
+          "notes": "Holiday snack."
+        }
+      ]
+    },
+    {
+      "date": "2025-12-26",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": null,
+          "recipe_title": "Greek yogurt with pear and rolled oats",
+          "notes": "Uses available ingredients."
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Zucchini rounds with cottage cheese",
+          "notes": "For daycare - meets all safety rules. Uses available zucchini."
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_eggplant_green_onion_stir_fry_001",
+          "recipe_title": "Asian-Style Eggplant and Green Onion Stir-Fry",
+          "notes": "Uses available eggplant and white onion. 15 min active cooking fits weeknight. Serve over rice with salad on side. Not Chinese food (Adam's dislike)."
+        },
+        {
+          "meal_type": "snack",
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Banana slices with Greek yogurt",
+          "notes": "Simple toddler snack."
+        }
+      ]
+    },
+    {
+      "date": "2025-12-27",
+      "meals": [
+        {
+          "meal_type": "breakfast",
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_oatmeal_banana_cinnamon_001",
+          "recipe_title": "Oatmeal with banana and cinnamon",
+          "notes": "Uses remaining bananas and rolled oats."
+        },
+        {
+          "meal_type": "lunch",
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Sweet potato mash with milk",
+          "notes": "For daycare - meets all safety rules. Uses available sweet potato."
+        },
+        {
+          "meal_type": "dinner",
+          "for_who": "Andrea, Adam, Nathan",
           "recipe_id": "recipe_003",
           "recipe_title": "Simple Pasta with Tomato Sauce",
-          "notes": "Quick weeknight dinner"
+          "notes": "Whole family likes this recipe. Quick 20 min weeknight dinner. Serve with salad."
+        },
+        {
+          "meal_type": "snack",
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_apple_oat_crumble_bars_001",
+          "recipe_title": "Apple Oat Crumble Bars",
+          "notes": "Weekend baking project - uses available apples, rolled oats, and all purpose flour. Makes 12 bars for snacks throughout next week."
         }
       ]
     },
     {
-      "date": "2025-12-13",
+      "date": "2025-12-28",
       "meals": [
         {
           "meal_type": "breakfast",
-          "for_who": "Test Person",
-          "recipe_id": "test_recipe",
-          "recipe_title": "Test Dish",
-          "notes": "Friday breakfast"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_banana_yogurt_muffins_001",
+          "recipe_title": "Banana Greek Yogurt Muffins",
+          "notes": "Weekend baking - uses available Greek yogurt and all purpose flour. Makes 12 muffins for breakfasts/snacks. 22 min active cooking fits weekend."
         },
         {
           "meal_type": "lunch",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_003",
-          "recipe_title": "Simple Pasta with Tomato Sauce",
-          "notes": "Leftover from Thursday"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": null,
+          "recipe_title": "Carrot and zucchini sticks with cottage cheese dip and salad",
+          "notes": "Light weekend lunch using available vegetables."
         },
         {
           "meal_type": "dinner",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_001",
-          "recipe_title": "One-Pot Chicken and Rice",
-          "notes": "Friday dinner"
-        }
-      ]
-    },
-    {
-      "date": "2025-12-14",
-      "meals": [
-        {
-          "meal_type": "breakfast",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_002",
-          "recipe_title": "Cheesy Scrambled Eggs",
-          "notes": "Weekend breakfast"
+          "for_who": "Andrea, Adam, Nathan",
+          "recipe_id": "generated_butternut_squash_carrot_soup_001",
+          "recipe_title": "Roasted butternut squash soup with carrots",
+          "notes": "Weekend dinner - uses remaining butternut squash and carrots. 50 min active cooking acceptable for weekend. Comforting and healthy."
         },
         {
-          "meal_type": "lunch",
-          "for_who": "Test Person",
-          "recipe_id": "recipe_001",
-          "recipe_title": "One-Pot Chicken and Rice",
-          "notes": "Leftover from Friday"
-        },
-        {
-          "meal_type": "dinner",
-          "for_who": "Test Person",
-          "recipe_id": "test_recipe",
-          "recipe_title": "Test Dish",
-          "notes": "Saturday dinner"
+          "meal_type": "snack",
+          "for_who": "Nathan",
+          "recipe_id": null,
+          "recipe_title": "Pear slices with Greek yogurt",
+          "notes": "Uses available pear."
         }
       ]
     }

@@ -1,0 +1,36 @@
+{
+  "id": "generated_greek_yogurt_pear_001",
+  "title": "Greek yogurt with sliced pear",
+  "ingredients": [
+    "2 cups plain Greek yogurt",
+    "2 medium ripe pears",
+    "2 tablespoons honey",
+    "1/4 teaspoon ground cinnamon",
+    "1/4 cup chopped walnuts",
+    "1 teaspoon fresh lemon juice",
+    "Fresh mint leaves for garnish (optional)"
+  ],
+  "instructions": "1. Wash the pears thoroughly under cold water and pat dry with a paper towel. 2. Cut each pear in half lengthwise, remove the core and seeds using a spoon or melon baller. 3. Slice the pear halves into thin, even slices about 1/4-inch thick. Lightly brush or toss with lemon juice to prevent browning. 4. Divide the Greek yogurt evenly among 4 serving bowls, placing 1/2 cup in each bowl. 5. Arrange the pear slices decoratively on top of the yogurt in each bowl, fanning them out or layering as desired. 6. Drizzle 1/2 tablespoon of honey over each serving. 7. Sprinkle a pinch of ground cinnamon over each bowl. 8. Top each serving with 1 tablespoon of chopped walnuts. 9. Garnish with fresh mint leaves if desired and serve immediately.",
+  "tags": [
+    "quick",
+    "healthy",
+    "no-cook",
+    "vegetarian",
+    "family-friendly",
+    "toddler-friendly",
+    "gluten-free",
+    "snack",
+    "breakfast",
+    "high-protein"
+  ],
+  "prep_time_minutes": 8,
+  "active_cooking_time_minutes": 0,
+  "serves": 4,
+  "required_appliances": [
+    "knife",
+    "cutting board",
+    "mixing bowls"
+  ],
+  "is_generated": true,
+  "description": "A refreshing and nutritious snack featuring creamy Greek yogurt topped with sweet, juicy pear slices, honey, and a sprinkle of cinnamon and crunchy walnuts for added texture and flavor."
+}

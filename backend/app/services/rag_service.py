@@ -154,7 +154,8 @@ def _build_filters(household: HouseholdProfile) -> Optional[Dict]:
 def prepare_context_for_llm(
     household: HouseholdProfile,
     recipes: List[Recipe],
-    available_groceries: List[GroceryItem]
+    available_groceries: List[GroceryItem],
+    recipe_ratings: Optional[Dict[str, Dict[str, str]]] = None
 ) -> Dict:
     """
     Prepare structured context for LLM prompt.
@@ -164,11 +165,13 @@ def prepare_context_for_llm(
     - Available groceries with expiry information
     - Candidate recipes with full details
     - Cooking preferences
+    - Recipe ratings (likes/dislikes per household member)
 
     Args:
         household: Household profile
         recipes: List of relevant recipes
         available_groceries: List of GroceryItem objects with dates
+        recipe_ratings: Optional dict mapping recipe_id to ratings dict (member_name -> rating)
 
     Returns:
         Dictionary with structured context for prompt construction
@@ -226,7 +229,8 @@ def prepare_context_for_llm(
                 "prep_time_minutes": recipe.prep_time_minutes,
                 "active_cooking_time_minutes": recipe.active_cooking_time_minutes,
                 "serves": recipe.serves,
-                "required_appliances": recipe.required_appliances
+                "required_appliances": recipe.required_appliances,
+                "household_ratings": recipe_ratings.get(recipe.id, {}) if recipe_ratings else {}
             }
             for recipe in recipes
         ]

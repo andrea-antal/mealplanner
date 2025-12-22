@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { RecipeTag } from './RecipeTag';
+import { RecipeRating } from './RecipeRating';
 import type { Recipe } from '@/lib/api';
+import { householdAPI, recipesAPI } from '@/lib/api';
 import { Clock, Users, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -31,7 +34,38 @@ interface RecipeModalProps {
 
 export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModalProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
+
+  // Fetch household members
+  const { data: household } = useQuery({
+    queryKey: ['householdProfile'],
+    queryFn: householdAPI.getProfile,
+  });
+
+  // Fetch current ratings for this recipe
+  const { data: ratings } = useQuery({
+    queryKey: ['recipeRatings', recipe?.id],
+    queryFn: () => recipesAPI.getRatings(recipe!.id),
+    enabled: !!recipe,
+  });
+
+  // Mutation for rating updates
+  const rateMutation = useMutation({
+    mutationFn: ({ recipeId, memberName, rating }: { recipeId: string; memberName: string; rating: string | null }) =>
+      recipesAPI.rateRecipe(recipeId, memberName, rating),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipeRatings', recipe?.id] });
+      toast.success('Rating saved!');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to save rating: ${error.message}`);
+    },
+  });
+
+  const handleRate = (recipeId: string, memberName: string, rating: string | null) => {
+    rateMutation.mutate({ recipeId, memberName, rating });
+  };
 
   if (!recipe) return null;
 
@@ -52,12 +86,13 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="font-display text-2xl">{recipe.title}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        {/* Top Half: Recipe Details (Scrollable) */}
+        <div className="flex-1 overflow-y-auto px-6 space-y-6">
           {/* Description */}
           {recipe.description && (
             <p className="text-muted-foreground">{recipe.description}</p>
@@ -109,7 +144,7 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
           </div>
 
           {/* Instructions */}
-          <div>
+          <div className="pb-4">
             <h4 className="font-display font-semibold text-lg mb-3">Instructions</h4>
             <div className="space-y-3">
               {recipe.instructions.split(/\d+\.\s+/).filter(step => step.trim()).map((step, idx) => (
@@ -122,32 +157,48 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons - Moved to bottom */}
-          {(recipe.is_generated || onDelete) && (
-            <div className="flex gap-2 pt-4 border-t border-border">
-              {recipe.is_generated && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowRegenerateDialog(true)}
-                  className="text-primary hover:text-primary hover:bg-primary/10"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Generate Again
-                </Button>
-              )}
-              {onDelete && (
-                <Button
-                  variant="outline"
-                  onClick={handleDelete}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Recipe
-                </Button>
-              )}
-            </div>
-          )}
+        {/* Bottom Half: Ratings & Actions (Fixed/Scrollable) */}
+        <div className="shrink-0 border-t border-border bg-muted/30">
+          <div className="max-h-[40vh] overflow-y-auto px-6 py-6 space-y-6">
+            {/* Recipe Ratings */}
+            {household && ratings && (
+              <RecipeRating
+                recipeId={recipe.id}
+                currentRatings={ratings}
+                householdMembers={household.family_members}
+                onRate={handleRate}
+                disabled={rateMutation.isPending}
+              />
+            )}
+
+            {/* Action Buttons */}
+            {(recipe.is_generated || onDelete) && (
+              <div className="flex gap-2">
+                {recipe.is_generated && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRegenerateDialog(true)}
+                    className="text-primary hover:text-primary hover:bg-primary/10"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Generate Again
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="outline"
+                    onClick={handleDelete}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Recipe
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
 

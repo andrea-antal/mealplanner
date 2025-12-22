@@ -1,0 +1,90 @@
+{
+  "ratings": [
+    {
+      "recipe_id": "recipe_001",
+      "recipe_title": "One-Pot Chicken and Rice",
+      "ratings": {
+        "Andrea": "like",
+        "Adam": "dislike",
+        "Nathan": "like"
+      },
+      "notes": "Majority like (2 likes, 1 dislike) - should appear in meal plans"
+    },
+    {
+      "recipe_id": "recipe_002",
+      "recipe_title": "Cheesy Scrambled Eggs",
+      "ratings": {
+        "Andrea": "like",
+        "Adam": "dislike",
+        "Nathan": "like"
+      },
+      "notes": "Majority like (2 likes, 1 dislike) - should appear in meal plans"
+    },
+    {
+      "recipe_id": "recipe_003",
+      "recipe_title": "Simple Pasta with Tomato Sauce",
+      "ratings": {
+        "Andrea": "like",
+        "Adam": "like",
+        "Nathan": "like"
+      },
+      "notes": "Family favorite (all likes) - should be highly prioritized"
+    },
+    {
+      "recipe_id": "generated_chinese_tofu_broccoli_stir_fry_001",
+      "recipe_title": "Chinese Tofu Broccoli Stir-Fry",
+      "ratings": {
+        "Andrea": "like",
+        "Adam": "dislike",
+        "Nathan": "dislike"
+      },
+      "notes": "Majority dislike (1 like, 2 dislikes) - should rarely appear"
+    },
+    {
+      "recipe_id": "generated_veggie_hash_001",
+      "recipe_title": "Veggie Hash",
+      "ratings": {
+        "Andrea": "like",
+        "Adam": "like",
+        "Nathan": null
+      },
+      "notes": "Mostly liked (2 likes, no dislikes, 1 not rated) - good candidate"
+    },
+    {
+      "recipe_id": "generated_banana_yogurt_muffins_001",
+      "ratings": {
+        "Adam": "like",
+        "Andrea": "like",
+        "Nathan": "like"
+      }
+    },
+    {
+      "recipe_id": "generated_apple_oat_crumble_bars_001",
+      "ratings": {
+        "Andrea": "like",
+        "Nathan": "like",
+        "Adam": "like"
+      }
+    },
+    {
+      "recipe_id": "generated_butternut_squash_carrot_soup_001",
+      "ratings": {
+        "Nathan": "like",
+        "Adam": "like",
+        "Andrea": "like"
+      }
+    },
+    {
+      "recipe_id": "generated_baked_sweet_potato_steamed_carrots_001",
+      "ratings": {
+        "Nathan": "like"
+      }
+    },
+    {
+      "recipe_id": "generated_salmon_zucchini_medley_001",
+      "ratings": {
+        "Test Person": "dislike"
+      }
+    }
+  ]
+}

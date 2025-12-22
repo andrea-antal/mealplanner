@@ -109,6 +109,13 @@ You always:
 - Provide practical, realistic meal plans that busy families can execute
 - Only use recipes from the provided candidate list
 
+RECIPE RATING GUIDELINES:
+- Each recipe may have household member ratings: "like", "dislike", or null (not rated)
+- Prioritize recipes with more "like" ratings from household members
+- Avoid recipes with more "dislike" than "like" ratings
+- Balance family preferences with variety and dietary constraints
+- A recipe liked by the whole family is an excellent choice
+
 IMPORTANT PRIORITY:
 - Ingredients marked with ⚠️ "USE SOON" are expiring within 2 days and should be prioritized in your meal plan
 - Try to use these ingredients in the next 1-2 days to reduce food waste"""
@@ -231,7 +238,11 @@ Create a 7-day meal plan (breakfast, lunch, dinner, snacks) that:
    - Weeknight dinners: ≤ {prefs['max_active_cooking_time_weeknight']} min active cooking
    - Weekend dinners: ≤ {prefs['max_active_cooking_time_weekend']} min active cooking
 4. Specifies which family member(s) each meal is for
-5. For daycare lunches, explicitly note "for daycare" and ensure it meets all daycare rules
+5. **DAYCARE REQUIREMENTS** (Monday-Friday only):
+   - Nathan needs a daycare lunch AND daycare snack each weekday (Mon-Fri)
+   - Daycare meals must explicitly note "for daycare" and meet all daycare rules
+   - Weekend meals (Sat-Sun) are family meals - no separate daycare meals
+   - Holidays with no daycare should be treated as weekend/family meal days
 6. Provides variety across the week
 7. Uses ONLY recipes from the candidate list above
 
@@ -261,8 +272,10 @@ IMPORTANT:
 - Return ONLY valid JSON, no other text
 - Use recipe IDs and titles exactly as provided in candidate recipes
 - For simple snacks (e.g., "Apple slices", "Banana"), use recipe_id: null
-- Include 7 days starting from {week_start_date}
-- Each day should have breakfast, lunch, dinner, and optionally snacks"""
+- Include 7 consecutive days starting from {week_start_date} (Monday through Sunday)
+- Each weekday (Mon-Fri) must have: breakfast (family), lunch (Nathan's daycare + family if needed), dinner (family), Nathan's daycare snack
+- Each weekend day (Sat-Sun) must have: breakfast (family), lunch (family), dinner (family), optional family snacks
+- Each day should have breakfast, lunch, and dinner minimum"""
 
     return prompt
 

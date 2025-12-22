@@ -54,3 +54,53 @@ class GroceryItem(BaseModel):
 class GroceryList(BaseModel):
     """Complete grocery list"""
     items: list[GroceryItem] = Field(default_factory=list)
+
+
+# Voice parsing models for Sprint 4 Phase 1
+
+
+class ProposedGroceryItem(BaseModel):
+    """
+    Grocery item proposed by AI parsing with confidence score.
+
+    This extends the concept of GroceryItem with additional fields
+    for AI-assisted input (confidence, notes, portion).
+    """
+    name: str = Field(..., description="Grocery item name")
+    date_added: Optional[Date] = Field(None, description="When item was added (optional for proposed items)")
+    purchase_date: Optional[Date] = Field(None, description="When item was purchased")
+    expiry_type: Optional[Literal["expiry_date", "best_before_date"]] = Field(None, description="Type of expiry")
+    expiry_date: Optional[Date] = Field(None, description="Expiry or best before date")
+    portion: Optional[str] = Field(None, description="Quantity/portion (e.g., '2 lbs', '1 gallon')")
+    confidence: Literal["high", "medium", "low"] = Field("high", description="AI parsing confidence level")
+    notes: Optional[str] = Field(None, description="AI reasoning or explanation")
+
+    @model_validator(mode='after')
+    def validate_expiry_type(self):
+        """If expiry_date is set, expiry_type must also be set"""
+        if self.expiry_date and not self.expiry_type:
+            raise ValueError("expiry_type required when expiry_date is set")
+        return self
+
+
+class VoiceParseRequest(BaseModel):
+    """Request to parse voice transcription into groceries"""
+    transcription: str = Field(..., min_length=1, description="Voice transcription text")
+
+
+class VoiceParseResponse(BaseModel):
+    """Response from voice parsing with proposed items and warnings"""
+    proposed_items: list[ProposedGroceryItem] = Field(
+        default_factory=list,
+        description="List of proposed grocery items parsed from voice"
+    )
+    transcription_used: str = Field(..., description="The transcription that was parsed")
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="User-facing warnings (e.g., duplicates, ambiguities)"
+    )
+
+
+class BatchAddRequest(BaseModel):
+    """Request to add multiple grocery items at once"""
+    items: list[GroceryItem] = Field(..., min_length=1, description="Items to add (must have at least one)")

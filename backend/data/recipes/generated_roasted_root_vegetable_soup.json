@@ -1,0 +1,38 @@
+{
+  "id": "generated_roasted_root_vegetable_soup",
+  "title": "Roasted Root Vegetable Soup",
+  "ingredients": [
+    "2 medium sweet potatoes, peeled and cubed (about 1 lb)",
+    "3 large carrots, peeled and chopped",
+    "1 large white onion, roughly chopped",
+    "3 tablespoons olive oil",
+    "4 cups vegetable or chicken broth",
+    "2 cloves garlic, minced",
+    "1 teaspoon ground cumin",
+    "1/2 teaspoon smoked paprika",
+    "1/4 teaspoon ground ginger",
+    "1/2 cup coconut milk or heavy cream",
+    "Salt and black pepper to taste",
+    "Fresh parsley or chives for garnish (optional)"
+  ],
+  "instructions": "1. Preheat oven to 425\u00b0F (220\u00b0C). 2. Toss sweet potato cubes, carrots, and onion with 2 tablespoons olive oil, salt, and pepper on a large baking sheet. Spread in a single layer. 3. Roast for 25-30 minutes, stirring halfway through, until vegetables are tender and caramelized at the edges. 4. Heat remaining 1 tablespoon olive oil in a large pot over medium heat. Add minced garlic and saut\u00e9 for 1 minute until fragrant. 5. Add roasted vegetables to the pot along with cumin, smoked paprika, and ginger. Stir for 1 minute. 6. Pour in broth and bring to a boil. Reduce heat and simmer for 10 minutes. 7. Use an immersion blender to puree the soup until smooth, or carefully transfer to a blender in batches. 8. Stir in coconut milk or cream and heat through. Adjust seasoning with salt and pepper. 9. Serve hot, garnished with fresh herbs if desired. Pairs wonderfully with crusty bread.",
+  "tags": [
+    "healthy",
+    "vegetarian",
+    "comfort-food",
+    "family-friendly",
+    "gluten-free"
+  ],
+  "prep_time_minutes": 15,
+  "active_cooking_time_minutes": 45,
+  "serves": 4,
+  "required_appliances": [
+    "oven",
+    "baking sheet",
+    "stove",
+    "large pot",
+    "immersion blender or regular blender"
+  ],
+  "is_generated": true,
+  "description": "A creamy, comforting soup featuring caramelized sweet potatoes, carrots, and onions with warming spices. Perfect for a cozy dinner."
+}

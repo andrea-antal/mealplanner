@@ -50,12 +50,12 @@
       "microwave"
     ],
     "preferred_methods": [],
-    "skill_level": "advanced",
+    "skill_level": "intermediate",
     "max_active_cooking_time_weeknight": 30,
     "max_active_cooking_time_weekend": 60
   },
   "preferences": {
-    "weeknight_priority": "minimal-prep",
+    "weeknight_priority": "quick",
     "weekend_priority": "batch-cookable"
   }
 }
