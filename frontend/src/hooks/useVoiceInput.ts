@@ -76,7 +76,7 @@ export function useVoiceInput(): UseVoiceInputReturn {
     const recognition = new SpeechRecognition();
 
     recognition.continuous = true;  // Keep listening until manually stopped
-    recognition.interimResults = false;  // Only use final results
+    recognition.interimResults = true;  // Show results in real-time as user speaks
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
@@ -84,14 +84,22 @@ export function useVoiceInput(): UseVoiceInputReturn {
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      // Concatenate all final results
+      // Build transcription from both final and interim results
       let finalTranscript = '';
+      let interimTranscript = '';
+
       for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + ' ';
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
         }
       }
-      setTranscription(finalTranscript.trim());
+
+      // Combine final and interim for live display
+      const fullTranscript = (finalTranscript + interimTranscript).trim();
+      setTranscription(fullTranscript);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {

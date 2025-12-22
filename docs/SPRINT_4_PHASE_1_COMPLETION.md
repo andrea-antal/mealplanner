@@ -115,6 +115,9 @@ Grocery list updated
 ✅ Browser microphone access with permission handling
 ✅ Continuous listening mode (speak naturally, multiple items)
 ✅ Visual feedback (red button, pulsing dot, "Listening..." text)
+✅ **Live transcription display** - Real-time preview of what the user is saying as they speak
+✅ **Interim results** - Shows partial transcripts during speech for immediate feedback
+✅ User-friendly disclaimer explaining transcription may not be perfect
 ✅ Error messages for all scenarios (no mic, permission denied, network error, no speech)
 ✅ Graceful fallback (manual input always available)
 
@@ -191,6 +194,9 @@ Every component was built using strict TDD:
 ### Voice Recording
 - [ ] Click mic → recording indicator appears
 - [ ] Red button with pulsing dot shows
+- [ ] **Live transcription appears as user speaks**
+- [ ] **Transcription updates in real-time with interim results**
+- [ ] **Disclaimer text displays explaining AI can handle imperfect transcripts**
 - [ ] Can speak multiple sentences
 - [ ] Click mic again → recording stops
 - [ ] Processing spinner shows while parsing
@@ -280,6 +286,8 @@ Every component was built using strict TDD:
    - Edit-before-confirm prevents bad data
    - Confidence scores build trust
    - AI reasoning transparency (notes field)
+   - Live transcription feedback reduces user anxiety about mic functionality
+   - Disclaimer text manages expectations for imperfect speech-to-text
 
 ### Challenges Overcome
 
@@ -300,6 +308,8 @@ Every component was built using strict TDD:
 | Decision | Rationale | Trade-off |
 |----------|-----------|-----------|
 | Continuous listening | More natural speech flow | Manual stop required |
+| Interim results enabled | Real-time feedback builds confidence | May show imperfect partial transcripts |
+| Live transcription display | Users see mic is working | Extra UI complexity |
 | Parse + Confirm | Prevents AI errors | Extra click |
 | Batch add | Single transaction | All-or-nothing |
 | Confidence scores | User knows what to check | Added complexity |

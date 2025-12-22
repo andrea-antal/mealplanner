@@ -366,18 +366,30 @@ const Groceries = () => {
           </Button>
         </div>
 
-        {/* Voice State Indicator */}
+        {/* Voice State Indicator with Live Transcription */}
         {voiceState === 'listening' && (
-          <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
+          <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 bg-destructive rounded-full animate-pulse" />
-                <span className="text-sm font-medium text-foreground">Listening...</span>
-              </div>
+              <div className="h-3 w-3 bg-destructive rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-foreground">Listening...</span>
               <span className="text-xs text-muted-foreground">
                 Speak your grocery items clearly, then click stop
               </span>
             </div>
+
+            {/* Live Transcription Display */}
+            {transcription && (
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground italic">
+                  Don't worry if this isn't exactly correctly transcribing what you're saying - AI could still potentially figure out what you said once you're done.
+                </div>
+                <div className="bg-card rounded-lg p-3 border border-border">
+                  <p className="text-sm text-foreground min-h-[1.5rem]">
+                    {transcription}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
