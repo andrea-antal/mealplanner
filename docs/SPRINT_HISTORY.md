@@ -4,6 +4,165 @@ This document archives all completed sprints from the Meal Planner project. For 
 
 ---
 
+## ✅ Sprint 3: Recipe Ratings & Filtering (Complete)
+
+**Status**: Complete (2025-12-22)
+**Goal**: Enable personalized meal planning with per-person recipe ratings and filtering
+**Duration**: 3 phases across 6 days (Dec 17-22, 2025)
+
+### User Stories Completed
+
+**US3.1**: Individual Dietary Preferences ✅
+- Added `preferences` field to household member model
+- Users can specify dietary patterns per person (e.g., "lactose-intolerant", "mostly pescetarian")
+- Full CRUD operations in Household page UI
+
+**US3.2**: Recipe Rating System ✅
+- Users can rate recipes on behalf of each household member (👍 like / 👎 dislike)
+- Per-person ratings displayed in RecipeRating component
+- Recipe ratings influence meal plan generation (Claude prioritizes "liked" recipes)
+- Aggregate ratings (e.g., "👍 2 | 👎 1") displayed on all recipe cards
+
+**US3.3**: Recipe Filtering by Household Preferences ✅
+- Users can filter recipes by "Liked by [member name]"
+- Users can view family favorites ("Liked by all members")
+- Users can find unrated recipes ("Not yet rated")
+- Filter works alongside text search (AND logic)
+
+### Implementation Summary
+
+**Phase 1** (Dec 17): Individual Dietary Preferences
+- Backend: Extended FamilyMember model with `preferences: List[str]`
+- Backend: Updated Claude prompts to include preferences
+- Frontend: Added UI for editing preferences in Household page
+- Integration: Preferences included in meal plan context
+
+**Phase 2** (Dec 21): Recipe Rating System
+- Backend: Created RecipeRating Pydantic model
+- Backend: Added recipe_ratings.json storage file
+- Backend: Implemented 4 API endpoints (ratings, favorites, popular, rate recipe)
+- Frontend: Created RecipeRating component with 👍/👎 buttons
+- Frontend: Added aggregate rating display to RecipeCard
+- Frontend: Updated API client with all rating methods
+- Integration: Meal plan service prioritizes liked recipes
+
+**Phase 3** (Dec 22): Recipe Filtering
+- Frontend: Added filter dropdown to Recipes page
+- Frontend: Implemented conditional React Query queries
+- Frontend: Two-stage filtering (type → search)
+- Frontend: Enhanced loading and empty states
+- Backend: No changes (all APIs from Phase 2)
+
+### Technical Highlights
+
+**Smart Query Optimization:**
+- Conditional queries only fetch when filter is active
+- React Query caching reduces redundant API calls
+- Household profile: 5 min cache, Filter queries: 1 min cache
+
+**Data Model:**
+```python
+class RecipeRating(BaseModel):
+    recipe_id: str
+    ratings: Dict[str, Optional[str]]  # {member_name: "like"|"dislike"|null}
+```
+
+**API Endpoints:**
+- GET /recipes/ratings - All recipe ratings
+- POST /recipes/{recipe_id}/rating - Update rating for member
+- GET /recipes/favorites/{member_name} - Recipes liked by member
+- GET /recipes/popular - Recipes liked by all members
+
+**Frontend Patterns:**
+- Conditional queries with `enabled` option
+- Two-stage filtering for performance
+- Combined search + filter (AND logic)
+- Responsive UI (mobile-first)
+
+### Files Modified
+
+**Backend:**
+- `app/models/household.py` - Added preferences field
+- `app/models/recipe_rating.py` - NEW rating model
+- `app/routers/recipes.py` - Added 4 rating endpoints
+- `app/services/claude_service.py` - Updated prompts with preferences/ratings
+- `app/services/rag_service.py` - Include ratings in context
+- `data/recipe_ratings.json` - NEW data file
+
+**Frontend:**
+- `src/pages/Household.tsx` - Preferences editing UI
+- `src/pages/Recipes.tsx` - Filter dropdown
+- `src/components/RecipeRating.tsx` - NEW rating UI component
+- `src/components/RecipeCard.tsx` - Aggregate rating display
+- `src/components/RecipeModal.tsx` - Integrated rating component
+- `src/lib/api.ts` - Added rating API methods
+
+**Documentation:**
+- Updated CHANGELOG.md with all 3 phases
+- Updated SPRINT_PLAN.md
+- Updated PROJECT_CONTEXT.md
+- This SPRINT_HISTORY.md entry
+
+### Testing Results
+
+**Phase 1:** 5/5 tests passed
+- Backend model has preferences field
+- Preferences appear in Claude prompt
+- API accepts and returns preferences
+- Preferences persist in JSON
+- Frontend TypeScript compiles
+
+**Phase 2:** All endpoints tested
+- GET /recipes/ratings returns valid data
+- POST /recipes/{recipe_id}/rating updates correctly
+- GET /recipes/favorites/{member} filters properly
+- GET /recipes/popular returns family favorites
+- Frontend UI interactions work
+
+**Phase 3:** Filter scenarios verified
+- All filter options work correctly
+- Combined search + filter operates as expected
+- Loading states display properly
+- Empty states update based on filters
+- Responsive layout verified
+
+### Key Learnings
+
+1. **Conditional Queries Pattern**: Using React Query's `enabled` option prevents unnecessary API calls and improves performance significantly.
+
+2. **Two-Stage Filtering**: Applying type filter first (backend API) then text search (client-side) provides the best UX while minimizing backend load.
+
+3. **Backward Compatibility**: Using Pydantic's `default_factory=list` for new fields ensures old data loads without migration scripts.
+
+4. **Route Ordering in FastAPI**: Specific routes (`/favorites/{member}`) must come before parameterized routes (`/{recipe_id}`) to avoid conflicts.
+
+5. **Component Reusability**: The Select component pattern works well across Household and Recipes pages with consistent UX.
+
+### User Impact
+
+**Before Sprint 3:**
+- Generic meal plans with no personalization
+- No way to track recipe preferences
+- Manual filtering required
+
+**After Sprint 3:**
+- Personalized meal plans based on family preferences
+- Easy rating system (👍/👎) for all household members
+- Instant filtering by member preferences or family favorites
+- Visible aggregate ratings on recipe cards
+- Claude prioritizes liked recipes in meal generation
+
+### Completion Metrics
+
+- **Phases**: 3/3 complete (100%)
+- **User Stories**: 3/3 complete (100%)
+- **Backend Endpoints**: 4/4 implemented
+- **Frontend Components**: 2/2 created (RecipeRating, Filter Dropdown)
+- **Documentation**: Complete
+- **Testing**: All scenarios verified
+
+---
+
 ## 🚨 2025-12-21 INCIDENT: Data Recovery & Test Isolation
 
 **Type**: Critical Bug Fix | **Priority**: P0 | **Status**: Complete | **Duration**: 1 hour

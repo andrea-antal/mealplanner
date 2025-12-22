@@ -78,6 +78,112 @@ def test_save(temp_data_dir):
 
 ---
 
+## 2025-12-22
+
+### Sprint 3 Phase 3: Recipe Filtering by Ratings ✅ COMPLETE
+**Duration**: ~1 hour
+**Status**: ✅ Complete | **Sprint 3**: 100% COMPLETE
+
+**What was built:**
+Completed the final piece of Sprint 3 by adding a filter dropdown to the Recipes page, allowing users to filter recipes by household member preferences and rating status.
+
+**Frontend Changes:**
+
+1. **Filter Dropdown UI** (`frontend/src/pages/Recipes.tsx`):
+   - Added Select component with filter options
+   - Responsive layout (stacked on mobile, inline with search on desktop)
+   - Filter label with icon
+   - Disabled state while loading household data
+
+2. **Filter Options**:
+   - "All recipes" (default - shows all recipes)
+   - "Liked by [Member Name]" (dynamic per household member)
+   - "Liked by all members" (family favorites)
+   - "Not yet rated" (recipes with no ratings)
+
+3. **State Management**:
+   - Added `selectedFilter` state
+   - Household profile query for member names
+   - Conditional queries for favorites/popular/ratings (only fetch when needed)
+   - Combined filter + search logic (AND condition)
+
+4. **Query Optimization**:
+   - Favorites query: Only enabled when member filter active
+   - Popular query: Only enabled when popular filter active
+   - Ratings query: Only enabled when unrated filter active
+   - React Query caching: 1-5 minute stale times
+
+5. **Two-Stage Filtering**:
+   ```typescript
+   Step 1: Apply type filter (all/member/popular/unrated)
+   Step 2: Apply text search within filtered results
+   Result: Combined filter + search capability
+   ```
+
+6. **Enhanced UX**:
+   - Loading states for filter data fetching
+   - Updated empty state messages based on active filters
+   - "Clear filters" button resets both search and filter
+   - Smart button text ("Clear filters" vs "Clear search" vs "Clear filter")
+
+**Technical Decisions:**
+
+1. **Conditional Queries**:
+   - Used React Query's `enabled` option to prevent unnecessary API calls
+   - Only fetch data for the active filter type
+   - Reduces backend load and improves performance
+
+2. **Hybrid Filtering Approach**:
+   - Type filters use backend APIs (favorites, popular)
+   - Text search uses client-side filtering (fast, no extra API calls)
+   - "Unrated" filter computed from ratings query
+   - Best balance of performance and simplicity
+
+3. **Caching Strategy**:
+   - Household profile: 5 minutes (rarely changes)
+   - Filter queries: 1 minute (may change if ratings updated)
+   - Switching between filters reuses cached data when fresh
+
+**Files Modified:**
+- `frontend/src/pages/Recipes.tsx` (+117 lines, -17 lines)
+  - Added imports: Select components, Filter icon, householdAPI
+  - Added filter state and queries
+  - Updated filtering logic
+  - Enhanced UI layout
+  - Improved loading and empty states
+
+**Backend Integration:**
+- No backend changes needed (all APIs already exist from Phase 2)
+- Uses existing endpoints:
+  - GET /recipes/favorites/{member_name}
+  - GET /recipes/popular
+  - GET /recipes/ratings
+
+**Testing:**
+- Frontend build passes without TypeScript errors
+- All filter options work correctly
+- Combined search + filter operates as expected
+- Responsive layout verified
+
+**Sprint 3 Summary:**
+
+Sprint 3 is now **100% COMPLETE** with all three phases:
+- ✅ **Phase 1** (Dec 17): Individual dietary preferences for household members
+- ✅ **Phase 2** (Dec 21): Recipe rating system with 👍/👎 per member
+- ✅ **Phase 3** (Dec 22): Recipe filtering by ratings and preferences
+
+**Complete Feature Set:**
+1. Users can add individual preferences per family member
+2. Users can rate recipes with thumbs up/down for each member
+3. Aggregate ratings display on all recipe cards
+4. Users can filter recipes by member preferences
+5. Users can view family favorites (liked by all)
+6. Meal plans prioritize liked recipes
+
+**Next Sprint:** Sprint 4 - Multi-Modal Grocery Input (Voice, OCR, Image)
+
+---
+
 ## 2025-12-21
 
 ### Sprint 3 Phase 2: Recipe Rating System - Additional Endpoints
