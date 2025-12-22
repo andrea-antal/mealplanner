@@ -13,7 +13,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DynamicRecipeModal } from '@/components/DynamicRecipeModal';
+import { GroceryConfirmationDialog, type ProposedGroceryItem } from '@/components/GroceryConfirmationDialog';
 import { groceriesAPI, type GroceryItem, type Recipe } from '@/lib/api';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 import {
   Plus,
   X,
@@ -25,6 +27,8 @@ import {
   Calendar,
   ChevronDown,
   ChevronUp,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,6 +45,21 @@ const Groceries = () => {
   const [newItemPurchaseDate, setNewItemPurchaseDate] = useState('');
   const [newItemExpiryType, setNewItemExpiryType] = useState<'expiry_date' | 'best_before_date' | ''>('');
   const [newItemExpiryDate, setNewItemExpiryDate] = useState('');
+
+  // Voice input state
+  const {
+    state: voiceState,
+    transcription,
+    error: voiceError,
+    startListening,
+    stopListening,
+    reset: resetVoice,
+    isSupported: isVoiceSupported,
+  } = useVoiceInput();
+
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [proposedItems, setProposedItems] = useState<ProposedGroceryItem[]>([]);
+  const [parseWarnings, setParseWarnings] = useState<string[]>([]);
 
   // Fetch groceries from backend
   const { data: groceryList, isLoading, error } = useQuery({
@@ -85,6 +104,37 @@ const Groceries = () => {
     },
     onError: (error: Error) => {
       toast.error(`Failed to delete item: ${error.message}`);
+    },
+  });
+
+  // Voice parsing mutation
+  const parseVoiceMutation = useMutation({
+    mutationFn: (transcription: string) => groceriesAPI.parseVoice(transcription),
+    onSuccess: (response) => {
+      setProposedItems(response.proposed_items);
+      setParseWarnings(response.warnings);
+      setShowConfirmDialog(true);
+      resetVoice();
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to parse voice input: ${error.message}`);
+      resetVoice();
+    },
+  });
+
+  // Batch add mutation
+  const batchAddMutation = useMutation({
+    mutationFn: (items: GroceryItem[]) => groceriesAPI.batchAdd(items),
+    onSuccess: (_, items) => {
+      queryClient.invalidateQueries({ queryKey: ['groceries'] });
+      queryClient.invalidateQueries({ queryKey: ['groceries-expiring'] });
+      toast.success(`${items.length} item${items.length !== 1 ? 's' : ''} added to list`);
+      setShowConfirmDialog(false);
+      setProposedItems([]);
+      setParseWarnings([]);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to add items: ${error.message}`);
     },
   });
 
@@ -140,6 +190,23 @@ const Groceries = () => {
   const handleRecipeGenerated = (recipe: Recipe) => {
     toast.success(`Recipe "${recipe.title}" created successfully!`);
     navigate('/recipes', { state: { openRecipeId: recipe.id } });
+  };
+
+  // Voice input handlers
+  const handleVoiceToggle = () => {
+    if (voiceState === 'listening') {
+      stopListening();
+      // Parse transcription when stopped
+      if (transcription.trim()) {
+        parseVoiceMutation.mutate(transcription);
+      }
+    } else {
+      startListening();
+    }
+  };
+
+  const handleConfirmItems = (items: GroceryItem[]) => {
+    batchAddMutation.mutate(items);
   };
 
   // Helper to calculate days until expiry
@@ -254,6 +321,26 @@ const Groceries = () => {
             onKeyDown={(e) => e.key === 'Enter' && !showAdvancedForm && addGrocery()}
             className="flex-1"
           />
+
+          {/* Voice Input Button */}
+          {isVoiceSupported && (
+            <Button
+              variant={voiceState === 'listening' ? 'destructive' : 'outline'}
+              onClick={handleVoiceToggle}
+              disabled={parseVoiceMutation.isPending}
+              className="shrink-0"
+              title={voiceState === 'listening' ? 'Stop listening' : 'Voice input'}
+            >
+              {parseVoiceMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : voiceState === 'listening' ? (
+                <MicOff className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+
           <Button
             variant="outline"
             onClick={() => {
@@ -278,6 +365,31 @@ const Groceries = () => {
             Add
           </Button>
         </div>
+
+        {/* Voice State Indicator */}
+        {voiceState === 'listening' && (
+          <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 bg-destructive rounded-full animate-pulse" />
+                <span className="text-sm font-medium text-foreground">Listening...</span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Speak your grocery items clearly, then click stop
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Voice Error Display */}
+        {voiceError && (
+          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <p className="text-sm text-destructive">{voiceError}</p>
+            </div>
+          </div>
+        )}
 
         {/* Advanced Fields */}
         {showAdvancedForm && (
@@ -431,6 +543,16 @@ const Groceries = () => {
         onOpenChange={setShowRecipeModal}
         selectedIngredients={selectedIngredients}
         onRecipeGenerated={handleRecipeGenerated}
+      />
+
+      {/* Grocery Confirmation Dialog */}
+      <GroceryConfirmationDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        proposedItems={proposedItems}
+        warnings={parseWarnings}
+        onConfirm={handleConfirmItems}
+        isLoading={batchAddMutation.isPending}
       />
     </div>
   );
