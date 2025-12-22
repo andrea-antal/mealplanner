@@ -258,6 +258,27 @@
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
+    },
+    {
+      "name": "milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "dup_test_22",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
     }
   ]
 }

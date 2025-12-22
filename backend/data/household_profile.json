@@ -1,39 +1,11 @@
 {
   "family_members": [
     {
-      "name": "Adam",
+      "name": "Test Person",
       "age_group": "adult",
       "allergies": [],
-      "dislikes": [
-        "meat",
-        "visible/obvious eggs",
-        "Chinese food"
-      ],
-      "preferences": [
-        "likes Japanese food",
-        "likes spicy"
-      ]
-    },
-    {
-      "name": "Andrea",
-      "age_group": "adult",
-      "allergies": [
-        "raw stone/pit fruit"
-      ],
       "dislikes": [],
-      "preferences": [
-        "low-meat"
-      ]
-    },
-    {
-      "name": "Nathan",
-      "age_group": "toddler",
-      "allergies": [],
-      "dislikes": [],
-      "preferences": [
-        "toddler-friendly",
-        "no spicy"
-      ]
+      "preferences": []
     }
   ],
   "daycare_rules": {
@@ -42,13 +14,7 @@
     "must_be_cold": false
   },
   "cooking_preferences": {
-    "available_appliances": [
-      "oven",
-      "instant_pot",
-      "blender",
-      "food_processor",
-      "microwave"
-    ],
+    "available_appliances": [],
     "preferred_methods": [],
     "skill_level": "intermediate",
     "max_active_cooking_time_weeknight": 30,

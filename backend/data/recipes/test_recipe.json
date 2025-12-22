@@ -1,0 +1,20 @@
+{
+  "id": "test_recipe",
+  "title": "Test Dish",
+  "ingredients": [
+    "ingredient1",
+    "ingredient2"
+  ],
+  "instructions": "Mix and cook",
+  "tags": [
+    "test"
+  ],
+  "prep_time_minutes": 5,
+  "active_cooking_time_minutes": 10,
+  "serves": 2,
+  "required_appliances": [
+    "oven"
+  ],
+  "is_generated": false,
+  "description": null
+}
