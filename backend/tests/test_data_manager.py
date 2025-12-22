@@ -22,13 +22,13 @@ def test_load_household_profile():
     print("✅ test_load_household_profile passed")
 
 
-def test_save_and_load_household_profile():
-    """Test saving and loading household profile"""
+def test_save_and_load_household_profile(temp_data_dir):
+    """Test saving and loading household profile (uses isolated test data)"""
     # Create a test profile
     member = FamilyMember(name="Test Person", age_group="adult", allergies=[], dislikes=[])
     test_profile = HouseholdProfile(family_members=[member])
 
-    # Save it
+    # Save to ISOLATED test directory (not production!)
     save_household_profile(test_profile)
 
     # Load it back
@@ -48,11 +48,11 @@ def test_load_groceries():
     print("✅ test_load_groceries passed")
 
 
-def test_save_and_load_groceries():
-    """Test saving and loading groceries"""
+def test_save_and_load_groceries(temp_data_dir):
+    """Test saving and loading groceries (uses isolated test data)"""
     test_items = ["apple", "banana", "carrot"]
 
-    # Save
+    # Save to ISOLATED test directory (not production!)
     save_groceries(test_items)
 
     # Load
@@ -78,8 +78,8 @@ def test_load_nonexistent_recipe():
     print("✅ test_load_nonexistent_recipe passed")
 
 
-def test_save_and_load_recipe():
-    """Test saving and loading a recipe"""
+def test_save_and_load_recipe(temp_data_dir):
+    """Test saving and loading a recipe (uses isolated test data)"""
     test_recipe = Recipe(
         id="test_recipe",
         title="Test Dish",
@@ -92,7 +92,7 @@ def test_save_and_load_recipe():
         required_appliances=["oven"]
     )
 
-    # Save
+    # Save to ISOLATED test directory (not production!)
     save_recipe(test_recipe)
 
     # Load

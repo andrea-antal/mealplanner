@@ -4,6 +4,383 @@ This document tracks key decisions, changes, and learnings during development.
 
 ---
 
+## 2025-12-21 INCIDENT RESOLVED: Household Data Wipe Recovery
+
+**Status**: Complete | **Duration**: 1 hour | **Data Loss**: Zero
+
+### What Happened
+Test suite accidentally overwrote `backend/data/household_profile.json` with test fixture ("Test Person" instead of family data for Andrea, Adam, Nathan).
+
+### Root Cause
+`backend/tests/test_data_manager.py::test_save_and_load_household_profile()` (line 32) saved test data to production directory instead of using isolated test fixtures.
+
+### Impact
+- Household data wiped at Dec 21 01:56 PST
+- Recipe ratings still referenced missing family members
+- Meal plan generation would have failed
+
+### Recovery
+1. Investigated Git history → found real data in commit e685759
+2. Backed up wiped version: `household_profile.json.WIPE_BACKUP_2025-12-21`
+3. Restored from Git commit e685759 (Dec 17 version with Andrea's allergy preserved)
+4. Validated against recipe ratings and Pydantic model
+5. All 3 family members restored with complete dietary preferences
+
+### Prevention Measures
+**Test Isolation Implemented:**
+- Created `backend/tests/conftest.py` with temp_data_dir fixture
+- Created `backend/tests/fixtures/` with isolated test data
+- Updated all data-modifying tests to use fixtures (3 tests modified)
+- Tests now NEVER touch production data
+
+**Documentation:**
+- Incident documented in CHANGELOG.md
+- Backup preserved for forensic analysis
+- Updated SPRINT_HISTORY.md
+
+### Files Modified
+- `backend/data/household_profile.json` - RESTORED from Git commit e685759
+- `backend/data/household_profile.json.WIPE_BACKUP_2025-12-21` - NEW (backup)
+- `backend/tests/conftest.py` - NEW (test isolation framework)
+- `backend/tests/fixtures/household_test.json` - NEW (test fixture)
+- `backend/tests/test_data_manager.py` - UPDATED (3 tests now use temp_data_dir)
+- `docs/CHANGELOG.md` - This entry
+- `docs/SPRINT_HISTORY.md` - Incident summary
+
+### Technical Details
+**Data Source Used:**
+- Commit e685759: Complete family data (Dec 17) with Andrea's allergy to raw stone/pit fruit ✅ **SAFER CHOICE**
+- Rejected blob 9e282ed: Had newer preferences but LOST Andrea's allergy data (safety risk)
+
+**Validation:**
+- ✓ Pydantic model loads without errors
+- ✓ Recipe ratings reference valid family members (Adam, Andrea, Nathan)
+- ✓ Meal plan references valid members
+- ✓ All 3 members restored with allergies, dislikes, and preferences
+- ✓ Tests pass without modifying production data
+
+### Key Lesson
+**Pattern to avoid:**
+```python
+# ❌ DANGEROUS: Test modifies production data
+def test_save():
+    save_to_production(test_data)  # Overwrites real data!
+```
+
+**Pattern to use:**
+```python
+# ✅ SAFE: Test uses isolated fixture
+def test_save(temp_data_dir):
+    save_to_test_dir(test_data)  # Only modifies temp files
+```
+
+**Principle**: Tests must NEVER modify production data files. Always use fixtures and temporary directories.
+
+---
+
+## 2025-12-21
+
+### Sprint 3 Phase 2: Recipe Rating System - Additional Endpoints
+**Duration**: ~1.5 hours
+**Status**: ✅ Complete
+
+**What was built:**
+- Added three new rating API endpoints for filtering and querying recipes
+- All endpoints properly ordered to avoid FastAPI route conflicts
+- Complete integration with existing RecipeRating UI component
+- Full API client support in frontend
+
+**Backend Changes:**
+
+1. **New API Endpoints** (`backend/app/routers/recipes.py`):
+   - `GET /recipes/ratings` - Get all recipe ratings across the system
+   - `GET /recipes/favorites/{member_name}` - Get recipes liked by a specific household member
+   - `GET /recipes/popular` - Get recipes liked by all members (family favorites)
+
+2. **Route Ordering Fix**:
+   - **Critical**: Moved specific routes (`/ratings`, `/favorites/{member}`, `/popular`) BEFORE parameterized route (`/{recipe_id}`)
+   - **Why**: FastAPI matches routes in order - specific routes must come before catch-all parameters
+   - **Lines**: 47-193 (new specific routes), 196+ (parameterized routes)
+
+3. **Data Manager Integration**:
+   - Added imports for `load_recipe_ratings` and `load_household_profile`
+   - Utilized existing rating storage structure
+   - Member validation against household profile
+
+**Frontend Changes:**
+
+1. **API Client Updates** (`frontend/src/lib/api.ts`):
+   - Added `RecipeRating` TypeScript interface (lines 69-72)
+   - New methods: `getAllRatings()`, `getFavorites(memberName)`, `getPopular()`
+   - Proper URL encoding for member names with spaces
+
+2. **Existing Components** (No changes needed):
+   - `RecipeRating.tsx` - Already implemented with thumbs up/down buttons
+   - `RecipeCard.tsx` - Already showing aggregate rating badges
+   - `RecipeModal.tsx` - Already integrated rating component
+
+**Key Design Decisions:**
+
+1. **Popular Recipe Logic**:
+   - A recipe is "popular" if ALL members who rated it gave "like" (no dislikes)
+   - At least one member must have rated it
+   - Handles partial ratings (some members haven't rated yet)
+
+2. **Member Validation**:
+   - `/favorites/{member_name}` validates member exists in household profile
+   - Returns 404 if member not found
+   - Prevents typos and invalid queries
+
+3. **Empty Results Handling**:
+   - All endpoints return empty arrays `[]` when no matches found
+   - No errors for valid queries with zero results
+   - Graceful handling of missing household profile
+
+**Testing:**
+- ✅ `GET /recipes/ratings` - Returns all ratings successfully
+- ✅ `GET /recipes/popular` - Identifies family favorites correctly
+- ✅ `GET /recipes/favorites/{member}` - Filters by member with validation
+- ✅ Route ordering prevents conflicts (ratings vs {recipe_id})
+- ✅ Backend imports validated
+
+**Files Modified:**
+- `backend/app/routers/recipes.py` - Added 3 endpoints, reordered routes
+- `frontend/src/lib/api.ts` - Added RecipeRating type and 3 API methods
+
+---
+
+## 2025-12-19
+
+### UI Polish & Bug Fixes
+**Duration**: ~3 hours
+**Status**: ✅ Complete
+
+**What was built:**
+- Fixed week start date timezone issue (weeks now correctly start on Monday)
+- Updated meal plan generation prompt for explicit daycare meal requirements
+- Extensive UI improvements across Recipe Rating, Meal Plans, and Recipe pages
+- Added meal plan generation progress modal with simulated steps
+- Implemented recipe linking from meal plan generation
+
+**Key Bug Fixes:**
+
+1. **Week Starting on Sunday (CRITICAL FIX)**
+   - **Root Cause #1**: Frontend used `toISOString()` which converts dates to UTC, causing timezone shifts
+   - **Root Cause #2**: `formatDate()` function parsed ISO date strings as UTC midnight, then converted to local time
+   - **Impact**: Users in timezones behind UTC (PST, EST) saw dates shift backward by one day
+   - **Solution**:
+     - Updated `handleGenerate()` to format dates using local time components
+     - Updated `formatDate()` to parse dates as local time: `new Date(year, month-1, day)`
+   - **Files**: `frontend/src/pages/MealPlans.tsx` (lines 113-124, 136-138)
+
+2. **Daycare Meals Prompt Enhancement**
+   - **Issue**: Prompt didn't explicitly state Nathan needs daycare lunch AND snack Monday-Friday
+   - **Solution**: Added detailed daycare requirements section to Claude prompt
+   - **Changes**:
+     - Explicit "Nathan needs daycare lunch AND daycare snack each weekday (Mon-Fri)"
+     - Clarified weekend meals are family meals only
+     - Added day-by-day structure requirements
+   - **Files**: `backend/app/services/claude_service.py` (lines 241-245, 275-277)
+
+**UI Improvements:**
+
+1. **Recipe Rating Component Redesign**
+   - Changed from vertical stack to horizontal 3-column card grid
+   - Icon-only buttons (removed "Like"/"Dislike" text labels)
+   - Green background on Like button when selected
+   - Matching green hover state on unselected buttons
+   - Removed icon fill for consistent appearance
+   - **Files**: `frontend/src/components/RecipeRating.tsx`
+
+2. **Recipe Card Simplification**
+   - Removed tags display for cleaner look
+   - Made entire card clickable (removed "View Recipe" button)
+   - Added green "Family Favorites" badge when all household members like a recipe
+   - **Files**: `frontend/src/components/RecipeCard.tsx`
+
+3. **Recipe Modal Split-Panel Layout**
+   - Top section: Recipe details (scrollable)
+   - Bottom section: Ratings and action buttons (fixed with independent scrolling)
+   - Prevents ratings from being hidden below fold
+   - **Files**: `frontend/src/components/RecipeModal.tsx`
+
+4. **Meal Plans Page Complete Redesign**
+   - Week selector at top with clickable day buttons (Mon-Sun)
+   - Single day view with left/right navigation arrows
+   - Arrows conditionally displayed (hidden on Monday left, Sunday right)
+   - Removed meal types legend
+   - Added meal type emoji icons as prefixes (🍳 Breakfast: Recipe Title)
+   - Recipe titles clickable to open recipe modal
+   - + button to generate recipe from meal plan (links to meal after generation)
+   - **Files**: `frontend/src/pages/MealPlans.tsx`
+
+5. **Meal Plan Generation Progress Modal**
+   - 4 animated steps with icons and labels
+   - Progress bar with percentage display
+   - Time estimate (20-30 seconds)
+   - "Continue in Background" button
+   - AbortController integration for cancellation
+   - **Files**: `frontend/src/components/MealPlanGenerationModal.tsx` (NEW)
+
+6. **Recipe Linking from Meal Plan**
+   - When generating recipe from meal plan, automatically updates meal with new recipe_id
+   - Tracks meal context (dayIndex, mealIndex) to update correct meal
+   - + button disappears after recipe is generated
+   - Clicking meal title opens recipe modal
+   - **Files**: `frontend/src/pages/MealPlans.tsx` (handleRecipeGenerated)
+
+**Technical Improvements:**
+
+1. **Recipe Sorting by Modification Time**
+   - Backend now sorts recipes by file modification time (most recent first)
+   - Avoids issues with random UUID sorting
+   - No database migration needed
+   - **Files**: `backend/app/data/data_manager.py` (list_all_recipes)
+
+2. **AbortController for Cancellable Requests**
+   - Added signal parameter to mealPlansAPI.generate()
+   - Allows cancelling long-running meal plan generation
+   - **Files**: `frontend/src/lib/api.ts`, `frontend/src/pages/MealPlans.tsx`
+
+**Key Technical Decisions:**
+
+1. **Timezone-Safe Date Handling**
+   - Pattern: Use local date components, never `toISOString()` for date-only values
+   - Rationale: ISO strings are UTC-based, causing date shifts across timezones
+   - Implementation: `new Date(year, month-1, day)` for parsing, manual YYYY-MM-DD formatting
+   - Learning: JavaScript Date timezone handling is a common source of bugs
+
+2. **Simulated Progress Instead of Real-Time Updates**
+   - Decision: Show fake progress (4 steps, 30 seconds) instead of real backend streaming
+   - Rationale: Simpler to implement, better UX than spinner, backend doesn't support streaming
+   - Implementation: Interval timer with step progression, stops at 95% and waits for response
+   - Trade-off: Not perfectly accurate, but provides good user feedback
+
+3. **Prompt-Based Daycare Meal Generation**
+   - Decision: Use explicit prompt instructions instead of post-processing filters
+   - Benefit: Claude can reason about exceptions (holidays, special circumstances)
+   - Challenge: Claude sometimes generates daycare meals on weekends (documented as known issue)
+   - Next step: May need more explicit day-of-week context in prompt
+
+**Files Modified:**
+- `frontend/src/pages/MealPlans.tsx` - Major redesign + timezone fixes
+- `frontend/src/components/MealPlanGenerationModal.tsx` - NEW
+- `frontend/src/components/RecipeRating.tsx` - UI redesign
+- `frontend/src/components/RecipeCard.tsx` - Simplification + family favorites
+- `frontend/src/components/RecipeModal.tsx` - Split-panel layout
+- `frontend/src/pages/Recipes.tsx` - Removed manual sorting
+- `frontend/src/lib/api.ts` - AbortSignal support
+- `backend/app/services/claude_service.py` - Daycare prompt enhancement
+- `backend/app/data/data_manager.py` - Recipe sorting by mtime
+- `docs/KNOWN_ISSUES.md` - NEW
+
+**Known Issues Created:**
+- See `docs/KNOWN_ISSUES.md` for full details
+- Issue #1: Daycare meals generated on weekends (Saturday showing two lunches)
+
+**Next Steps:**
+- Fix daycare weekend meal generation issue
+- Continue Sprint 3 Phase 3 (Advanced Filtering UI)
+
+---
+
+## 2025-12-18
+
+### Sprint 3 Phase 2 Complete: Recipe Rating System
+**Duration**: ~4 hours
+**Status**: ✅ Fully implemented and tested
+
+**What was built:**
+
+**Backend**:
+- Created `RecipeRating` Pydantic model with per-member ratings ("like", "dislike", or null)
+- Added rating data manager functions (`save_recipe_rating`, `get_recipe_rating`, `delete_recipe_rating`)
+- Implemented RESTful API endpoints: `POST /recipes/{id}/rating` and `GET /recipes/{id}/ratings`
+- Updated recipe deletion to cascade-delete ratings (prevent orphaned data)
+- Integration with meal plan generation: ratings loaded and passed to Claude via context
+
+**Frontend**:
+- Created `RecipeRating` component with thumbs up/down buttons for each household member
+- Added rating UI to `RecipeModal` (full interaction panel)
+- Added aggregate rating badges to `RecipeCard` (overview: 👍 2 | 👎 1)
+- Implemented toggle behavior: click same button to remove rating
+- Added API client functions (`getRatings`, `rateRecipe`)
+- Real-time updates with React Query cache invalidation
+
+**Files Modified**:
+- Backend: 6 files (models, data_manager, routers, meal_plan_service, rag_service, claude_service)
+- Frontend: 4 files (RecipeRating component, RecipeModal, RecipeCard, api client)
+- Data: `backend/data/recipe_ratings.json` (NEW)
+- Total: ~240 lines of new code
+
+**Key Technical Decisions:**
+
+1. **Prompt-Based RAG Integration (Phase 2.0 Test)**
+   - Decision: Include ratings directly in Claude's prompt context
+   - Test Results: ✅ Claude successfully prioritized liked recipes and avoided disliked ones
+   - Token Usage: ~5,132 tokens (well within 200k limit)
+   - Benefit: Simpler than metadata filtering, allows Claude to reason about trade-offs
+   - Example: "Adam dislikes this but it uses expiring groceries" → smart decision
+
+2. **Majority Rule Conflict Resolution**
+   - Pattern: More likes than dislikes = include recipe in meal plan
+   - Example: Andrea=like, Adam=dislike, Nathan=like → Recipe appears (2 vs 1)
+   - Alternative considered: Veto system (any dislike excludes) - rejected as too strict
+   - Implementation: Claude handles this via prompt guidelines, not hard filters
+
+3. **Storage: Separate JSON File**
+   - Pattern: `recipe_ratings.json` separate from `household_profile.json`
+   - Benefit: Cleaner separation of concerns, easier to export/import ratings
+   - Format: Array of `{recipe_id, ratings: {member_name: rating}}` objects
+   - Scales to ~100 recipes without performance issues
+
+4. **Two-Level UI Pattern**
+   - RecipeCard: Lightweight aggregate view (👍 2 | 👎 1) with 30s cache
+   - RecipeModal: Full interaction panel with individual ratings
+   - Rationale: Balances overview (browsing) with detail (rating)
+   - Inspired by: GitHub reactions, Reddit voting
+
+5. **Cascade Deletion Pattern**
+   - Implementation: `delete_recipe()` calls `delete_recipe_rating()` automatically
+   - Prevents: Orphaned rating data when recipes are removed
+   - Pattern: Common in relational DBs, adapted for JSON storage
+
+6. **Toggle UX for Ratings**
+   - Behavior: Click "Like" when already liked → removes rating (sets to null)
+   - Benefit: Users can change their mind without explicit "clear" button
+   - Implementation: Frontend checks `currentRating === newRating ? null : newRating`
+
+**Phase 2.0 Test Validation:**
+
+Before full implementation, we tested the prompt-based approach:
+- Created mock `recipe_ratings.json` with 5 rated recipes
+- Loaded ratings in `prepare_context_for_llm()` as `household_ratings` per recipe
+- Updated Claude system prompt with rating guidelines
+- Ran meal plan generation and verified results
+
+**Test Results**:
+- ✅ "Simple Pasta" (all liked) appeared **twice** in meal plan
+- ✅ "Chicken & Rice" (2 likes, 1 dislike) appeared once
+- ✅ "Veggie Hash" (2 likes, 0 dislikes) appeared once
+- ✅ "Chinese Stir-Fry" (1 like, 2 dislikes) correctly **avoided**
+- ✅ Claude cited ratings in notes: "Whole family likes this recipe"
+- ✅ Token usage: ~5,132 tokens (2.5% of 200k limit)
+
+**Impact:**
+Meal plans now intelligently prioritize recipes that household members have explicitly liked, while avoiding those with majority dislikes. This creates a personalized feedback loop: users rate recipes → Claude learns preferences → future meal plans improve.
+
+**Claude's Behavior:**
+Claude treats ratings as soft constraints (unlike allergies which are hard constraints):
+- Prioritizes highly-rated recipes for variety and satisfaction
+- May include 50/50 split recipes if they solve other constraints (expiring groceries, daycare rules)
+- Avoids recipes with net-negative ratings unless no alternatives exist
+
+**Next Steps:**
+- Phase 3: Advanced filtering UI (filter by "Liked by Andrea", "Family Favorites", etc.)
+- Future: Analyze rating patterns to suggest new recipes
+
+---
+
 ## 2025-12-17
 
 ### Sprint 3 Phase 1 Complete: Individual Dietary Preferences
