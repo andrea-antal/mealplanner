@@ -5,11 +5,12 @@ This service handles all interactions with the Anthropic Claude API:
 - Prompt construction for meal planning
 - API calls with error handling
 - Response parsing and validation
+- Voice-to-grocery parsing (Sprint 4 Phase 1)
 """
 import logging
 import json
 import uuid
-from datetime import date as Date
+from datetime import date as Date, timedelta
 from typing import Dict, Optional
 from anthropic import Anthropic
 from app.config import settings
@@ -680,3 +681,265 @@ IMPORTANT:
 - Be realistic with cooking and prep times"""
 
     return prompt
+
+
+# =============================================================================
+# Voice-to-Grocery Parsing (Sprint 4 Phase 1)
+# =============================================================================
+
+
+async def parse_voice_to_groceries(
+    transcription: str,
+    existing_groceries: list[str]
+) -> tuple[list[dict], list[str]]:
+    """
+    Parse voice transcription into structured grocery items using Claude AI.
+
+    Args:
+        transcription: Voice-to-text transcription from user
+        existing_groceries: List of grocery names already in user's list (for duplicate detection)
+
+    Returns:
+        Tuple of (proposed_items: list[dict], warnings: list[str])
+        - proposed_items: List of dicts matching ProposedGroceryItem schema
+        - warnings: List of user-facing warning messages
+
+    Raises:
+        ValueError: If transcription is empty or Claude response is invalid
+        ConnectionError: If Claude API is unavailable
+
+    Examples:
+        Input: "Chicken breast bought yesterday, milk expiring tomorrow"
+        Output: ([
+            {
+                "name": "chicken breast",
+                "purchase_date": "2025-12-21",
+                "confidence": "high",
+                "notes": "Inferred purchase date from 'yesterday'"
+            },
+            {
+                "name": "milk",
+                "expiry_date": "2025-12-23",
+                "expiry_type": "expiry_date",
+                "confidence": "high",
+                "notes": "Inferred expiry from 'tomorrow'"
+            }
+        ], [])
+    """
+    # Validate input
+    if not transcription or not transcription.strip():
+        raise ValueError("Transcription cannot be empty")
+
+    logger.info(f"Parsing voice transcription: '{transcription[:100]}...'")
+
+    # Build prompt for voice parsing
+    prompt = _build_voice_parse_prompt(transcription, existing_groceries)
+
+    try:
+        # Call Claude API
+        response = client.messages.create(
+            model=settings.MODEL_NAME,
+            max_tokens=1500,
+            temperature=0.3,  # Lower temp for more consistent parsing
+            system=_get_voice_parse_system_prompt(),
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
+
+        # Extract response text
+        response_text = response.content[0].text
+        logger.debug(f"Claude voice parse response: {response_text[:200]}...")
+
+        # Parse JSON response
+        parsed_data = _parse_voice_response(response_text)
+
+        if parsed_data:
+            proposed_items = parsed_data.get("proposed_items", [])
+            warnings = parsed_data.get("warnings", [])
+            logger.info(f"Successfully parsed {len(proposed_items)} items from voice")
+            return proposed_items, warnings
+        else:
+            raise ValueError("Failed to parse response from Claude")
+
+    except Exception as e:
+        logger.error(f"Error calling Claude API for voice parsing: {e}", exc_info=True)
+        if "connection" in str(e).lower() or "api" in str(e).lower():
+            raise ConnectionError(f"Claude API unavailable: {e}")
+        raise ValueError(f"Failed to parse voice input: {e}")
+
+
+def _get_voice_parse_system_prompt() -> str:
+    """
+    Get the system prompt for voice-to-grocery parsing.
+
+    Returns:
+        System prompt string
+    """
+    today = Date.today().isoformat()
+    return f"""You are a grocery list assistant specializing in parsing natural voice input into structured grocery items.
+
+Your expertise:
+- Understanding casual, natural language about groceries
+- Inferring dates from relative phrases ("yesterday", "tomorrow", "expires soon")
+- Extracting quantities and portions
+- Detecting duplicate items
+- Assigning confidence scores based on parsing clarity
+
+You always:
+- Parse items into their simplest form (e.g., "2 lbs chicken breast" → name: "chicken breast", portion: "2 lbs")
+- Infer purchase_date from phrases like "bought yesterday", "purchased today"
+- Infer expiry_date from phrases like "expires tomorrow", "use by Friday", "goes bad soon"
+- Flag low confidence when the input is ambiguous
+- Detect potential duplicates against existing groceries
+- Provide helpful notes explaining your reasoning
+- Use today's date as the baseline for relative date calculations
+
+IMPORTANT DATE HANDLING:
+- Today's date is {today}
+- "yesterday" = today - 1 day
+- "tomorrow" = today + 1 day
+- "expires soon" = today + 2 days (use as expiry_date)
+- "bought last week" = today - 7 days (use as purchase_date)
+- When expiry is mentioned, always set expiry_type to "expiry_date" unless "best before" is explicitly stated"""
+
+
+def _build_voice_parse_prompt(transcription: str, existing_groceries: list[str]) -> str:
+    """
+    Build the prompt for voice parsing.
+
+    Args:
+        transcription: Voice transcription text
+        existing_groceries: List of existing grocery names
+
+    Returns:
+        Formatted prompt string
+    """
+    today = Date.today().isoformat()
+    yesterday = (Date.today() - timedelta(days=1)).isoformat()
+    tomorrow = (Date.today() + timedelta(days=1)).isoformat()
+    existing_items_text = ", ".join(existing_groceries) if existing_groceries else "None"
+
+    prompt = f"""Parse this voice transcription into structured grocery items:
+
+TRANSCRIPTION:
+"{transcription}"
+
+CONTEXT:
+- Today's date: {today}
+- Existing groceries: {existing_items_text}
+
+TASK:
+Extract all grocery items mentioned and structure them with:
+1. Item name (standardized, lowercase)
+2. Purchase date (if mentioned or inferred)
+3. Expiry date (if mentioned or inferred)
+4. Portion/quantity (if mentioned)
+5. Confidence score (high/medium/low)
+6. Notes explaining your reasoning
+
+RESPONSE FORMAT:
+
+Return your response as valid JSON matching this exact schema:
+
+{{
+  "proposed_items": [
+    {{
+      "name": "chicken breast",
+      "date_added": "{today}",
+      "purchase_date": "{yesterday}",  // Optional, ISO format
+      "expiry_type": "expiry_date",    // Optional, "expiry_date" or "best_before_date"
+      "expiry_date": "{tomorrow}",     // Optional, ISO format
+      "portion": "2 lbs",              // Optional
+      "confidence": "high",            // Required: "high", "medium", or "low"
+      "notes": "Inferred purchase date from 'yesterday'"  // Optional explanation
+    }}
+  ],
+  "warnings": [
+    "Possible duplicate: 'chicken' already in your list"
+  ]
+}}
+
+RULES:
+1. Return ONLY valid JSON, no other text
+2. Use ISO date format (YYYY-MM-DD) for all dates
+3. Standardize item names (lowercase, singular form preferred)
+4. If you're unsure about something, mark confidence as "medium" or "low"
+5. Add warnings for potential duplicates or ambiguities
+6. If no items can be extracted, return empty proposed_items array with a warning
+7. date_added should always be today's date ({today})
+8. Only include purchase_date, expiry_date, expiry_type if you can infer them from the transcription
+
+EXAMPLES:
+
+Input: "Chicken breast, milk, and eggs"
+Output: {{
+  "proposed_items": [
+    {{"name": "chicken breast", "date_added": "{today}", "confidence": "high"}},
+    {{"name": "milk", "date_added": "{today}", "confidence": "high"}},
+    {{"name": "eggs", "date_added": "{today}", "confidence": "high"}}
+  ],
+  "warnings": []
+}}
+
+Input: "Bought chicken yesterday, expires tomorrow"
+Output: {{
+  "proposed_items": [
+    {{
+      "name": "chicken",
+      "date_added": "{today}",
+      "purchase_date": "{yesterday}",
+      "expiry_date": "{tomorrow}",
+      "expiry_type": "expiry_date",
+      "confidence": "high",
+      "notes": "Inferred purchase date from 'yesterday' and expiry from 'tomorrow'"
+    }}
+  ],
+  "warnings": []
+}}"""
+
+    return prompt
+
+
+def _parse_voice_response(response_text: str) -> Optional[dict]:
+    """
+    Parse Claude's JSON response for voice parsing.
+
+    Args:
+        response_text: Raw text response from Claude
+
+    Returns:
+        Dict with proposed_items and warnings, or None if parsing fails
+    """
+    try:
+        # Claude sometimes wraps JSON in markdown code blocks
+        if "```json" in response_text:
+            start = response_text.find("```json") + 7
+            end = response_text.find("```", start)
+            response_text = response_text[start:end].strip()
+        elif "```" in response_text:
+            start = response_text.find("```") + 3
+            end = response_text.find("```", start)
+            response_text = response_text[start:end].strip()
+
+        # Parse JSON
+        data = json.loads(response_text)
+
+        # Validate structure
+        if "proposed_items" not in data:
+            logger.error("Response missing 'proposed_items' field")
+            return None
+
+        return data
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON from voice response: {e}")
+        logger.debug(f"Response text: {response_text}")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to parse voice response: {e}")
+        logger.debug(f"Response text: {response_text}")
+        return None
