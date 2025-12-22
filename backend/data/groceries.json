@@ -97,6 +97,167 @@
       "purchase_date": null,
       "expiry_type": "expiry_date",
       "expiry_date": "2025-12-28"
+    },
+    {
+      "name": "milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "chicken",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "eggs",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_0",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_1",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_2",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_3",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_4",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_5",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_6",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_7",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_8",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "item_9",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "test_dairy_22",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": "expiry_date",
+      "expiry_date": "2025-12-25"
+    },
+    {
+      "name": "dup_test_22",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "new_test_22",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
+    },
+    {
+      "name": "Milk",
+      "date_added": "2025-12-22",
+      "purchase_date": null,
+      "expiry_type": null,
+      "expiry_date": null
     }
   ]
 }
