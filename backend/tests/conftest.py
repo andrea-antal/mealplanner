@@ -2,6 +2,7 @@
 import pytest
 import shutil
 from pathlib import Path
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -36,3 +37,15 @@ def temp_data_dir(tmp_path, monkeypatch):
     yield test_data_dir
 
     # Cleanup handled automatically by tmp_path
+
+
+@pytest.fixture
+def client(temp_data_dir):
+    """Provides FastAPI test client with isolated data directory
+
+    Must be used with temp_data_dir fixture to ensure isolated testing.
+    """
+    from app.main import app
+
+    with TestClient(app) as test_client:
+        yield test_client

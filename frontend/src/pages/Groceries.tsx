@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import {
   ChevronUp,
   Mic,
   MicOff,
+  Camera,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -60,6 +61,10 @@ const Groceries = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [proposedItems, setProposedItems] = useState<ProposedGroceryItem[]>([]);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+
+  // Receipt upload state
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch groceries from backend
   const { data: groceryList, isLoading, error } = useQuery({
@@ -138,6 +143,19 @@ const Groceries = () => {
     },
   });
 
+  // Receipt parsing mutation
+  const parseReceiptMutation = useMutation({
+    mutationFn: (imageBase64: string) => groceriesAPI.parseReceipt(imageBase64),
+    onSuccess: (response) => {
+      setProposedItems(response.proposed_items);
+      setParseWarnings(response.warnings);
+      setShowConfirmDialog(true);
+    },
+    onError: (error: Error) => {
+      toast.error(`Receipt OCR failed: ${error.message}`);
+    },
+  });
+
   const addGrocery = () => {
     if (!newItemName.trim()) {
       toast.error('Please enter a grocery item name');
@@ -207,6 +225,95 @@ const Groceries = () => {
 
   const handleConfirmItems = (items: GroceryItem[]) => {
     batchAddMutation.mutate(items);
+  };
+
+  // Receipt upload handlers
+  const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Create canvas for compression
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+
+          // Calculate resize ratio (max 1024px width or height)
+          const maxSize = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height && width > maxSize) {
+            height = (height / width) * maxSize;
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = (width / height) * maxSize;
+            height = maxSize;
+          }
+
+          // Resize image
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Export as JPEG at 80% quality
+          const base64 = canvas.toDataURL('image/jpeg', 0.8);
+
+          // Strip data URL prefix (data:image/jpeg;base64,)
+          const base64Data = base64.split(',')[1];
+          resolve(base64Data);
+        };
+
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target?.result as string;
+      };
+
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleReceiptUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.match(/^image\/(png|jpe?g)$/)) {
+      toast.error('Please upload a PNG or JPEG image');
+      return;
+    }
+
+    // Validate file size (max 10MB before compression)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image too large (max 10MB)');
+      return;
+    }
+
+    setIsUploadingReceipt(true);
+
+    try {
+      // Compress image
+      const base64Image = await compressImage(file);
+
+      // Call API to parse receipt
+      await parseReceiptMutation.mutateAsync(base64Image);
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      // Error toast handled by mutation onError
+    } finally {
+      setIsUploadingReceipt(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   // Helper to calculate days until expiry
@@ -322,6 +429,15 @@ const Groceries = () => {
             className="flex-1"
           />
 
+          {/* Hidden file input for receipt upload */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg"
+            onChange={handleReceiptUpload}
+            style={{ display: 'none' }}
+          />
+
           {/* Voice Input Button */}
           {isVoiceSupported && (
             <Button
@@ -340,6 +456,21 @@ const Groceries = () => {
               )}
             </Button>
           )}
+
+          {/* Receipt Upload Button */}
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingReceipt}
+            className="shrink-0"
+            title="Upload receipt"
+          >
+            {isUploadingReceipt ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Camera className="h-4 w-4" />
+            )}
+          </Button>
 
           <Button
             variant="outline"

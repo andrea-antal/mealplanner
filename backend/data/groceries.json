@@ -8,13 +8,6 @@
       "expiry_date": null
     },
     {
-      "name": "banana",
-      "date_added": "2025-12-10",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
       "name": "carrot",
       "date_added": "2025-12-10",
       "purchase_date": null,
@@ -64,13 +57,6 @@
       "expiry_date": null
     },
     {
-      "name": "milk",
-      "date_added": "2025-12-10",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
       "name": "rolled oats",
       "date_added": "2025-12-11",
       "purchase_date": null,
@@ -99,27 +85,6 @@
       "expiry_date": "2025-12-28"
     },
     {
-      "name": "milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "chicken",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
       "name": "eggs",
       "date_added": "2025-12-22",
       "purchase_date": null,
@@ -127,154 +92,70 @@
       "expiry_date": null
     },
     {
-      "name": "item_0",
+      "name": "unsalted butter",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_1",
+      "name": "salted cultured organic butter",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_2",
+      "name": "orzo",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_3",
+      "name": "seaweed sheet",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_4",
+      "name": "seaweed",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_5",
+      "name": "japanese short grain brown rice",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_6",
+      "name": "lactose-free milk 3%",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_7",
+      "name": "whole milk",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_8",
+      "name": "broccoli",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,
       "expiry_date": null
     },
     {
-      "name": "item_9",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "Milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "Milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "test_dairy_22",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": "expiry_date",
-      "expiry_date": "2025-12-25"
-    },
-    {
-      "name": "dup_test_22",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "new_test_22",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "Milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "milk",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "dup_test_22",
-      "date_added": "2025-12-22",
-      "purchase_date": null,
-      "expiry_type": null,
-      "expiry_date": null
-    },
-    {
-      "name": "Milk",
+      "name": "whole wheat sandwich bread",
       "date_added": "2025-12-22",
       "purchase_date": null,
       "expiry_type": null,

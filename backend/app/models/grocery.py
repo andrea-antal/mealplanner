@@ -104,3 +104,25 @@ class VoiceParseResponse(BaseModel):
 class BatchAddRequest(BaseModel):
     """Request to add multiple grocery items at once"""
     items: list[GroceryItem] = Field(..., min_length=1, description="Items to add (must have at least one)")
+
+
+# Receipt OCR models for Sprint 4 Phase 2
+
+
+class ReceiptParseRequest(BaseModel):
+    """Request to parse receipt image using OCR"""
+    image_base64: str = Field(..., min_length=1, description="Base64 encoded receipt image")
+
+
+class ReceiptParseResponse(BaseModel):
+    """Response from receipt OCR parsing with proposed items and metadata"""
+    proposed_items: list[ProposedGroceryItem] = Field(
+        default_factory=list,
+        description="List of proposed grocery items parsed from receipt"
+    )
+    detected_purchase_date: Optional[Date] = Field(None, description="Purchase date from receipt header")
+    detected_store: Optional[str] = Field(None, description="Store name from receipt header")
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="OCR warnings (e.g., unreadable items, low confidence)"
+    )

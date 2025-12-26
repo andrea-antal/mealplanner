@@ -943,3 +943,177 @@ def _parse_voice_response(response_text: str) -> Optional[dict]:
         logger.error(f"Failed to parse voice response: {e}")
         logger.debug(f"Response text: {response_text}")
         return None
+
+
+# Receipt OCR parsing (Sprint 4 Phase 2)
+
+
+async def parse_receipt_to_groceries(
+    image_base64: str,
+    existing_groceries: list
+) -> tuple[list[dict], list[str]]:
+    """
+    Parse receipt image using Claude Vision API to extract grocery items.
+
+    Uses multimodal Claude Vision to OCR receipt and extract:
+    - Grocery item names (standardized, brands removed)
+    - Purchase date from receipt header
+    - Store name from receipt header
+    - Confidence scores based on OCR clarity
+
+    Args:
+        image_base64: Base64 encoded receipt image (PNG/JPG)
+        existing_groceries: List of existing grocery items for duplicate detection
+
+    Returns:
+        Tuple of (proposed_items, warnings)
+
+    Raises:
+        ValueError: If image is empty or response cannot be parsed
+        ConnectionError: If Claude API call fails
+    """
+    if not image_base64 or image_base64.strip() == "":
+        raise ValueError("Image data cannot be empty")
+
+    logger.info("Parsing receipt with Claude Vision API")
+
+    try:
+        # Build system prompt for OCR
+        system_prompt = _get_receipt_parse_system_prompt()
+
+        # Build user message with duplicate context
+        user_prompt = _build_receipt_user_prompt(existing_groceries)
+
+        # Call Claude Vision API (multimodal)
+        response = client.messages.create(
+            model="claude-3-5-sonnet-20241022",  # Vision-capable model
+            max_tokens=2000,
+            temperature=0.1,  # Very low for OCR accuracy
+            system=system_prompt,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",  # Assume JPEG (client compresses)
+                                "data": image_base64,
+                            },
+                        },
+                        {"type": "text", "text": user_prompt}
+                    ],
+                }
+            ],
+        )
+
+        # Parse response
+        response_text = response.content[0].text
+        parsed_data = _parse_receipt_response(response_text)
+
+        return (parsed_data["proposed_items"], parsed_data["warnings"])
+
+    except Exception as e:
+        if "connection" in str(e).lower() or "timeout" in str(e).lower():
+            logger.error(f"Connection error calling Claude Vision API: {e}")
+            raise ConnectionError(f"Failed to connect to Claude Vision API: {e}")
+        else:
+            logger.error(f"Error parsing receipt: {e}")
+            raise
+
+
+def _get_receipt_parse_system_prompt() -> str:
+    """System prompt for receipt OCR parsing."""
+    return """You are an expert at reading grocery store receipts and extracting items.
+
+Your task:
+1. Read the receipt image and extract ALL grocery items
+2. Detect the purchase date from the receipt header (usually at top)
+3. Detect the store name from the receipt header
+4. Standardize item names (remove brand names, generic descriptions)
+5. Assign confidence: "high" (clear text), "medium" (some blur), "low" (very unclear)
+6. Ignore non-food items (bags, tax, totals, store info)
+
+Return JSON format:
+{
+  "proposed_items": [
+    {
+      "name": "standardized item name",
+      "confidence": "high|medium|low",
+      "notes": "optional notes about the item"
+    }
+  ],
+  "detected_purchase_date": "YYYY-MM-DD or null if not found",
+  "detected_store": "Store Name or null if not found",
+  "warnings": ["warnings about OCR quality or unreadable items"]
+}
+
+Example: "CHKN BRST" → "chicken breast", "2% MILK GAL" → "milk", "ORG BANANAS" → "bananas"
+
+Be concise. Focus on food items only."""
+
+
+def _build_receipt_user_prompt(existing_groceries: list) -> str:
+    """Build user prompt with existing grocery context for duplicate detection."""
+    prompt = "Extract all grocery items from this receipt."
+
+    if existing_groceries:
+        existing_names = [g["name"] for g in existing_groceries]
+        prompt += f"\n\nExisting groceries (warn about duplicates): {', '.join(existing_names)}"
+
+    return prompt
+
+
+def _parse_receipt_response(response_text: str) -> dict:
+    """
+    Parse Claude's response text into structured data.
+
+    Handles:
+    - Plain JSON
+    - JSON wrapped in markdown code blocks
+    - Missing fields (use defaults)
+
+    Args:
+        response_text: Raw text from Claude Vision API
+
+    Returns:
+        Dict with proposed_items, detected_purchase_date, detected_store, warnings
+
+    Raises:
+        ValueError: If response is not valid JSON
+    """
+    try:
+        # Remove markdown code blocks if present
+        text = response_text.strip()
+        if text.startswith("```"):
+            # Extract JSON from code block
+            lines = text.split("\n")
+            text = "\n".join(lines[1:-1]) if len(lines) > 2 else text
+
+        # Parse JSON
+        data = json.loads(text)
+
+        # Validate and set defaults
+        proposed_items = data.get("proposed_items", [])
+        detected_purchase_date = data.get("detected_purchase_date")
+        detected_store = data.get("detected_store")
+        warnings = data.get("warnings", [])
+
+        # Propagate purchase date to all items
+        if detected_purchase_date:
+            for item in proposed_items:
+                if "purchase_date" not in item or not item["purchase_date"]:
+                    item["purchase_date"] = detected_purchase_date
+
+        return {
+            "proposed_items": proposed_items,
+            "detected_purchase_date": detected_purchase_date,
+            "detected_store": detected_store,
+            "warnings": warnings
+        }
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse Claude Vision response as JSON: {e}")
+        logger.error(f"Response text: {response_text}")
+        raise ValueError(f"Failed to parse Claude Vision response: {e}")

@@ -3,6 +3,7 @@ Groceries API endpoints.
 
 Provides REST API for managing grocery items with date tracking and expiry management.
 Includes voice parsing endpoints for Sprint 4 Phase 1.
+Includes receipt OCR endpoints for Sprint 4 Phase 2.
 """
 import logging
 from fastapi import APIRouter, HTTPException
@@ -12,10 +13,12 @@ from app.models.grocery import (
     VoiceParseRequest,
     VoiceParseResponse,
     ProposedGroceryItem,
-    BatchAddRequest
+    BatchAddRequest,
+    ReceiptParseRequest,
+    ReceiptParseResponse
 )
 from app.data.data_manager import load_groceries, save_groceries
-from app.services.claude_service import parse_voice_to_groceries
+from app.services.claude_service import parse_voice_to_groceries, parse_receipt_to_groceries
 
 logger = logging.getLogger(__name__)
 
@@ -299,3 +302,70 @@ async def batch_add_groceries(request: BatchAddRequest):
             status_code=500,
             detail=f"Failed to batch add groceries: {str(e)}"
         )
+
+
+# =============================================================================
+# Receipt OCR endpoints (Sprint 4 Phase 2)
+# =============================================================================
+
+
+@router.post("/parse-receipt", response_model=ReceiptParseResponse)
+async def parse_receipt(request: ReceiptParseRequest):
+    """
+    Parse receipt image to extract grocery items using Claude Vision OCR.
+
+    Extracts:
+    - Item names (standardized)
+    - Purchase date from receipt
+    - Store name
+    - Confidence scores
+
+    Returns proposed items for user confirmation.
+
+    Raises:
+        HTTPException 400: Invalid image data
+        HTTPException 422: Validation error (Pydantic)
+        HTTPException 500: Claude Vision API error
+    """
+    try:
+        logger.info("Parsing receipt via OCR")
+
+        # Get existing groceries for duplicate detection
+        existing_items = load_groceries()
+        existing_dicts = [item.model_dump() for item in existing_items]
+
+        # Call Claude Vision service
+        proposed_items, warnings = await parse_receipt_to_groceries(
+            request.image_base64,
+            existing_dicts
+        )
+
+        # Extract metadata (if present in items)
+        detected_purchase_date = None
+        detected_store = None
+
+        if proposed_items:
+            # Get purchase date from first item (all should have same date)
+            first_item = proposed_items[0]
+            if "purchase_date" in first_item and first_item["purchase_date"]:
+                detected_purchase_date = first_item["purchase_date"]
+
+        # Note: detected_store would come from Claude's response metadata
+        # For simplicity, we'll leave it None for now (can enhance later)
+
+        return ReceiptParseResponse(
+            proposed_items=[ProposedGroceryItem(**item) for item in proposed_items],
+            detected_purchase_date=detected_purchase_date,
+            detected_store=detected_store,
+            warnings=warnings
+        )
+
+    except ValueError as e:
+        logger.warning(f"Invalid receipt data: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid image data: {e}")
+    except ConnectionError as e:
+        logger.error(f"Claude Vision API error: {e}")
+        raise HTTPException(status_code=500, detail=f"Claude Vision API error: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error parsing receipt: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
