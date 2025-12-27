@@ -242,29 +242,133 @@ const Household = () => {
   return (
     <div className="space-y-8 max-w-4xl">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">
-            Household Profile
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Configure your family's dietary constraints and preferences
-          </p>
+      <div>
+        <h1 className="font-display text-3xl font-bold text-foreground">
+          Household Profile
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Configure your cooking preferences, family members and constraints/preferences. Remember to hit the Save Change button at the bottom.
+        </p>
+      </div>
+
+      {/* Cooking Preferences */}
+      <section className="rounded-2xl bg-card p-6 shadow-soft space-y-6">
+        <h2 className="font-display text-xl font-semibold text-foreground">
+          Cooking Preferences
+        </h2>
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Skill Level</Label>
+            <Select
+              value={profile.cooking_preferences.skill_level}
+              onValueChange={(value) =>
+                setProfile((prev) => prev ? ({
+                  ...prev,
+                  cooking_preferences: {
+                    ...prev.cooking_preferences,
+                    skill_level: value as 'beginner' | 'intermediate' | 'advanced',
+                  },
+                }) : null)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="beginner">Beginner</SelectItem>
+                <SelectItem value="intermediate">Intermediate</SelectItem>
+                <SelectItem value="advanced">Advanced</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Max Weeknight Cooking Time (minutes)</Label>
+            <Input
+              type="number"
+              value={profile.cooking_preferences.max_active_cooking_time_weeknight}
+              onChange={(e) =>
+                setProfile((prev) => prev ? ({
+                  ...prev,
+                  cooking_preferences: {
+                    ...prev.cooking_preferences,
+                    max_active_cooking_time_weeknight: parseInt(e.target.value) || 0,
+                  },
+                }) : null)
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Max Weekend Cooking Time (minutes)</Label>
+            <Input
+              type="number"
+              value={profile.cooking_preferences.max_active_cooking_time_weekend}
+              onChange={(e) =>
+                setProfile((prev) => prev ? ({
+                  ...prev,
+                  cooking_preferences: {
+                    ...prev.cooking_preferences,
+                    max_active_cooking_time_weekend: parseInt(e.target.value) || 0,
+                  },
+                }) : null)
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Weeknight Priority</Label>
+            <Select
+              value={profile.preferences.weeknight_priority}
+              onValueChange={(value) =>
+                setProfile((prev) => prev ? ({
+                  ...prev,
+                  preferences: {
+                    ...prev.preferences,
+                    weeknight_priority: value,
+                  },
+                }) : null)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="quick">Quick meals</SelectItem>
+                <SelectItem value="batch-cookable">Batch cookable</SelectItem>
+                <SelectItem value="minimal-prep">Minimal prep</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <Button
-          variant="hero"
-          onClick={saveProfile}
-          disabled={saveMutation.isPending}
-        >
-          {saveMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
-          {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </div>
+        <div className="space-y-2">
+          <Label>Available Appliances</Label>
+          <div className="flex flex-wrap gap-2">
+            {['oven', 'instant_pot', 'blender', 'food_processor', 'microwave'].map((appliance) => (
+              <Badge
+                key={appliance}
+                variant={profile.cooking_preferences.available_appliances.includes(appliance) ? 'default' : 'outline'}
+                className="cursor-pointer capitalize"
+                onClick={() =>
+                  setProfile((prev) => prev ? ({
+                    ...prev,
+                    cooking_preferences: {
+                      ...prev.cooking_preferences,
+                      available_appliances: prev.cooking_preferences.available_appliances.includes(appliance)
+                        ? prev.cooking_preferences.available_appliances.filter((a: string) => a !== appliance)
+                        : [...prev.cooking_preferences.available_appliances, appliance],
+                    },
+                  }) : null)
+                }
+              >
+                {appliance.replace('_', ' ')}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Family Members */}
       <section className="rounded-2xl bg-card p-6 shadow-soft space-y-6">
@@ -387,6 +491,9 @@ const Household = () => {
         <p className="text-sm text-muted-foreground">
           These rules are enforced for daycare meals and snacks
         </p>
+        <p className="text-sm text-amber-600 font-medium">
+          Note: This section cannot be changed currently.
+        </p>
 
         <div className="space-y-3">
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -400,124 +507,22 @@ const Household = () => {
         </div>
       </section>
 
-      {/* Cooking Preferences */}
-      <section className="rounded-2xl bg-card p-6 shadow-soft space-y-6">
-        <h2 className="font-display text-xl font-semibold text-foreground">
-          Cooking Preferences
-        </h2>
-
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Skill Level</Label>
-            <Select
-              value={profile.cooking_preferences.skill_level}
-              onValueChange={(value) =>
-                setProfile((prev) => prev ? ({
-                  ...prev,
-                  cooking_preferences: {
-                    ...prev.cooking_preferences,
-                    skill_level: value as 'beginner' | 'intermediate' | 'advanced',
-                  },
-                }) : null)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="beginner">Beginner</SelectItem>
-                <SelectItem value="intermediate">Intermediate</SelectItem>
-                <SelectItem value="advanced">Advanced</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Max Weeknight Cooking Time (minutes)</Label>
-            <Input
-              type="number"
-              value={profile.cooking_preferences.max_active_cooking_time_weeknight}
-              onChange={(e) =>
-                setProfile((prev) => prev ? ({
-                  ...prev,
-                  cooking_preferences: {
-                    ...prev.cooking_preferences,
-                    max_active_cooking_time_weeknight: parseInt(e.target.value) || 0,
-                  },
-                }) : null)
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Max Weekend Cooking Time (minutes)</Label>
-            <Input
-              type="number"
-              value={profile.cooking_preferences.max_active_cooking_time_weekend}
-              onChange={(e) =>
-                setProfile((prev) => prev ? ({
-                  ...prev,
-                  cooking_preferences: {
-                    ...prev.cooking_preferences,
-                    max_active_cooking_time_weekend: parseInt(e.target.value) || 0,
-                  },
-                }) : null)
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Weeknight Priority</Label>
-            <Select
-              value={profile.preferences.weeknight_priority}
-              onValueChange={(value) =>
-                setProfile((prev) => prev ? ({
-                  ...prev,
-                  preferences: {
-                    ...prev.preferences,
-                    weeknight_priority: value,
-                  },
-                }) : null)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="quick">Quick meals</SelectItem>
-                <SelectItem value="batch-cookable">Batch cookable</SelectItem>
-                <SelectItem value="minimal-prep">Minimal prep</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Available Appliances</Label>
-          <div className="flex flex-wrap gap-2">
-            {['oven', 'instant_pot', 'blender', 'food_processor', 'microwave'].map((appliance) => (
-              <Badge
-                key={appliance}
-                variant={profile.cooking_preferences.available_appliances.includes(appliance) ? 'default' : 'outline'}
-                className="cursor-pointer capitalize"
-                onClick={() =>
-                  setProfile((prev) => prev ? ({
-                    ...prev,
-                    cooking_preferences: {
-                      ...prev.cooking_preferences,
-                      available_appliances: prev.cooking_preferences.available_appliances.includes(appliance)
-                        ? prev.cooking_preferences.available_appliances.filter((a: string) => a !== appliance)
-                        : [...prev.cooking_preferences.available_appliances, appliance],
-                    },
-                  }) : null)
-                }
-              >
-                {appliance.replace('_', ' ')}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Save Changes Button */}
+      <div className="flex justify-end pt-6 border-t">
+        <Button
+          variant="hero"
+          size="lg"
+          onClick={saveProfile}
+          disabled={saveMutation.isPending}
+        >
+          {saveMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </div>
     </div>
   );
 };
