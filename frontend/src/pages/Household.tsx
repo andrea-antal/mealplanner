@@ -43,12 +43,34 @@ const Household = () => {
     queryFn: () => householdAPI.getProfile(workspaceId),
   });
 
-  // Update local state when data is fetched
+  // Update local state when data is fetched, or initialize empty profile if 404
   useEffect(() => {
     if (fetchedProfile) {
       setProfile(fetchedProfile);
+    } else if (error && error.message.includes('404')) {
+      // No profile exists yet - initialize with empty profile
+      const emptyProfile: HouseholdProfile = {
+        family_members: [],
+        daycare_rules: {
+          no_nuts: false,
+          no_honey: false,
+          must_be_cold: false,
+        },
+        cooking_preferences: {
+          available_appliances: [],
+          preferred_methods: [],
+          skill_level: 'intermediate',
+          max_active_cooking_time_weeknight: 30,
+          max_active_cooking_time_weekend: 60,
+        },
+        preferences: {
+          weeknight_priority: 'speed',
+          weekend_priority: 'variety',
+        },
+      };
+      setProfile(emptyProfile);
     }
-  }, [fetchedProfile]);
+  }, [fetchedProfile, error]);
 
   // Mutation to save profile to backend
   const saveMutation = useMutation({
@@ -201,7 +223,8 @@ const Household = () => {
     );
   }
 
-  if (error) {
+  // Only show error if it's not a 404 (404 means no profile yet, which is handled above)
+  if (error && !error.message.includes('404')) {
     return (
       <div className="rounded-2xl bg-destructive/10 p-6 text-destructive">
         <h2 className="font-semibold mb-2">Error loading household profile</h2>
