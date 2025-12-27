@@ -49,7 +49,8 @@ export function WorkspaceSelector({ open, onWorkspaceSelected }: WorkspaceSelect
   const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    // Automatically convert to lowercase for better UX
+    const value = e.target.value.toLowerCase();
     setWorkspaceIdInput(value);
 
     // Clear error when user starts typing
