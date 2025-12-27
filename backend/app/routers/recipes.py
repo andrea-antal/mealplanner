@@ -5,7 +5,7 @@ Provides REST API for managing recipes in the system.
 """
 import logging
 from typing import List, Dict, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from app.models.recipe import Recipe, DynamicRecipeRequest
 from app.models.recipe_rating import RecipeRating, RatingUpdate
@@ -32,22 +32,28 @@ class GenerateFromTitleRequest(BaseModel):
 
 
 @router.get("", response_model=List[Recipe])
-async def get_all_recipes():
+async def get_all_recipes(workspace_id: str = Query(..., description="Workspace identifier")):
     """
     Get all recipes in the system.
+
+    Args:
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         List of all Recipe objects
     """
-    recipes = list_all_recipes()
-    logger.info(f"Retrieved {len(recipes)} recipes")
+    recipes = list_all_recipes(workspace_id)
+    logger.info(f"Retrieved {len(recipes)} recipes for workspace '{workspace_id}'")
     return recipes
 
 
 @router.get("/ratings", response_model=List[RecipeRating])
-async def get_all_ratings():
+async def get_all_ratings(workspace_id: str = Query(..., description="Workspace identifier")):
     """
     Get all recipe ratings across all recipes.
+
+    Args:
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         List of RecipeRating objects for all recipes with ratings
@@ -71,7 +77,7 @@ async def get_all_ratings():
             }
         ]
     """
-    ratings_dict = load_recipe_ratings()
+    ratings_dict = load_recipe_ratings(workspace_id)
 
     # Convert dict to list of RecipeRating objects
     ratings_list = [
@@ -79,30 +85,34 @@ async def get_all_ratings():
         for recipe_id, ratings in ratings_dict.items()
     ]
 
-    logger.info(f"Retrieved ratings for {len(ratings_list)} recipes")
+    logger.info(f"Retrieved ratings for {len(ratings_list)} recipes in workspace '{workspace_id}'")
     return ratings_list
 
 
 @router.get("/favorites/{member_name}", response_model=List[Recipe])
-async def get_member_favorites(member_name: str):
+async def get_member_favorites(
+    member_name: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Get all recipes liked by a specific household member.
 
     Args:
         member_name: Name of the household member
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         List of Recipe objects that the member has liked
 
     Example:
-        GET /recipes/favorites/Andrea
+        GET /recipes/favorites/Andrea?workspace_id=andrea
         Returns all recipes where Andrea's rating is "like"
 
     Raises:
         HTTPException 404: Member not found in household profile
     """
     # Verify member exists in household
-    household = load_household_profile()
+    household = load_household_profile(workspace_id)
     if household:
         member_names = [member.name for member in household.family_members]
         if member_name not in member_names:
@@ -112,7 +122,7 @@ async def get_member_favorites(member_name: str):
             )
 
     # Get all ratings
-    ratings_dict = load_recipe_ratings()
+    ratings_dict = load_recipe_ratings(workspace_id)
 
     # Find recipes where this member has "like" rating
     liked_recipe_ids = [
@@ -123,22 +133,25 @@ async def get_member_favorites(member_name: str):
     # Load the full recipe objects
     favorite_recipes = []
     for recipe_id in liked_recipe_ids:
-        recipe = load_recipe(recipe_id)
+        recipe = load_recipe(workspace_id, recipe_id)
         if recipe:
             favorite_recipes.append(recipe)
 
-    logger.info(f"Found {len(favorite_recipes)} favorites for {member_name}")
+    logger.info(f"Found {len(favorite_recipes)} favorites for {member_name} in workspace '{workspace_id}'")
     return favorite_recipes
 
 
 @router.get("/popular", response_model=List[Recipe])
-async def get_popular_recipes():
+async def get_popular_recipes(workspace_id: str = Query(..., description="Workspace identifier")):
     """
     Get recipes that are liked by all household members (family favorites).
 
     A recipe is considered "popular" if:
     - ALL household members have rated it
     - ALL ratings are "like" (no dislikes or unrated members)
+
+    Args:
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         List of Recipe objects liked by all members (family favorites)
@@ -153,15 +166,15 @@ async def get_popular_recipes():
         ]
     """
     # Get all household members
-    household = load_household_profile()
+    household = load_household_profile(workspace_id)
     if not household or not household.family_members:
-        logger.warning("No household profile found, returning empty popular recipes")
+        logger.warning(f"No household profile found for workspace '{workspace_id}', returning empty popular recipes")
         return []
 
     member_names = [member.name for member in household.family_members]
 
     # Get all ratings
-    ratings_dict = load_recipe_ratings()
+    ratings_dict = load_recipe_ratings(workspace_id)
 
     # Find recipes where ALL household members rated it and ALL gave "like"
     popular_recipe_ids = []
@@ -184,21 +197,25 @@ async def get_popular_recipes():
     # Load the full recipe objects
     popular_recipes = []
     for recipe_id in popular_recipe_ids:
-        recipe = load_recipe(recipe_id)
+        recipe = load_recipe(workspace_id, recipe_id)
         if recipe:
             popular_recipes.append(recipe)
 
-    logger.info(f"Found {len(popular_recipes)} popular recipes")
+    logger.info(f"Found {len(popular_recipes)} popular recipes for workspace '{workspace_id}'")
     return popular_recipes
 
 
 @router.get("/{recipe_id}", response_model=Recipe)
-async def get_recipe(recipe_id: str):
+async def get_recipe(
+    recipe_id: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Get a single recipe by ID.
 
     Args:
         recipe_id: Unique recipe identifier
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         Recipe object
@@ -206,7 +223,7 @@ async def get_recipe(recipe_id: str):
     Raises:
         HTTPException 404: Recipe not found
     """
-    recipe = load_recipe(recipe_id)
+    recipe = load_recipe(workspace_id, recipe_id)
 
     if not recipe:
         raise HTTPException(
@@ -218,12 +235,16 @@ async def get_recipe(recipe_id: str):
 
 
 @router.post("", response_model=Recipe, status_code=201)
-async def create_recipe(recipe: Recipe):
+async def create_recipe(
+    recipe: Recipe,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Create a new recipe.
 
     Args:
         recipe: Complete Recipe object
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         The created recipe
@@ -233,7 +254,7 @@ async def create_recipe(recipe: Recipe):
         HTTPException 500: Failed to save recipe
     """
     # Check if recipe already exists
-    existing = load_recipe(recipe.id)
+    existing = load_recipe(workspace_id, recipe.id)
     if existing:
         raise HTTPException(
             status_code=409,
@@ -241,11 +262,11 @@ async def create_recipe(recipe: Recipe):
         )
 
     try:
-        save_recipe(recipe)
-        logger.info(f"Created new recipe: {recipe.id} - {recipe.title}")
+        save_recipe(workspace_id, recipe)
+        logger.info(f"Created new recipe: {recipe.id} - {recipe.title} in workspace '{workspace_id}'")
         return recipe
     except Exception as e:
-        logger.error(f"Failed to save recipe: {e}")
+        logger.error(f"Failed to save recipe for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to save recipe: {str(e)}"
@@ -253,13 +274,18 @@ async def create_recipe(recipe: Recipe):
 
 
 @router.put("/{recipe_id}", response_model=Recipe)
-async def update_recipe(recipe_id: str, recipe: Recipe):
+async def update_recipe(
+    recipe_id: str,
+    recipe: Recipe,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Update an existing recipe.
 
     Args:
         recipe_id: Recipe ID from URL (must match recipe.id in body)
         recipe: Complete Recipe object
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         The updated recipe
@@ -276,7 +302,7 @@ async def update_recipe(recipe_id: str, recipe: Recipe):
         )
 
     # Check if recipe exists
-    existing = load_recipe(recipe_id)
+    existing = load_recipe(workspace_id, recipe_id)
     if not existing:
         raise HTTPException(
             status_code=404,
@@ -284,11 +310,11 @@ async def update_recipe(recipe_id: str, recipe: Recipe):
         )
 
     try:
-        save_recipe(recipe)
-        logger.info(f"Updated recipe: {recipe.id} - {recipe.title}")
+        save_recipe(workspace_id, recipe)
+        logger.info(f"Updated recipe: {recipe.id} - {recipe.title} in workspace '{workspace_id}'")
         return recipe
     except Exception as e:
-        logger.error(f"Failed to update recipe: {e}")
+        logger.error(f"Failed to update recipe for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update recipe: {str(e)}"
@@ -296,12 +322,16 @@ async def update_recipe(recipe_id: str, recipe: Recipe):
 
 
 @router.get("/{recipe_id}/ratings", response_model=Dict[str, Optional[str]])
-async def get_recipe_ratings(recipe_id: str):
+async def get_recipe_ratings(
+    recipe_id: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Get all ratings for a recipe.
 
     Args:
         recipe_id: Unique recipe identifier
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         Dict mapping member_name to rating ('like', 'dislike', or null)
@@ -317,26 +347,31 @@ async def get_recipe_ratings(recipe_id: str):
         HTTPException 404: Recipe not found
     """
     # Verify recipe exists
-    recipe = load_recipe(recipe_id)
+    recipe = load_recipe(workspace_id, recipe_id)
     if not recipe:
         raise HTTPException(
             status_code=404,
             detail=f"Recipe not found: {recipe_id}"
         )
 
-    ratings = get_recipe_rating(recipe_id)
-    logger.info(f"Retrieved ratings for {recipe_id}: {len(ratings)} members")
+    ratings = get_recipe_rating(workspace_id, recipe_id)
+    logger.info(f"Retrieved ratings for {recipe_id} in workspace '{workspace_id}': {len(ratings)} members")
     return ratings
 
 
 @router.post("/{recipe_id}/rating", response_model=Dict[str, Optional[str]])
-async def rate_recipe(recipe_id: str, rating_update: RatingUpdate):
+async def rate_recipe(
+    recipe_id: str,
+    rating_update: RatingUpdate,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Rate a recipe for a specific household member.
 
     Args:
         recipe_id: Unique recipe identifier
         rating_update: RatingUpdate with member_name and rating
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         Updated ratings dict for this recipe
@@ -360,7 +395,7 @@ async def rate_recipe(recipe_id: str, rating_update: RatingUpdate):
         HTTPException 500: Failed to save rating
     """
     # Verify recipe exists
-    recipe = load_recipe(recipe_id)
+    recipe = load_recipe(workspace_id, recipe_id)
     if not recipe:
         raise HTTPException(
             status_code=404,
@@ -376,14 +411,15 @@ async def rate_recipe(recipe_id: str, rating_update: RatingUpdate):
 
     try:
         updated_ratings = save_recipe_rating(
+            workspace_id=workspace_id,
             recipe_id=recipe_id,
             member_name=rating_update.member_name,
             rating=rating_update.rating
         )
-        logger.info(f"Updated rating for {recipe_id} by {rating_update.member_name}: {rating_update.rating}")
+        logger.info(f"Updated rating for {recipe_id} by {rating_update.member_name} in workspace '{workspace_id}': {rating_update.rating}")
         return updated_ratings
     except Exception as e:
-        logger.error(f"Failed to save rating: {e}")
+        logger.error(f"Failed to save rating for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to save rating: {str(e)}"
@@ -391,7 +427,10 @@ async def rate_recipe(recipe_id: str, rating_update: RatingUpdate):
 
 
 @router.delete("/{recipe_id}", status_code=204)
-async def delete_recipe_endpoint(recipe_id: str):
+async def delete_recipe_endpoint(
+    recipe_id: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Delete a recipe by ID.
 
@@ -399,6 +438,7 @@ async def delete_recipe_endpoint(recipe_id: str):
 
     Args:
         recipe_id: Unique recipe identifier
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         No content (204 status)
@@ -408,7 +448,7 @@ async def delete_recipe_endpoint(recipe_id: str):
         HTTPException 500: Failed to delete recipe
     """
     try:
-        deleted = delete_recipe(recipe_id)
+        deleted = delete_recipe(workspace_id, recipe_id)
 
         if not deleted:
             raise HTTPException(
@@ -417,15 +457,15 @@ async def delete_recipe_endpoint(recipe_id: str):
             )
 
         # Clean up associated ratings
-        delete_recipe_rating(recipe_id)
+        delete_recipe_rating(workspace_id, recipe_id)
 
-        logger.info(f"Deleted recipe and ratings: {recipe_id}")
+        logger.info(f"Deleted recipe and ratings: {recipe_id} from workspace '{workspace_id}'")
         return None
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        logger.error(f"Failed to delete recipe {recipe_id}: {e}")
+        logger.error(f"Failed to delete recipe {recipe_id} for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete recipe: {str(e)}"
@@ -433,12 +473,16 @@ async def delete_recipe_endpoint(recipe_id: str):
 
 
 @router.post("/generate", response_model=Recipe, status_code=201)
-async def generate_recipe(request: DynamicRecipeRequest):
+async def generate_recipe(
+    request: DynamicRecipeRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Generate a recipe dynamically from selected ingredients using Claude AI.
 
     Args:
         request: DynamicRecipeRequest with ingredients, portions, meal type, etc.
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         Generated Recipe object with is_generated=True
@@ -455,7 +499,7 @@ async def generate_recipe(request: DynamicRecipeRequest):
         )
 
     try:
-        logger.info(f"Generating recipe from {len(request.ingredients)} ingredients")
+        logger.info(f"Generating recipe from {len(request.ingredients)} ingredients for workspace '{workspace_id}'")
         recipe = await generate_recipe_from_ingredients(
             ingredients=request.ingredients,
             portions=request.portions or {},
@@ -466,19 +510,19 @@ async def generate_recipe(request: DynamicRecipeRequest):
         )
 
         # Save the generated recipe
-        save_recipe(recipe)
-        logger.info(f"Generated and saved recipe: {recipe.id} - {recipe.title}")
+        save_recipe(workspace_id, recipe)
+        logger.info(f"Generated and saved recipe: {recipe.id} - {recipe.title} for workspace '{workspace_id}'")
 
         # Embed the recipe in Chroma for RAG retrieval
         from app.data.chroma_manager import embed_recipes
-        embed_recipes([recipe])
-        logger.info(f"Embedded recipe in Chroma DB: {recipe.id}")
+        embed_recipes(workspace_id, [recipe])
+        logger.info(f"Embedded recipe in Chroma DB: {recipe.id} for workspace '{workspace_id}'")
 
         return recipe
 
     except ValueError as e:
         # Invalid input or Claude API error
-        logger.error(f"Failed to generate recipe: {e}")
+        logger.error(f"Failed to generate recipe for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=400,
             detail=str(e)
@@ -499,12 +543,16 @@ async def generate_recipe(request: DynamicRecipeRequest):
 
 
 @router.post("/generate-from-title", response_model=Recipe, status_code=201)
-async def generate_recipe_from_title_endpoint(request: GenerateFromTitleRequest):
+async def generate_recipe_from_title_endpoint(
+    request: GenerateFromTitleRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Generate a recipe from a title using Claude AI.
 
     Args:
         request: GenerateFromTitleRequest with recipe title, meal type, and servings
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         Generated Recipe object with is_generated=True
@@ -522,7 +570,7 @@ async def generate_recipe_from_title_endpoint(request: GenerateFromTitleRequest)
         )
 
     # Check if a recipe with this title already exists
-    all_recipes = list_all_recipes()
+    all_recipes = list_all_recipes(workspace_id)
     for existing_recipe in all_recipes:
         if existing_recipe.title.lower() == request.recipe_title.strip().lower():
             raise HTTPException(
@@ -531,7 +579,7 @@ async def generate_recipe_from_title_endpoint(request: GenerateFromTitleRequest)
             )
 
     try:
-        logger.info(f"Generating recipe from title: '{request.recipe_title}'")
+        logger.info(f"Generating recipe from title: '{request.recipe_title}' for workspace '{workspace_id}'")
         recipe = await generate_recipe_from_title(
             recipe_title=request.recipe_title.strip(),
             meal_type=request.meal_type,
@@ -539,19 +587,19 @@ async def generate_recipe_from_title_endpoint(request: GenerateFromTitleRequest)
         )
 
         # Save the generated recipe
-        save_recipe(recipe)
-        logger.info(f"Generated and saved recipe: {recipe.id} - {recipe.title}")
+        save_recipe(workspace_id, recipe)
+        logger.info(f"Generated and saved recipe: {recipe.id} - {recipe.title} for workspace '{workspace_id}'")
 
         # Embed the recipe in Chroma for RAG retrieval
         from app.data.chroma_manager import embed_recipes
-        embed_recipes([recipe])
-        logger.info(f"Embedded recipe in Chroma DB: {recipe.id}")
+        embed_recipes(workspace_id, [recipe])
+        logger.info(f"Embedded recipe in Chroma DB: {recipe.id} for workspace '{workspace_id}'")
 
         return recipe
 
     except ValueError as e:
         # Invalid input or Claude API error
-        logger.error(f"Failed to generate recipe: {e}")
+        logger.error(f"Failed to generate recipe for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=400,
             detail=str(e)
@@ -564,7 +612,7 @@ async def generate_recipe_from_title_endpoint(request: GenerateFromTitleRequest)
             detail="Recipe generation service temporarily unavailable"
         )
     except Exception as e:
-        logger.error(f"Unexpected error generating recipe: {e}")
+        logger.error(f"Unexpected error generating recipe for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate recipe: {str(e)}"
@@ -572,12 +620,15 @@ async def generate_recipe_from_title_endpoint(request: GenerateFromTitleRequest)
 
 
 @router.post("/admin/sync-chroma", tags=["admin"])
-async def sync_chroma_db():
+async def sync_chroma_db(workspace_id: str = Query(..., description="Workspace identifier")):
     """
-    Admin endpoint to sync Chroma DB with recipe storage.
+    Admin endpoint to sync Chroma DB with recipe storage for a workspace.
 
     Removes orphaned entries and adds missing embeddings.
     Useful for fixing inconsistencies between JSON storage and Chroma vector DB.
+
+    Args:
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         dict: Sync statistics
@@ -588,14 +639,14 @@ async def sync_chroma_db():
     from app.data.chroma_manager import sync_chroma_with_storage
 
     try:
-        stats = sync_chroma_with_storage()
-        logger.info(f"Chroma sync completed: {stats}")
+        stats = sync_chroma_with_storage(workspace_id)
+        logger.info(f"Chroma sync completed for workspace '{workspace_id}': {stats}")
         return {
-            "message": "Chroma DB synchronized with recipe storage",
+            "message": f"Chroma DB synchronized with recipe storage for workspace '{workspace_id}'",
             "stats": stats
         }
     except Exception as e:
-        logger.error(f"Failed to sync Chroma DB: {e}")
+        logger.error(f"Failed to sync Chroma DB for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Chroma sync failed: {str(e)}"

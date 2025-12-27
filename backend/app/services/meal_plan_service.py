@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_meal_plan(
+    workspace_id: str,
     week_start_date: Date,
     household: Optional[HouseholdProfile] = None,
     num_recipes: int = 15
@@ -35,6 +36,7 @@ def generate_meal_plan(
     5. Returns validated MealPlan
 
     Args:
+        workspace_id: Workspace identifier for data isolation
         week_start_date: Start date for the meal plan
         household: Optional HouseholdProfile (loads from storage if not provided)
         num_recipes: Number of candidate recipes to retrieve (default: 15)
@@ -44,30 +46,31 @@ def generate_meal_plan(
 
     Example:
         >>> from datetime import date
-        >>> meal_plan = generate_meal_plan(date(2025, 12, 3))
+        >>> meal_plan = generate_meal_plan("andrea", date(2025, 12, 3))
         >>> if meal_plan:
         ...     print(f"Generated plan for {len(meal_plan.days)} days")
     """
-    logger.info(f"Starting meal plan generation for week of {week_start_date}")
+    logger.info(f"Starting meal plan generation for week of {week_start_date} in workspace '{workspace_id}'")
 
     # Load household profile if not provided
     if household is None:
-        household = load_household_profile()
+        household = load_household_profile(workspace_id)
         if not household:
-            logger.error("No household profile found")
+            logger.error(f"No household profile found for workspace '{workspace_id}'")
             return None
 
     # Load available groceries
-    groceries = load_groceries()
-    logger.info(f"Loaded {len(groceries)} available groceries")
+    groceries = load_groceries(workspace_id)
+    logger.info(f"Loaded {len(groceries)} available groceries for workspace '{workspace_id}'")
 
     # Load recipe ratings
-    recipe_ratings = load_recipe_ratings()
-    logger.info(f"Loaded ratings for {len(recipe_ratings)} recipes")
+    recipe_ratings = load_recipe_ratings(workspace_id)
+    logger.info(f"Loaded ratings for {len(recipe_ratings)} recipes for workspace '{workspace_id}'")
 
     # Step 1: Retrieve relevant recipes using RAG
-    logger.info(f"Retrieving {num_recipes} relevant recipes...")
+    logger.info(f"Retrieving {num_recipes} relevant recipes for workspace '{workspace_id}'...")
     recipes = retrieve_relevant_recipes(
+        workspace_id=workspace_id,
         household=household,
         available_groceries=groceries,
         num_recipes=num_recipes

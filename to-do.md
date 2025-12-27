@@ -1,24 +1,24 @@
 # TO DO
-- test receipt OCR feature
-- 
-- test voice input feature
-- deploy for beta testing
+
 
 
 # DISCUSS
-- how to set up beta testing? don't want to handle accounts for now
 - future: create accounts, auth, storage, payments
+- which claude model to use to balance paying customers and quick service (right now claude API calls are cheap but slow)
 
 # META/DEVOPS
-- token efficient docs
+
 
 # FEATURES
+- introduce daycare rules CRUD
+- add "how we're feeling today" vibe generator for meal plans
+  - lazy and convenience wins
+  - health kick
+  - use up leftovers
 - add "type" to schema (e.g. pantry, fresh produce, freezer)
 
+# UI/UX
+- Weekly meal plan page view: scroll for week is not clear
+- nav arrows are still there, meal titles display still squished
+
 # BUGS TO FIX
-
-- Receipt OCR test 2025-12-25 10:48PM
-
-```
-Receipt OCR failed: API Error 500: {"detail":"Internal server error: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-sonnet-20241022'}, 'request_id': 'req_011CWUqwBhmKVLK2Qwn6bGkn'}"}
-```

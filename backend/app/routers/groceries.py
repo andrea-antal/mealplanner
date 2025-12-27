@@ -6,7 +6,7 @@ Includes voice parsing endpoints for Sprint 4 Phase 1.
 Includes receipt OCR endpoints for Sprint 4 Phase 2.
 """
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from app.models.grocery import (
     GroceryItem,
     GroceryList,
@@ -29,19 +29,22 @@ router = APIRouter(
 
 
 @router.get("", response_model=GroceryList)
-async def get_groceries():
+async def get_groceries(workspace_id: str = Query(..., description="Workspace identifier")):
     """
     Get all groceries.
+
+    Args:
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         GroceryList containing all grocery items with dates and expiry info
     """
     try:
-        items = load_groceries()
-        logger.info(f"Retrieved {len(items)} grocery items")
+        items = load_groceries(workspace_id)
+        logger.info(f"Retrieved {len(items)} grocery items for workspace '{workspace_id}'")
         return GroceryList(items=items)
     except Exception as e:
-        logger.error(f"Failed to load groceries: {e}")
+        logger.error(f"Failed to load groceries for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to load groceries: {str(e)}"
@@ -49,12 +52,16 @@ async def get_groceries():
 
 
 @router.post("", response_model=GroceryItem)
-async def add_grocery(item: GroceryItem):
+async def add_grocery(
+    item: GroceryItem,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Add a single grocery item.
 
     Args:
         item: GroceryItem to add (name required, dates optional)
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         The added GroceryItem
@@ -64,17 +71,17 @@ async def add_grocery(item: GroceryItem):
         HTTPException 500: Failed to save groceries
     """
     try:
-        items = load_groceries()
+        items = load_groceries(workspace_id)
         items.append(item)
-        save_groceries(items)
-        logger.info(f"Added grocery item: {item.name}")
+        save_groceries(workspace_id, items)
+        logger.info(f"Added grocery item: {item.name} to workspace '{workspace_id}'")
         return item
     except ValueError as e:
         # Pydantic validation error
         logger.error(f"Invalid grocery item: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to add grocery: {e}")
+        logger.error(f"Failed to add grocery for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to add grocery: {str(e)}"
@@ -82,12 +89,16 @@ async def add_grocery(item: GroceryItem):
 
 
 @router.delete("/{item_name}")
-async def delete_grocery(item_name: str):
+async def delete_grocery(
+    item_name: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Delete a grocery item by name.
 
     Args:
         item_name: Name of the grocery item to delete
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         Success message
@@ -97,26 +108,26 @@ async def delete_grocery(item_name: str):
         HTTPException 500: Failed to save groceries
     """
     try:
-        items = load_groceries()
+        items = load_groceries(workspace_id)
 
         # Find and remove item (case-insensitive match)
         original_count = len(items)
         items = [item for item in items if item.name.lower() != item_name.lower()]
 
         if len(items) == original_count:
-            logger.warning(f"Grocery item not found: {item_name}")
+            logger.warning(f"Grocery item not found: {item_name} in workspace '{workspace_id}'")
             raise HTTPException(
                 status_code=404,
                 detail=f"Grocery item '{item_name}' not found"
             )
 
-        save_groceries(items)
-        logger.info(f"Deleted grocery item: {item_name}")
+        save_groceries(workspace_id, items)
+        logger.info(f"Deleted grocery item: {item_name} from workspace '{workspace_id}'")
         return {"message": f"Grocery item '{item_name}' deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete grocery: {e}")
+        logger.error(f"Failed to delete grocery for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete grocery: {str(e)}"
@@ -124,12 +135,16 @@ async def delete_grocery(item_name: str):
 
 
 @router.get("/expiring-soon", response_model=GroceryList)
-async def get_expiring_soon(days_ahead: int = 1):
+async def get_expiring_soon(
+    days_ahead: int = 1,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Get groceries expiring within N days.
 
     Args:
         days_ahead: Number of days to look ahead (default: 1)
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         GroceryList containing only items expiring soon
@@ -145,12 +160,12 @@ async def get_expiring_soon(days_ahead: int = 1):
         )
 
     try:
-        items = load_groceries()
+        items = load_groceries(workspace_id)
         expiring_items = [item for item in items if item.is_expiring_soon(days_ahead)]
-        logger.info(f"Found {len(expiring_items)} items expiring within {days_ahead} days")
+        logger.info(f"Found {len(expiring_items)} items expiring within {days_ahead} days for workspace '{workspace_id}'")
         return GroceryList(items=expiring_items)
     except Exception as e:
-        logger.error(f"Failed to get expiring groceries: {e}")
+        logger.error(f"Failed to get expiring groceries for workspace '{workspace_id}': {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get expiring groceries: {str(e)}"
@@ -163,7 +178,10 @@ async def get_expiring_soon(days_ahead: int = 1):
 
 
 @router.post("/parse-voice", response_model=VoiceParseResponse)
-async def parse_voice_input(request: VoiceParseRequest):
+async def parse_voice_input(
+    request: VoiceParseRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Parse voice transcription into proposed grocery items.
 
@@ -173,6 +191,7 @@ async def parse_voice_input(request: VoiceParseRequest):
 
     Args:
         request: VoiceParseRequest with transcription text
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         VoiceParseResponse with proposed items and warnings
@@ -194,7 +213,7 @@ async def parse_voice_input(request: VoiceParseRequest):
     """
     try:
         # Get existing groceries for duplicate detection
-        existing_items = load_groceries()
+        existing_items = load_groceries(workspace_id)
         existing_names = [item.name.lower() for item in existing_items]
 
         # Parse voice input using Claude service
@@ -203,7 +222,7 @@ async def parse_voice_input(request: VoiceParseRequest):
             existing_names
         )
 
-        logger.info(f"Parsed {len(proposed_items)} items from voice input")
+        logger.info(f"Parsed {len(proposed_items)} items from voice input for workspace '{workspace_id}'")
 
         # Convert dicts to ProposedGroceryItem models
         return VoiceParseResponse(
@@ -224,7 +243,7 @@ async def parse_voice_input(request: VoiceParseRequest):
             detail="AI service temporarily unavailable. Please try again."
         )
     except Exception as e:
-        logger.error(f"Failed to parse voice input: {e}", exc_info=True)
+        logger.error(f"Failed to parse voice input for workspace '{workspace_id}': {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to parse voice input: {str(e)}"
@@ -232,7 +251,10 @@ async def parse_voice_input(request: VoiceParseRequest):
 
 
 @router.post("/batch", response_model=GroceryList)
-async def batch_add_groceries(request: BatchAddRequest):
+async def batch_add_groceries(
+    request: BatchAddRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Add multiple grocery items at once.
 
@@ -241,6 +263,7 @@ async def batch_add_groceries(request: BatchAddRequest):
 
     Args:
         request: BatchAddRequest with list of grocery items
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         Updated GroceryList with all items (both existing and newly added)
@@ -266,7 +289,7 @@ async def batch_add_groceries(request: BatchAddRequest):
             )
 
         # Load existing groceries
-        items = load_groceries()
+        items = load_groceries(workspace_id)
 
         # Add new items (skip duplicates based on case-insensitive name matching)
         existing_names = {item.name.lower() for item in items}
@@ -281,9 +304,9 @@ async def batch_add_groceries(request: BatchAddRequest):
                 logger.debug(f"Skipping duplicate item: {new_item.name}")
 
         # Save updated list
-        save_groceries(items)
+        save_groceries(workspace_id, items)
         logger.info(
-            f"Batch added {added_count} items "
+            f"Batch added {added_count} items to workspace '{workspace_id}' "
             f"({len(request.items) - added_count} duplicates skipped)"
         )
 
@@ -297,7 +320,7 @@ async def batch_add_groceries(request: BatchAddRequest):
         # Re-raise HTTPExceptions (don't wrap them)
         raise
     except Exception as e:
-        logger.error(f"Failed to batch add groceries: {e}", exc_info=True)
+        logger.error(f"Failed to batch add groceries for workspace '{workspace_id}': {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to batch add groceries: {str(e)}"
@@ -310,7 +333,10 @@ async def batch_add_groceries(request: BatchAddRequest):
 
 
 @router.post("/parse-receipt", response_model=ReceiptParseResponse)
-async def parse_receipt(request: ReceiptParseRequest):
+async def parse_receipt(
+    request: ReceiptParseRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Parse receipt image to extract grocery items using Claude Vision OCR.
 
@@ -322,16 +348,20 @@ async def parse_receipt(request: ReceiptParseRequest):
 
     Returns proposed items for user confirmation.
 
+    Args:
+        request: ReceiptParseRequest with base64-encoded image
+        workspace_id: Workspace identifier for data isolation
+
     Raises:
         HTTPException 400: Invalid image data
         HTTPException 422: Validation error (Pydantic)
         HTTPException 500: Claude Vision API error
     """
     try:
-        logger.info("Parsing receipt via OCR")
+        logger.info(f"Parsing receipt via OCR for workspace '{workspace_id}'")
 
         # Get existing groceries for duplicate detection
-        existing_items = load_groceries()
+        existing_items = load_groceries(workspace_id)
         existing_dicts = [item.model_dump() for item in existing_items]
 
         # Call Claude Vision service
@@ -361,11 +391,11 @@ async def parse_receipt(request: ReceiptParseRequest):
         )
 
     except ValueError as e:
-        logger.warning(f"Invalid receipt data: {e}")
+        logger.warning(f"Invalid receipt data for workspace '{workspace_id}': {e}")
         raise HTTPException(status_code=400, detail=f"Invalid image data: {e}")
     except ConnectionError as e:
-        logger.error(f"Claude Vision API error: {e}")
+        logger.error(f"Claude Vision API error for workspace '{workspace_id}': {e}")
         raise HTTPException(status_code=500, detail=f"Claude Vision API error: {e}")
     except Exception as e:
-        logger.error(f"Unexpected error parsing receipt: {e}", exc_info=True)
+        logger.error(f"Unexpected error parsing receipt for workspace '{workspace_id}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")

@@ -5,7 +5,7 @@ Provides REST API for generating and managing meal plans.
 """
 import logging
 from datetime import date as Date
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from app.services.meal_plan_service import generate_meal_plan
 from app.models.meal_plan import MealPlan
@@ -25,7 +25,10 @@ class GenerateMealPlanRequest(BaseModel):
 
 
 @router.post("/generate", response_model=MealPlan)
-async def generate_meal_plan_endpoint(request: GenerateMealPlanRequest):
+async def generate_meal_plan_endpoint(
+    request: GenerateMealPlanRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
     """
     Generate a weekly meal plan.
 
@@ -37,6 +40,7 @@ async def generate_meal_plan_endpoint(request: GenerateMealPlanRequest):
 
     Args:
         request: Contains week_start_date and optional num_recipes
+        workspace_id: Workspace identifier for data isolation
 
     Returns:
         MealPlan object with 7 days of meals
@@ -45,7 +49,7 @@ async def generate_meal_plan_endpoint(request: GenerateMealPlanRequest):
         HTTPException 400: Invalid date format
         HTTPException 500: Meal plan generation failed
     """
-    logger.info(f"Received request to generate meal plan for {request.week_start_date}")
+    logger.info(f"Received request to generate meal plan for {request.week_start_date} in workspace '{workspace_id}'")
 
     # Parse date
     try:
@@ -58,6 +62,7 @@ async def generate_meal_plan_endpoint(request: GenerateMealPlanRequest):
 
     # Generate meal plan
     meal_plan = generate_meal_plan(
+        workspace_id=workspace_id,
         week_start_date=week_start,
         num_recipes=request.num_recipes
     )
@@ -68,5 +73,5 @@ async def generate_meal_plan_endpoint(request: GenerateMealPlanRequest):
             detail="Failed to generate meal plan. Check logs for details."
         )
 
-    logger.info(f"Successfully generated meal plan with {len(meal_plan.days)} days")
+    logger.info(f"Successfully generated meal plan with {len(meal_plan.days)} days for workspace '{workspace_id}'")
     return meal_plan

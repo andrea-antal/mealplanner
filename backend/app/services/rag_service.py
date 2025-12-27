@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def retrieve_relevant_recipes(
+    workspace_id: str,
     household: HouseholdProfile,
     available_groceries: List[GroceryItem],
     num_recipes: int = 15
@@ -32,6 +33,7 @@ def retrieve_relevant_recipes(
     recipes that best match the household's needs and available ingredients.
 
     Args:
+        workspace_id: Workspace identifier for data isolation
         household: Household profile with dietary constraints, preferences, cooking gear
         available_groceries: List of GroceryItem objects currently available
         num_recipes: Maximum number of recipes to return (default: 15)
@@ -40,12 +42,12 @@ def retrieve_relevant_recipes(
         List of Recipe objects, sorted by relevance
 
     Example:
-        >>> household = load_household_profile()
+        >>> household = load_household_profile("andrea")
         >>> groceries = [GroceryItem(name="chicken"), GroceryItem(name="rice")]
-        >>> recipes = retrieve_relevant_recipes(household, groceries, num_recipes=10)
+        >>> recipes = retrieve_relevant_recipes("andrea", household, groceries, num_recipes=10)
         >>> print(f"Found {len(recipes)} relevant recipes")
     """
-    logger.info(f"Retrieving recipes for household with {len(household.family_members)} members")
+    logger.info(f"Retrieving recipes for household with {len(household.family_members)} members in workspace '{workspace_id}'")
 
     # Build query text from household constraints and groceries
     query_text = _build_query_text(household, available_groceries)
@@ -57,6 +59,7 @@ def retrieve_relevant_recipes(
 
     # Query Chroma for relevant recipe IDs
     search_results = query_recipes(
+        workspace_id=workspace_id,
         query_text=query_text,
         filters=filters,
         n_results=num_recipes
@@ -66,14 +69,14 @@ def retrieve_relevant_recipes(
     recipes = []
     for result in search_results:
         recipe_id = result['id']
-        recipe = load_recipe(recipe_id)
+        recipe = load_recipe(workspace_id, recipe_id)
 
         if recipe:
             recipes.append(recipe)
         else:
-            logger.warning(f"Recipe {recipe_id} found in Chroma but not in JSON storage")
+            logger.warning(f"Recipe {recipe_id} found in Chroma but not in JSON storage for workspace '{workspace_id}'")
 
-    logger.info(f"Retrieved {len(recipes)} recipes")
+    logger.info(f"Retrieved {len(recipes)} recipes for workspace '{workspace_id}'")
     return recipes
 
 
