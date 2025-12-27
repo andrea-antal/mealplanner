@@ -1,14 +1,108 @@
 ---
 **Summary**: Latest session summary with completed work, current state, next steps, and resume commands. The single source of truth for session context. Update this file each session, don't create new ones.
-**Last Updated**: 2025-12-25
+**Last Updated**: 2025-12-26
 **Status**: Current
 **Read This If**: Starting a new session or resuming work
 ---
 
-# Session Handoff - Sprint 4 Phase 2 Complete
+# Session Handoff - Production Deployment Complete
+
+**Date**: 2025-12-26
+**Branch**: main
+**Session Duration**: ~4 hours
+**Final Commits**:
+- 9b2ea1e - Mobile UX fix: Make meal plan week selector scrollable on mobile
+- 0391dad - Fix receipt OCR: use configured MODEL_NAME instead of hardcoded model
+- 3c234fd - Fix Railway port configuration: use Dockerfile with PORT fallback
+- cd8cfae - Add Vercel and Railway deployment configuration
+
+---
+
+## 🚀 Major Milestone: Production Deployment
+
+### App is LIVE!
+- **Frontend**: https://frontend-iota-orcin-18.vercel.app
+- **Backend**: https://mealplanner-backend-production-3e88.up.railway.app
+- **Status**: Fully functional, tested on mobile devices
+
+---
+
+## ✅ Completed This Session
+
+### 1. Production Deployment Infrastructure (100% Complete)
+
+**Vercel Frontend Deployment**:
+- ✅ Created `frontend/vercel.json` config
+- ✅ Set up `VITE_API_URL` environment variable
+- ✅ Deployed via Vercel CLI with auto-deploy from GitHub
+- ✅ Tested on desktop and mobile devices
+
+**Railway Backend Deployment**:
+- ✅ Created `backend/Dockerfile` for containerization
+- ✅ Created `backend/railway.json` config
+- ✅ Created `backend/Procfile` and `backend/nixpacks.toml`
+- ✅ Configured environment variables (ANTHROPIC_API_KEY, MODEL_NAME, etc.)
+- ✅ Set up CORS for Vercel origin
+- ✅ Deployed with GitHub auto-deploy integration
+
+### 2. Bug Fixes & Optimizations
+
+**Railway PORT Configuration** (45 min debugging):
+- Issue: `$PORT` variable not expanding in command string
+- Solution: Switched to Dockerfile with `${PORT:-8000}` fallback syntax
+- Commits: 3c234fd
+
+**Receipt OCR Model Update** (10 min):
+- Issue: Hardcoded old model ID causing 500 errors
+- Solution: Updated to use `settings.MODEL_NAME` (Claude Sonnet 4.5)
+- Commits: 0391dad
+
+**ChromaDB Sync** (5 min):
+- Issue: Vector database empty on fresh deployment
+- Solution: Called `/recipes/admin/sync-chroma` endpoint
+- Result: 14 recipes successfully indexed
+
+**Mobile Meal Plan UX** (15 min):
+- Issue: Week selector squished with 7 tiny columns on mobile
+- Solution: Horizontal scroll on mobile (`flex overflow-x-auto`), grid on desktop (`md:grid-cols-7`)
+- Commits: 9b2ea1e
+
+### 3. Documentation Updates
+- ✅ Updated CHANGELOG.md with deployment entry
+- ✅ Updated CURRENT_STATE.md with production URLs and status
+- ✅ Updated this HANDOFF.md
+
+---
+
+## 📊 Current State
+
+### Deployment Status
+- **Environment**: Production
+- **Branch**: main
+- **Frontend**: Vercel (auto-deploy enabled)
+- **Backend**: Railway (auto-deploy enabled)
+- **Data**: 14 recipes, 3 family members, ChromaDB synced
+
+### Feature Status (All Production Ready ✅)
+- **Voice Input**: Working on mobile
+- **Receipt OCR**: Working with Claude Vision
+- **Meal Plan Generation**: Working (post ChromaDB sync)
+- **Grocery Management**: Working
+- **Recipe Library**: Working with ratings
+- **Mobile Redesign**: Responsive layouts complete
+
+### Known Limitations
+- **Persistent Volume**: Not configured - data resets on Railway redeploy (acceptable for testing)
+- **Custom Domain**: Not configured - using default Vercel/Railway URLs
+- **Analytics**: Not set up
+- **Error Monitoring**: Not configured
+
+---
+
+## 📝 Previous Session: Sprint 4 Phase 2 Complete
 
 **Date**: 2025-12-25
-**Branch**: feature/voice-input
+**Branch**: feature/voice-input (merged to main)
 **Session Duration**: ~6 hours
 **Commit**: b792a07 - Sprint 4 Phase 2 Complete: Receipt OCR with Claude Vision API
 

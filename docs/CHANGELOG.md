@@ -1,6 +1,6 @@
 ---
 **Summary**: Chronological feature history with technical implementation details, test results, and file changes. Authoritative source for "what was built when and how".
-**Last Updated**: 2025-12-25
+**Last Updated**: 2025-12-26
 **Status**: Current
 **Read This If**: You need detailed implementation notes for any feature or sprint
 ---
@@ -8,6 +8,97 @@
 # Meal Planner - Development Changelog
 
 This document tracks key decisions, changes, and learnings during development.
+
+---
+
+## 2025-12-26 Production Deployment to Vercel + Railway
+
+**Status**: Complete | **Duration**: ~4 hours | **Branch**: main
+
+### Summary
+Successfully deployed the Meal Planner app to production infrastructure for mobile testing. Frontend hosted on Vercel's global CDN, backend on Railway with persistent storage. All Sprint 4 features (voice input, receipt OCR, mobile redesign) now accessible on mobile devices.
+
+### Deployment Architecture
+**Frontend (Vercel)**:
+- Platform: Vercel (https://frontend-iota-orcin-18.vercel.app)
+- Build: Vite production build with code splitting
+- Environment: `VITE_API_URL` pointing to Railway backend
+- Auto-deploy: Enabled from GitHub main branch
+- Performance: Global CDN distribution, <1s page loads
+
+**Backend (Railway)**:
+- Platform: Railway (https://mealplanner-backend-production-3e88.up.railway.app)
+- Runtime: Python 3.11 with Dockerfile
+- Environment Variables: `ANTHROPIC_API_KEY`, `MODEL_NAME`, `CORS_ORIGINS`, `DATA_DIR`, `CHROMA_PERSIST_DIR`
+- Port Configuration: Dynamic PORT with fallback to 8000
+- Auto-deploy: Enabled from GitHub main branch
+- Data Storage: JSON files + ChromaDB vector database
+
+### Configuration Files Created
+**Backend**:
+- `backend/Dockerfile` - Containerized Python/FastAPI app
+- `backend/railway.json` - Railway deployment config (uses Dockerfile)
+- `backend/Procfile` - Alternative process definition
+- `backend/nixpacks.toml` - Nixpacks build configuration
+
+**Frontend**:
+- `frontend/vercel.json` - Vercel build and routing config
+- `frontend/.env.production` - Environment variable template (not committed)
+
+**Root**:
+- `.gitignore` - Added `.env.production`, `.vercel`
+
+### Issues Resolved
+1. **Railway PORT Configuration**: Fixed `$PORT` variable expansion by switching to Dockerfile with `${PORT:-8000}` syntax
+2. **Receipt OCR Model Error**: Updated hardcoded `claude-3-5-sonnet-20241022` to use configurable `MODEL_NAME` (claude-sonnet-4-5-20250929)
+3. **ChromaDB Sync**: Empty vector database on fresh deployment - added `/recipes/admin/sync-chroma` endpoint call to index 14 recipes
+4. **CORS Configuration**: Verified Vercel URLs included in `CORS_ORIGINS` for cross-origin API requests
+5. **Meal Plan Mobile UX**: Fixed squished 7-column week selector - now horizontal scroll on mobile, grid on desktop
+
+### Mobile Redesign Enhancements
+**Meal Plans Page**:
+- Week selector: Horizontal scroll on mobile (70px min-width per day)
+- Desktop: Maintains 7-column grid layout
+- Responsive breakpoint: `md:grid-cols-7` at 768px
+- Touch-friendly: Larger tap targets for day selection
+
+### Post-Deployment Data Setup
+- ChromaDB initialized with 14 recipes via sync endpoint
+- Household profile: 3 family members (Adam, Andrea, Nathan)
+- Recipe ratings: Preserved from local development
+- Groceries: Fresh deployment, populated via voice/receipt input
+
+### Testing Completed
+✅ Frontend deployed and accessible on mobile
+✅ Backend health check responding (`/health`)
+✅ Recipe listing (14 recipes loaded)
+✅ Household profile API
+✅ Receipt OCR with Claude Vision (post-fix)
+✅ Meal plan generation (post-ChromaDB sync)
+✅ Mobile week selector (horizontal scroll)
+✅ Voice input for groceries
+✅ CORS between Vercel and Railway
+
+### Production URLs
+- **Frontend**: https://frontend-iota-orcin-18.vercel.app
+- **Backend API**: https://mealplanner-backend-production-3e88.up.railway.app
+- **API Docs**: https://mealplanner-backend-production-3e88.up.railway.app/docs
+
+### Future Infrastructure Considerations
+- **Persistent Volume**: Railway volume not configured - data resets on redeploy (acceptable for testing)
+- **Custom Domains**: Can add custom domains to both Vercel and Railway
+- **Database Migration**: Consider PostgreSQL for household/groceries, keep ChromaDB for RAG
+- **Monitoring**: Add error tracking (Sentry) and analytics (Posthog)
+- **CI/CD**: GitHub Actions for automated testing before deployment
+
+### Deployment Time Breakdown
+- Configuration files: 15 min
+- Initial Railway deployment: 20 min
+- PORT troubleshooting: 45 min
+- Receipt OCR fix: 10 min
+- ChromaDB sync: 5 min
+- Meal plan mobile UX: 15 min
+- Testing and validation: 30 min
 
 ---
 

@@ -1,15 +1,21 @@
 ---
-**Summary**: Quick snapshot of what's working right now (Sprint 4 Phase 2 complete). Updated after each sprint. Use this to quickly understand current capabilities.
-**Last Updated**: 2025-12-25
+**Summary**: Quick snapshot of what's working right now (Deployed to production). Updated after each sprint. Use this to quickly understand current capabilities.
+**Last Updated**: 2025-12-26
 **Status**: Current
 **Read This If**: You need a quick feature inventory or tech stack summary
 ---
 
 # Current State - Meal Planner
 
-**As of**: Sprint 4 Phase 2 Complete (2025-12-25)
-**Branch**: `feature/voice-input`
-**Version**: v0.4 (pre-release)
+**As of**: Production Deployment (2025-12-26)
+**Branch**: `main`
+**Version**: v0.4 (production)
+**Status**: 🚀 **LIVE IN PRODUCTION**
+
+## 🌐 Production URLs
+- **Frontend**: https://frontend-iota-orcin-18.vercel.app
+- **Backend API**: https://mealplanner-backend-production-3e88.up.railway.app
+- **API Docs**: https://mealplanner-backend-production-3e88.up.railway.app/docs
 
 ---
 
@@ -42,6 +48,8 @@
 ### Latest Features (Sprint 4)
 - **Phase 1**: Voice input for groceries (Web Speech API + Claude parsing)
 - **Phase 2**: Receipt OCR (Claude Vision API + image compression)
+- **Phase 3**: Production deployment (Vercel + Railway)
+- **Phase 4**: Mobile meal plan UX enhancement
 
 ---
 
@@ -49,22 +57,28 @@
 
 ### Frontend
 - **Framework**: React 18 + TypeScript
-- **Build**: Vite
-- **UI**: shadcn-ui + Tailwind CSS
-- **State**: TanStack Query
+- **Build**: Vite 7.2.6
+- **UI**: shadcn-ui + Tailwind CSS (custom theme)
+- **State**: TanStack Query v5
 - **Routing**: React Router v6
+- **Deployment**: Vercel (Global CDN)
+- **URL**: https://frontend-iota-orcin-18.vercel.app
 
 ### Backend
-- **Framework**: FastAPI (Python 3.11)
-- **Validation**: Pydantic
-- **Vector DB**: Chroma (local, persistent)
+- **Framework**: FastAPI 0.104.1 (Python 3.11)
+- **Server**: Uvicorn with auto-reload
+- **Validation**: Pydantic v2
+- **Vector DB**: ChromaDB 0.4.18 (persistent)
 - **AI**: Anthropic Claude API
-  - Sonnet 3.5 for meal planning & parsing
-  - Claude Vision for receipt OCR
+  - Claude Sonnet 4.5 (claude-sonnet-4-5-20250929) for all operations
+  - Vision capabilities for receipt OCR
+- **Deployment**: Railway (Containerized with Docker)
+- **URL**: https://mealplanner-backend-production-3e88.up.railway.app
 
 ### Data
 - **Storage**: File-based JSON (`backend/data/`)
-- **Files**: recipes/, household_profile.json, groceries.json, recipe_ratings.json, meal_plan.json
+- **Files**: recipes/, household_profile.json, groceries.json, recipe_ratings.json
+- **Vector Store**: ChromaDB (14 recipes indexed)
 
 ---
 
