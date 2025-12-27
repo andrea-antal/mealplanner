@@ -28,10 +28,11 @@ const Index = () => {
   };
 
   // Fetch household profile from backend (only when workspace is set)
-  const { data: householdProfile, isLoading: isLoadingProfile } = useQuery({
+  const { data: householdProfile, isLoading: isLoadingProfile, error: profileError } = useQuery({
     queryKey: ['householdProfile', workspaceId],
     queryFn: () => householdAPI.getProfile(workspaceId!),
     enabled: !!workspaceId, // Only run query when workspace is set
+    retry: false, // Don't retry on 404 - just means no profile yet
   });
 
   return (
@@ -135,7 +136,7 @@ const Index = () => {
             </Link>
           </Button>
         </div>
-        {isLoadingProfile ? (
+        {isLoadingProfile && !profileError ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
