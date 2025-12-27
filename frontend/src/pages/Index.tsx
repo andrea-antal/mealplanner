@@ -44,42 +44,11 @@ const Index = () => {
       />
 
       <div className="space-y-12">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-secondary to-accent/10 p-8 md:p-12">
-        <div className="relative z-10 max-w-2xl">
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4 animate-fade-in">
-            Your Weekly Meals,{' '}
-            <span className="text-primary">Planned Perfectly</span>
-          </h1>
-          <p className="text-lg text-muted-foreground mb-8 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            AI-powered meal planning tailored to your family's tastes, dietary needs, and the groceries you already have.
-          </p>
-          <div className="flex flex-wrap gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <Button variant="hero" size="xl" asChild>
-              <Link to="/meal-plans">
-                <Sparkles className="h-5 w-5" />
-                Generate Meal Plan
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link to="/recipes">
-                Browse Recipes
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* Decorative elements */}
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
-      </section>
-
-      {/* Quick Actions */}
-      <section className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
-        <h2 className="font-display text-2xl font-semibold text-foreground mb-6">
-          Quick Actions
-        </h2>
+        {/* Get Started */}
+        <section>
+          <h2 className="font-display text-2xl font-semibold text-foreground mb-6">
+            Get Started
+          </h2>
         <div className="flex gap-4 flex-wrap lg:flex-nowrap">
           <Link
             to="/groceries"
@@ -92,16 +61,6 @@ const Index = () => {
           </Link>
 
           <Link
-            to="/meal-plans"
-            className="group flex flex-1 min-w-[140px] flex-col items-center gap-3 rounded-2xl bg-card p-5 shadow-soft transition-all duration-300 hover:shadow-medium hover:-translate-y-1"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <span className="font-medium text-foreground text-sm">View Meal Plans</span>
-          </Link>
-
-          <Link
             to="/recipes"
             className="group flex flex-1 min-w-[140px] flex-col items-center gap-3 rounded-2xl bg-card p-5 shadow-soft transition-all duration-300 hover:shadow-medium hover:-translate-y-1"
           >
@@ -109,6 +68,16 @@ const Index = () => {
               <UtensilsCrossed className="h-6 w-6" />
             </div>
             <span className="font-medium text-foreground text-sm">Manage Recipes</span>
+          </Link>
+
+          <Link
+            to="/meal-plans"
+            className="group flex flex-1 min-w-[140px] flex-col items-center gap-3 rounded-2xl bg-card p-5 shadow-soft transition-all duration-300 hover:shadow-medium hover:-translate-y-1"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
+              <Calendar className="h-6 w-6" />
+            </div>
+            <span className="font-medium text-foreground text-sm">View Meal Plans</span>
           </Link>
 
           <Link
