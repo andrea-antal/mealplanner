@@ -41,6 +41,7 @@ const Household = () => {
   const { data: fetchedProfile, isLoading, error } = useQuery({
     queryKey: ['householdProfile', workspaceId],
     queryFn: () => householdAPI.getProfile(workspaceId),
+    retry: false, // Don't retry on 404 - just means no profile yet
   });
 
   // Update local state when data is fetched, or initialize empty profile if 404
