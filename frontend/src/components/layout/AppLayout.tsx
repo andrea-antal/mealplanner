@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Carrot, ShoppingBasket, UtensilsCrossed } from 'lucide-react';
+import { Carrot, ShoppingBasket, UtensilsCrossed, Bug } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FeedbackModal } from '@/components/FeedbackModal';
+import { Button } from '@/components/ui/button';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -14,6 +17,7 @@ const navigation = [
 
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
+  const [showFeedback, setShowFeedback] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,6 +85,20 @@ export function AppLayout({ children }: AppLayoutProps) {
       <main className="container py-6 pb-24 md:pb-6">
         {children}
       </main>
+
+      {/* Floating Feedback Button */}
+      <Button
+        onClick={() => setShowFeedback(true)}
+        size="icon"
+        variant="default"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all z-40"
+        title="Report a bug or share feedback"
+      >
+        <Bug className="h-5 w-5" />
+      </Button>
+
+      {/* Feedback Modal */}
+      <FeedbackModal open={showFeedback} onOpenChange={setShowFeedback} />
     </div>
   );
 }

@@ -1,0 +1,27 @@
+{
+  "family_members": [
+    {
+      "name": "Alice",
+      "age_group": "adult",
+      "allergies": [],
+      "dislikes": [],
+      "preferences": []
+    }
+  ],
+  "daycare_rules": {
+    "no_nuts": false,
+    "no_honey": false,
+    "must_be_cold": false
+  },
+  "cooking_preferences": {
+    "available_appliances": [],
+    "preferred_methods": [],
+    "skill_level": "intermediate",
+    "max_active_cooking_time_weeknight": 30,
+    "max_active_cooking_time_weekend": 60
+  },
+  "preferences": {
+    "weeknight_priority": "quick",
+    "weekend_priority": "relaxed"
+  }
+}

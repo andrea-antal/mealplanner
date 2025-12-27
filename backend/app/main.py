@@ -66,12 +66,13 @@ async def health_check():
 
 
 # Include routers
-from app.routers import meal_plans_router, household_router, recipes_router, groceries_router
+from app.routers import meal_plans_router, household_router, recipes_router, groceries_router, feedback_router
 
 app.include_router(meal_plans_router)
 app.include_router(household_router)
 app.include_router(recipes_router)
 app.include_router(groceries_router)
+app.include_router(feedback_router)
 
 
 if __name__ == "__main__":
