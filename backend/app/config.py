@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     """
     # Anthropic API
     ANTHROPIC_API_KEY: str
-    MODEL_NAME: str = "claude-opus-4-20250514"  # Default to Opus 4, can override with cheaper models for testing
+    MODEL_NAME: str = "claude-sonnet-4-5-20250929"  # Sonnet 4.5: 70% cost reduction, 2-3x faster than Opus 4
 
     # Data directories
     # In production (Railway), set DATA_DIR=/app/data to use persistent volume
