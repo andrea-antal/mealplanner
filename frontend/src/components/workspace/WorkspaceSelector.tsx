@@ -49,8 +49,10 @@ export function WorkspaceSelector({ open, onWorkspaceSelected }: WorkspaceSelect
   const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Automatically convert to lowercase for better UX
-    const value = e.target.value.toLowerCase();
+    // Automatically convert to lowercase and replace spaces with hyphens for better UX
+    let value = e.target.value.toLowerCase();
+    value = value.replace(/\s/g, '-'); // Replace all spaces with hyphens
+    value = value.slice(0, 50); // Cap at 50 characters
     setWorkspaceIdInput(value);
 
     // Clear error when user starts typing
@@ -115,11 +117,12 @@ export function WorkspaceSelector({ open, onWorkspaceSelected }: WorkspaceSelect
                 placeholder="e.g., andrea"
                 value={workspaceId}
                 onChange={handleInputChange}
+                maxLength={50}
                 autoFocus
                 className={error ? 'border-red-500' : ''}
               />
               <p className="text-xs text-muted-foreground">
-                Lowercase letters, numbers, and hyphens only
+                Lowercase letters, numbers, and hyphens only (max 50 characters, spaces auto-convert to hyphens)
               </p>
             </div>
 
