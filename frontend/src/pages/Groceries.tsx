@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,20 @@ import { cn } from '@/lib/utils';
 const Groceries = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const workspaceId = getCurrentWorkspace()!; // Ensured by Index page
+  const workspaceId = getCurrentWorkspace();
+
+  // Redirect to home if no workspace is set (defense in depth)
+  useEffect(() => {
+    if (!workspaceId) {
+      navigate('/');
+    }
+  }, [workspaceId, navigate]);
+
+  // Don't render if no workspace
+  if (!workspaceId) {
+    return null;
+  }
+
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [showAdvancedForm, setShowAdvancedForm] = useState(false);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { mealPlansAPI, recipesAPI, type MealPlan, type Recipe } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
@@ -19,7 +20,20 @@ const mealTypeIcons: Record<string, string> = {
 };
 
 const MealPlans = () => {
-  const workspaceId = getCurrentWorkspace()!; // Ensured by Index page
+  const navigate = useNavigate();
+  const workspaceId = getCurrentWorkspace();
+
+  // Redirect to home if no workspace is set (defense in depth)
+  useEffect(() => {
+    if (!workspaceId) {
+      navigate('/');
+    }
+  }, [workspaceId, navigate]);
+
+  // Don't render if no workspace
+  if (!workspaceId) {
+    return null;
+  }
 
   // Load meal plan from localStorage on mount (scoped to workspace)
   const MEAL_PLAN_STORAGE_KEY = `mealplanner_${workspaceId}_meal_plan`;

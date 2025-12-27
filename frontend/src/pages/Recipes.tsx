@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,7 +13,21 @@ import { Plus, Search, Filter, Loader2 } from 'lucide-react';
 
 const Recipes = () => {
   const location = useLocation();
-  const workspaceId = getCurrentWorkspace()!; // Ensured by Index page
+  const navigate = useNavigate();
+  const workspaceId = getCurrentWorkspace();
+
+  // Redirect to home if no workspace is set (defense in depth)
+  useEffect(() => {
+    if (!workspaceId) {
+      navigate('/');
+    }
+  }, [workspaceId, navigate]);
+
+  // Don't render if no workspace
+  if (!workspaceId) {
+    return null;
+  }
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [modalOpen, setModalOpen] = useState(false);

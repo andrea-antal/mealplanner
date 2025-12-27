@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { WorkspaceGuard } from "@/components/workspace/WorkspaceGuard";
 import Index from "./pages/Index";
 import MealPlans from "./pages/MealPlans";
 import MealPlansMockup from "./pages/MealPlansMockup";
@@ -22,15 +23,21 @@ const App = () => (
       <BrowserRouter>
         <AppLayout>
           <Routes>
-            <Route path="/" element={<Groceries />} />
-            <Route path="/cook" element={<Recipes />} />
-            <Route path="/plan" element={<MealPlans />} />
-            <Route path="/household" element={<Household />} />
-            {/* Legacy routes for backwards compatibility */}
-            <Route path="/groceries" element={<Groceries />} />
-            <Route path="/recipes" element={<Recipes />} />
-            <Route path="/meal-plans" element={<MealPlans />} />
-            <Route path="/meal-plans-mockup" element={<MealPlansMockup />} />
+            {/* Public route - shows WorkspaceSelector if needed */}
+            <Route path="/" element={<Index />} />
+
+            {/* Protected routes - require workspace to be set */}
+            <Route path="/cook" element={<WorkspaceGuard><Recipes /></WorkspaceGuard>} />
+            <Route path="/plan" element={<WorkspaceGuard><MealPlans /></WorkspaceGuard>} />
+            <Route path="/household" element={<WorkspaceGuard><Household /></WorkspaceGuard>} />
+
+            {/* Legacy routes for backwards compatibility - also protected */}
+            <Route path="/groceries" element={<WorkspaceGuard><Groceries /></WorkspaceGuard>} />
+            <Route path="/recipes" element={<WorkspaceGuard><Recipes /></WorkspaceGuard>} />
+            <Route path="/meal-plans" element={<WorkspaceGuard><MealPlans /></WorkspaceGuard>} />
+            <Route path="/meal-plans-mockup" element={<WorkspaceGuard><MealPlansMockup /></WorkspaceGuard>} />
+
+            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>
