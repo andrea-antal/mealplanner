@@ -4,7 +4,7 @@
 
 # DISCUSS
 - future: create accounts, auth, storage, payments
-- which claude model to use to balance paying customers and quick service (right now claude API calls are cheap but slow)
+
 
 # META/DEVOPS
 
