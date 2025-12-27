@@ -986,7 +986,7 @@ async def parse_receipt_to_groceries(
 
         # Call Claude Vision API (multimodal)
         response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",  # Vision-capable model
+            model=settings.MODEL_NAME,  # Use configured vision-capable model
             max_tokens=2000,
             temperature=0.1,  # Very low for OCR accuracy
             system=system_prompt,
