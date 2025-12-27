@@ -55,7 +55,6 @@ docs/
 ├── HANDOFF.md                 # Latest session summary (ONLY ONE)
 ├── CURRENT_STATE.md           # Quick feature inventory
 ├── GETTING_STARTED.md         # New developer guide
-├── PROJECT_CONTEXT.md         # Full project history
 ├── PRODUCT_REQUIREMENTS.md    # Product vision
 ├── CHANGELOG.md               # Chronological features
 ├── KNOWN_ISSUES.md           # Active bugs
@@ -97,7 +96,7 @@ docs/
 ### 2. Reference Documents (Stable)
 **Location**: `docs/` root or `docs/reference/`
 **Update Frequency**: Rarely (only for corrections or major changes)
-**Examples**: PROJECT_CONTEXT.md, PRODUCT_REQUIREMENTS.md, FRONTEND_FEATURES.md
+**Examples**: PRODUCT_REQUIREMENTS.md, FRONTEND_FEATURES.md
 
 **Rules**:
 - Must have `Status: Reference` in metadata
@@ -256,26 +255,6 @@ Claude:
 2. Doesn't check INDEX.md ❌
 3. Duplicates content already in CHANGELOG.md ❌
 ```
-
-### Good: Archiving After Sprint
-```
-User: "Sprint 4 Phase 2 is done"
-Claude:
-1. Verifies details are in CHANGELOG.md ✅
-2. Moves SPRINT_4_PHASE_2_TDD_PLAN.md to archive/sprints/ ✅
-3. Updates metadata with archive date and reason ✅
-4. Updates INDEX.md ✅
-```
-
----
-
-## 🔄 Quarterly Review
-
-Every 3 months, review:
-- [ ] Are archived docs still needed? (Delete after 1 year if unused)
-- [ ] Are reference docs still accurate?
-- [ ] Is INDEX.md structure still logical?
-- [ ] Any docs > 1,500 lines that should be split?
 
 ---
 

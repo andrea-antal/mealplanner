@@ -15,6 +15,16 @@ Build a working meal planning app that generates weekly meal plans using RAG (Re
 
 ---
 
+## User Persona & Workflow
+
+**Primary User**: Busy parent who shops for fresh/available/sale groceries first, then plans meals around purchased items (rather than planning meals then shopping for specific ingredients).
+
+**Core Workflow**: Shop → Add Groceries → Generate Meal Plan → Cook
+
+*This "groceries-first" approach explains why the app prioritizes expiry tracking and ingredient-based meal planning over traditional "recipe-first" meal planners.*
+
+---
+
 ## User Stories
 
 ### Setup & Configuration

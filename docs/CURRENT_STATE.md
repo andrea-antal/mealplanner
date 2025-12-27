@@ -185,6 +185,6 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed sprint history.
 ---
 
 **For More Details**:
-- Full project history: [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
+- Full project history: [CHANGELOG.md](CHANGELOG.md)
 - Latest session: [HANDOFF.md](HANDOFF.md)
 - All docs: [INDEX.md](INDEX.md)

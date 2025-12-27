@@ -116,45 +116,20 @@ mealplanner/
 
 ## 🧭 Where to Find Things
 
-### "I want to..."
+**For complete documentation navigation, see [INDEX.md](INDEX.md)** - master table of contents for all docs.
 
-**...understand what the app does**
-→ [CURRENT_STATE.md](CURRENT_STATE.md) (quick overview)
-→ [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) (detailed requirements)
+**Quick links:**
+- **Current features**: [CURRENT_STATE.md](CURRENT_STATE.md)
+- **Latest session**: [HANDOFF.md](HANDOFF.md)
+- **Full history**: [CHANGELOG.md](CHANGELOG.md)
+- **Active bugs**: [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
+- **Product requirements**: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md)
 
-**...see what features exist**
-→ [CURRENT_STATE.md](CURRENT_STATE.md) (current features)
-→ [CHANGELOG.md](CHANGELOG.md) (all features with implementation details)
-
-**...understand the full project history**
-→ [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) (complete development journey)
-
-**...add a new API endpoint**
-→ `backend/app/routers/` (add to existing router or create new one)
-→ See [CHANGELOG.md](CHANGELOG.md) for examples (search for "API endpoint")
-
-**...add a new frontend page**
-→ `frontend/src/pages/` (create new page component)
-→ Update `frontend/src/App.tsx` for routing
-
-**...see how Claude AI is used**
-→ `backend/app/services/claude_service.py` (all Claude API calls)
-→ [CHANGELOG.md](CHANGELOG.md) - search for "Claude" or "prompt engineering"
-
-**...understand the RAG pipeline**
-→ `backend/app/services/rag_service.py` (recipe retrieval)
-→ `backend/app/data/chroma_manager.py` (vector DB operations)
-
-**...run tests**
-→ `cd backend && pytest` (69 tests)
-→ `cd frontend && npm run build` (TypeScript check)
-
-**...see current bugs**
-→ [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
-
-**...create documentation**
-→ Read [DOC_STANDARDS.md](DOC_STANDARDS.md) first!
-→ Check [INDEX.md](INDEX.md) for duplicates
+**Code locations:**
+- API endpoints: `backend/app/routers/`
+- Frontend pages: `frontend/src/pages/`
+- Claude AI integration: `backend/app/services/claude_service.py`
+- RAG pipeline: `backend/app/services/rag_service.py`
 
 ---
 
