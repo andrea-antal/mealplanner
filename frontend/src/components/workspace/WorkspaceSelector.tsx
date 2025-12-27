@@ -89,7 +89,7 @@ export function WorkspaceSelector({ open, onWorkspaceSelected }: WorkspaceSelect
 
   return (
     <Dialog open={open} onOpenChange={() => {/* Prevent closing when workspace not set */}}>
-      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-md [&>button]:hidden" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
