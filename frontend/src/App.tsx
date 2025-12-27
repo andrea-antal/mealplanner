@@ -22,12 +22,15 @@ const App = () => (
       <BrowserRouter>
         <AppLayout>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Groceries />} />
+            <Route path="/cook" element={<Recipes />} />
+            <Route path="/plan" element={<MealPlans />} />
+            <Route path="/household" element={<Household />} />
+            {/* Legacy routes for backwards compatibility */}
+            <Route path="/groceries" element={<Groceries />} />
+            <Route path="/recipes" element={<Recipes />} />
             <Route path="/meal-plans" element={<MealPlans />} />
             <Route path="/meal-plans-mockup" element={<MealPlansMockup />} />
-            <Route path="/recipes" element={<Recipes />} />
-            <Route path="/household" element={<Household />} />
-            <Route path="/groceries" element={<Groceries />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>

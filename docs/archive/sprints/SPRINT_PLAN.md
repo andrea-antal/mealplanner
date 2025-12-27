@@ -1,3 +1,12 @@
+---
+**Summary**: Original sprint planning document for Sprints 1-8. Contains detailed phase breakdowns and time estimates. Now historical; current sprints tracked in CHANGELOG.md.
+**Last Updated**: 2025-12-22
+**Status**: Archived
+**Archived**: 2025-12-25
+**Reason**: Historical planning document; Sprint 4+ planning evolved to TDD approach
+**Read This If**: You need to see original sprint planning methodology
+---
+
 # Sprint Plan - Active & Planned Features
 
 This document outlines active and planned sprints for the Meal Planner project. For completed sprints, see [SPRINT_HISTORY.md](SPRINT_HISTORY.md).

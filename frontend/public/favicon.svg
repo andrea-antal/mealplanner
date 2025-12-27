@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Carrot body (terracotta) -->
+  <path d="M16 8 L22 28 C22 29 21 30 20 30 L12 30 C11 30 10 29 10 28 L16 8 Z" fill="#E38956" stroke="#D97948" stroke-width="1"/>
+
+  <!-- Carrot details (darker lines) -->
+  <line x1="16" y1="8" x2="14" y2="20" stroke="#D97948" stroke-width="0.5" opacity="0.5"/>
+  <line x1="16" y1="8" x2="18" y2="20" stroke="#D97948" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Carrot greens (sage green) -->
+  <path d="M16 8 L14 4 L13 6 L12 3 L14 8" fill="#5C8F6C" stroke="#4A7A5A" stroke-width="0.5"/>
+  <path d="M16 8 L18 4 L19 6 L20 3 L18 8" fill="#5C8F6C" stroke="#4A7A5A" stroke-width="0.5"/>
+  <path d="M16 8 L16 2 L15 5 L17 5 L16 8" fill="#5C8F6C" stroke="#4A7A5A" stroke-width="0.5"/>
+</svg>

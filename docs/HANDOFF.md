@@ -1,3 +1,10 @@
+---
+**Summary**: Latest session summary with completed work, current state, next steps, and resume commands. The single source of truth for session context. Update this file each session, don't create new ones.
+**Last Updated**: 2025-12-25
+**Status**: Current
+**Read This If**: Starting a new session or resuming work
+---
+
 # Session Handoff - Sprint 4 Phase 2 Complete
 
 **Date**: 2025-12-25

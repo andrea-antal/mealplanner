@@ -25,6 +25,7 @@ export default {
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
+          soft: "hsl(var(--primary-soft))",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -35,12 +36,17 @@ export default {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",
+          soft: "hsl(var(--accent-soft))",
           foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
@@ -72,12 +78,16 @@ export default {
           leftover: "hsl(var(--tag-leftover))",
         },
       },
+      spacing: {
+        'touch': '48px',  // Minimum touch target (Apple HIG)
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         xl: "calc(var(--radius) + 4px)",
         "2xl": "calc(var(--radius) + 8px)",
+        "3xl": "3rem",  // 48px for hero elements
       },
       boxShadow: {
         soft: "var(--shadow-soft)",

@@ -21,11 +21,11 @@ const buttonVariants = cva(
         accent: "bg-accent text-accent-foreground shadow-soft hover:bg-accent/90 active:scale-[0.98]",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
+        default: "h-12 px-6 py-3",
+        sm: "h-10 rounded-md px-4",
         lg: "h-12 rounded-xl px-8 text-base",
         xl: "h-14 rounded-xl px-10 text-lg",
-        icon: "h-10 w-10",
+        icon: "h-12 w-12",
       },
     },
     defaultVariants: {

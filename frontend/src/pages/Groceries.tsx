@@ -14,6 +14,10 @@ import {
 } from '@/components/ui/select';
 import { DynamicRecipeModal } from '@/components/DynamicRecipeModal';
 import { GroceryConfirmationDialog, type ProposedGroceryItem } from '@/components/GroceryConfirmationDialog';
+import { GroceryInputHero } from '@/components/groceries/GroceryInputHero';
+import { GroceryChip } from '@/components/groceries/GroceryChip';
+import { GroceryItemModal } from '@/components/groceries/GroceryItemModal';
+import { StickyActionBar } from '@/components/groceries/StickyActionBar';
 import { groceriesAPI, type GroceryItem, type Recipe } from '@/lib/api';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import {
@@ -40,6 +44,9 @@ const Groceries = () => {
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [showAdvancedForm, setShowAdvancedForm] = useState(false);
+  const [showExpiringDetails, setShowExpiringDetails] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
+  const [showItemModal, setShowItemModal] = useState(false);
 
   // Form state for adding new grocery
   const [newItemName, setNewItemName] = useState('');
@@ -109,6 +116,32 @@ const Groceries = () => {
     },
     onError: (error: Error) => {
       toast.error(`Failed to delete item: ${error.message}`);
+    },
+  });
+
+  // Update grocery mutation (delete and re-add with updates)
+  const updateMutation = useMutation({
+    mutationFn: async ({ name, updates }: { name: string; updates: Partial<GroceryItem> }) => {
+      // Get current item to preserve fields
+      const currentItem = groceries.find(g => g.name === name);
+      if (!currentItem) throw new Error('Item not found');
+
+      // Delete old item
+      await groceriesAPI.delete(name);
+
+      // Add updated item
+      return groceriesAPI.add({
+        ...currentItem,
+        ...updates,
+      } as GroceryItem);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groceries'] });
+      queryClient.invalidateQueries({ queryKey: ['groceries-expiring'] });
+      toast.success('Item updated');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update item: ${error.message}`);
     },
   });
 
@@ -189,6 +222,15 @@ const Groceries = () => {
     deleteMutation.mutate(name);
   };
 
+  const handleOpenItemModal = (item: GroceryItem) => {
+    setSelectedItem(item);
+    setShowItemModal(true);
+  };
+
+  const handleUpdateItem = (name: string, updates: Partial<GroceryItem>) => {
+    updateMutation.mutate({ name, updates });
+  };
+
   const toggleIngredientSelection = (name: string) => {
     setSelectedIngredients((prev) =>
       prev.includes(name)
@@ -207,7 +249,7 @@ const Groceries = () => {
 
   const handleRecipeGenerated = (recipe: Recipe) => {
     toast.success(`Recipe "${recipe.title}" created successfully!`);
-    navigate('/recipes', { state: { openRecipeId: recipe.id } });
+    navigate('/cook', { state: { openRecipeId: recipe.id } });
   };
 
   // Voice input handlers
@@ -369,298 +411,92 @@ const Groceries = () => {
         </div>
       </div>
 
-      {/* Expiring Soon Banner */}
+      {/* Expiring Soon Alert - Subtle and Expandable */}
       {expiringItems.length > 0 && (
-        <div className="rounded-xl bg-destructive/10 border-2 border-destructive/20 p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-destructive">Items Expiring Soon</h3>
-              <p className="text-sm text-destructive/80 mt-1">
-                {expiringItems.length} item{expiringItems.length !== 1 ? 's' : ''} expiring within 24 hours
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {expiringItems.map((item) => (
-                  <span
-                    key={item.name}
-                    className="inline-flex items-center rounded-md bg-destructive/20 px-2 py-1 text-xs font-medium text-destructive"
-                  >
-                    {item.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cook with Selected Button */}
-      {groceries.length > 0 && (
-        <div className="rounded-xl bg-primary/10 border-2 border-primary/20 p-4">
+        <button
+          onClick={() => setShowExpiringDetails(!showExpiringDetails)}
+          className="w-full rounded-r-2xl bg-amber-50/50 border-l-4 border-amber-400 px-6 py-3 text-left transition-all hover:bg-amber-50"
+        >
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-foreground">Generate Recipe from Ingredients</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                {selectedIngredients.length > 0
-                  ? `${selectedIngredients.length} ingredient${selectedIngredients.length !== 1 ? 's' : ''} selected`
-                  : 'Select ingredients below to generate a recipe'}
-              </p>
-            </div>
-            <Button
-              variant="default"
-              onClick={handleCookWithSelected}
-              disabled={selectedIngredients.length === 0}
-            >
-              <ChefHat className="h-4 w-4" />
-              Cook with Selected
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Add Item Form */}
-      <div className="rounded-2xl bg-card shadow-soft p-4 space-y-4">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Add grocery item..."
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !showAdvancedForm && addGrocery()}
-            className="flex-1"
-          />
-
-          {/* Hidden file input for receipt upload */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/jpg"
-            onChange={handleReceiptUpload}
-            style={{ display: 'none' }}
-          />
-
-          {/* Voice Input Button */}
-          {isVoiceSupported && (
-            <Button
-              variant={voiceState === 'listening' ? 'destructive' : 'outline'}
-              onClick={handleVoiceToggle}
-              disabled={parseVoiceMutation.isPending}
-              className="shrink-0"
-              title={voiceState === 'listening' ? 'Stop listening' : 'Voice input'}
-            >
-              {parseVoiceMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : voiceState === 'listening' ? (
-                <MicOff className="h-4 w-4" />
-              ) : (
-                <Mic className="h-4 w-4" />
-              )}
-            </Button>
-          )}
-
-          {/* Receipt Upload Button */}
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploadingReceipt}
-            className="shrink-0"
-            title="Upload receipt"
-          >
-            {isUploadingReceipt ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Camera className="h-4 w-4" />
-            )}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => {
-              const newState = !showAdvancedForm;
-              console.log('Advanced button clicked, current state:', showAdvancedForm, 'new state:', newState);
-              setShowAdvancedForm(newState);
-            }}
-            className="shrink-0"
-          >
-            {showAdvancedForm ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            Advanced
-          </Button>
-          <Button
-            onClick={addGrocery}
-            disabled={!newItemName.trim() || addMutation.isPending}
-          >
-            {addMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            Add
-          </Button>
-        </div>
-
-        {/* Voice State Indicator with Live Transcription */}
-        {voiceState === 'listening' && (
-          <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="h-3 w-3 bg-destructive rounded-full animate-pulse" />
-              <span className="text-sm font-medium text-foreground">Listening...</span>
-              <span className="text-xs text-muted-foreground">
-                Speak your grocery items clearly, then click stop
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span className="text-sm text-amber-900 font-medium">
+                {expiringItems.length} item{expiringItems.length !== 1 ? 's' : ''} expiring soon
               </span>
             </div>
-
-            {/* Live Transcription Display */}
-            {transcription && (
-              <div className="space-y-2">
-                <div className="text-xs text-muted-foreground italic">
-                  Don't worry if this isn't exactly correctly transcribing what you're saying - AI could still potentially figure out what you said once you're done.
-                </div>
-                <div className="bg-card rounded-lg p-3 border border-border">
-                  <p className="text-sm text-foreground min-h-[1.5rem]">
-                    {transcription}
-                  </p>
-                </div>
-              </div>
-            )}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-amber-600 transition-transform",
+                showExpiringDetails && "rotate-180"
+              )}
+            />
           </div>
-        )}
 
-        {/* Voice Error Display */}
-        {voiceError && (
-          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-              <p className="text-sm text-destructive">{voiceError}</p>
+          {showExpiringDetails && (
+            <div className="mt-3 pt-3 border-t border-amber-200 flex flex-wrap gap-2">
+              {expiringItems.map((item) => (
+                <span
+                  key={item.name}
+                  className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 border border-amber-300"
+                >
+                  {item.name}
+                </span>
+              ))}
             </div>
-          </div>
-        )}
+          )}
+        </button>
+      )}
 
-        {/* Advanced Fields */}
-        {showAdvancedForm && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
-            <div className="space-y-2">
-              <Label htmlFor="purchase-date" className="text-sm">
-                Purchase Date (optional)
-              </Label>
-              <Input
-                id="purchase-date"
-                type="date"
-                value={newItemPurchaseDate}
-                onChange={(e) => setNewItemPurchaseDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-              />
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="expiry-type" className="text-sm">
-                Expiry Type (optional)
-              </Label>
-              <select
-                id="expiry-type"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                value={newItemExpiryType}
-                onChange={(e) => setNewItemExpiryType(e.target.value as 'expiry_date' | 'best_before_date' | '')}
-              >
-                <option value="">None</option>
-                <option value="expiry_date">Expiry Date</option>
-                <option value="best_before_date">Best Before Date</option>
-              </select>
-            </div>
+      {/* Add Item Form */}
+      <GroceryInputHero
+        voiceState={voiceState}
+        transcription={transcription}
+        voiceError={voiceError}
+        isVoiceSupported={isVoiceSupported}
+        handleVoiceToggle={handleVoiceToggle}
+        parseVoiceMutationPending={parseVoiceMutation.isPending}
+        fileInputRef={fileInputRef}
+        handleReceiptUpload={handleReceiptUpload}
+        isUploadingReceipt={isUploadingReceipt}
+        newItemName={newItemName}
+        setNewItemName={setNewItemName}
+        newItemPurchaseDate={newItemPurchaseDate}
+        setNewItemPurchaseDate={setNewItemPurchaseDate}
+        newItemExpiryType={newItemExpiryType}
+        setNewItemExpiryType={setNewItemExpiryType}
+        newItemExpiryDate={newItemExpiryDate}
+        setNewItemExpiryDate={setNewItemExpiryDate}
+        addGrocery={addGrocery}
+        addMutationPending={addMutation.isPending}
+      />
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="expiry-date" className="text-sm">
-                {newItemExpiryType === 'expiry_date' ? 'Expiry Date' :
-                 newItemExpiryType === 'best_before_date' ? 'Best Before Date' :
-                 'Expiry/Best Before Date'} (optional)
-              </Label>
-              <Input
-                id="expiry-date"
-                type="date"
-                value={newItemExpiryDate}
-                onChange={(e) => setNewItemExpiryDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                disabled={!newItemExpiryType}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Grocery List */}
+      {/* Grocery List - Tag Cloud */}
       {groceries.length > 0 ? (
-        <div className="rounded-2xl bg-card shadow-soft overflow-hidden">
-          <div className="p-4 border-b border-border bg-muted/50">
+        <div className="rounded-2xl bg-card shadow-soft p-6 space-y-4">
+          <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-muted-foreground">
               {groceries.length} item{groceries.length !== 1 ? 's' : ''} on hand
             </p>
+            {selectedIngredients.length > 0 && (
+              <p className="text-sm font-medium text-primary">
+                {selectedIngredients.length} selected
+              </p>
+            )}
           </div>
-          <ul className="divide-y divide-border">
-            {groceries.map((item) => {
-              const daysUntilExpiry = item.expiry_date ? getDaysUntilExpiry(item.expiry_date) : null;
-              // Show expiry badge if there's an expiry date
-              // Only hide if purchase_date >= expiry_date (which would be an error scenario)
-              const showExpiryWarning = daysUntilExpiry !== null && item.expiry_date &&
-                (!item.purchase_date || new Date(item.purchase_date) < new Date(item.expiry_date));
 
-              return (
-                <li
-                  key={item.name}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Checkbox
-                      id={`ingredient-${item.name}`}
-                      checked={selectedIngredients.includes(item.name)}
-                      onCheckedChange={() => toggleIngredientSelection(item.name)}
-                    />
-                    <label
-                      htmlFor={`ingredient-${item.name}`}
-                      className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary shrink-0">
-                        <ShoppingBasket className="h-4 w-4 text-secondary-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-foreground capitalize block truncate">{item.name}</span>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {item.purchase_date && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Purchased {new Date(item.purchase_date).toLocaleDateString()}
-                            </span>
-                          )}
-                          {showExpiryWarning && daysUntilExpiry !== null && (
-                            <span
-                              className={cn(
-                                'text-xs px-2 py-0.5 rounded-full border',
-                                getExpiryBadgeClass(daysUntilExpiry)
-                              )}
-                            >
-                              {daysUntilExpiry < 0
-                                ? `Expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) !== 1 ? 's' : ''} ago`
-                                : daysUntilExpiry === 0
-                                ? 'Expires today'
-                                : daysUntilExpiry === 1
-                                ? 'Expires tomorrow'
-                                : `${daysUntilExpiry} days until ${item.expiry_type === 'best_before_date' ? 'best before' : 'expiry'}`}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeGrocery(item.name)}
-                    className="text-muted-foreground hover:text-destructive shrink-0"
-                    disabled={deleteMutation.isPending}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
+          {/* Tag Cloud Layout */}
+          <div className="flex flex-wrap gap-2">
+            {groceries.map((item) => (
+              <GroceryChip
+                key={item.name}
+                item={item}
+                isSelected={selectedIngredients.includes(item.name)}
+                onToggleSelect={toggleIngredientSelection}
+                onOpenModal={handleOpenItemModal}
+              />
+            ))}
+          </div>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
@@ -696,6 +532,22 @@ const Groceries = () => {
         warnings={parseWarnings}
         onConfirm={handleConfirmItems}
         isLoading={batchAddMutation.isPending}
+      />
+
+      {/* Sticky Action Bar */}
+      <StickyActionBar
+        selectedCount={selectedIngredients.length}
+        onCook={handleCookWithSelected}
+        onPlan={() => navigate('/plan', { state: { selectedIngredients } })}
+      />
+
+      {/* Grocery Item Modal */}
+      <GroceryItemModal
+        item={selectedItem}
+        open={showItemModal}
+        onOpenChange={setShowItemModal}
+        onUpdate={handleUpdateItem}
+        onDelete={removeGrocery}
       />
     </div>
   );

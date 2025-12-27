@@ -1,3 +1,10 @@
+---
+**Summary**: Development workflow guide for Claude Code when working on this project. Contains philosophy, development modes, commit patterns, and best practices.
+**Last Updated**: 2025-12-04
+**Status**: Reference
+**Read This If**: You're using Claude Code on this project or establishing development patterns
+---
+
 # Claude Code - Development Guide
 
 ## Core Philosophy

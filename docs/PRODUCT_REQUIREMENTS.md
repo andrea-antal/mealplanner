@@ -1,3 +1,10 @@
+---
+**Summary**: Original product requirements document with user stories, data schemas, and success criteria. Foundational reference for product vision and MVP scope.
+**Last Updated**: 2025-12-04
+**Status**: Reference
+**Read This If**: You need to understand the product vision, user stories, or original requirements
+---
+
 # Product Requirements - Meal Planner v0.1
 
 ## Goal

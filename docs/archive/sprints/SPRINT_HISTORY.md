@@ -1,3 +1,12 @@
+---
+**Summary**: Historical archive of completed sprints 1-3. All sprint implementation details are now maintained in CHANGELOG.md. This doc is kept for historical reference only.
+**Last Updated**: 2025-12-22
+**Status**: Archived
+**Archived**: 2025-12-25
+**Reason**: Sprint details now tracked in CHANGELOG.md; archiving to reduce token usage
+**Read This If**: You need historical context on early sprints (1-3)
+---
+
 # Sprint History - Completed Features
 
 This document archives all completed sprints from the Meal Planner project. For active and planned sprints, see [SPRINT_PLAN.md](SPRINT_PLAN.md).

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, UtensilsCrossed, Users, Carrot } from 'lucide-react';
+import { Calendar, ChefHat, Carrot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
@@ -7,11 +7,9 @@ interface AppLayoutProps {
 }
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Meal Plans', href: '/meal-plans', icon: Calendar },
-  { name: 'Recipes', href: '/recipes', icon: UtensilsCrossed },
-  { name: 'Household', href: '/household', icon: Users },
-  { name: 'Groceries', href: '/groceries', icon: Carrot },
+  { name: 'Home', href: '/', icon: Carrot },
+  { name: 'Cook', href: '/cook', icon: ChefHat },
+  { name: 'Plan', href: '/plan', icon: Calendar },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
@@ -24,7 +22,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-soft">
-              <UtensilsCrossed className="h-5 w-5 text-primary-foreground" />
+              <Carrot className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="font-display text-xl font-semibold text-foreground">
               Meal Planner

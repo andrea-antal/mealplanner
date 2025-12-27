@@ -1,13 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
-
 @layer base {
   :root {
-    /* Warm, inviting meal planner palette - saturated but soft */
-    --background: 30 25% 97%;
+    /* Warm, inviting meal planner palette - soft and calming */
+    --background: 30 25% 98%;
     --foreground: 25 30% 18%;
 
     --card: 30 20% 99%;
@@ -16,27 +16,34 @@
     --popover: 30 20% 99%;
     --popover-foreground: 25 30% 18%;
 
-    /* Rich terracotta primary */
-    --primary: 14 72% 48%;
+    /* Softer terracotta primary */
+    --primary: 14 65% 52%;
+    --primary-soft: 14 45% 88%;
     --primary-foreground: 30 20% 98%;
 
     /* Soft sage secondary */
-    --secondary: 150 35% 90%;
-    --secondary-foreground: 150 45% 28%;
+    --secondary: 150 30% 92%;
+    --secondary-foreground: 150 40% 35%;
 
-    --muted: 30 18% 92%;
+    --muted: 30 20% 94%;
     --muted-foreground: 25 15% 42%;
 
-    /* Vibrant sage accent */
-    --accent: 155 55% 38%;
+    /* Warm amber accent */
+    --accent: 30 70% 60%;
+    --accent-soft: 30 50% 90%;
     --accent-foreground: 30 20% 98%;
 
-    --destructive: 0 65% 50%;
+    /* Warm warning */
+    --warning: 42 85% 55%;
+    --warning-foreground: 25 25% 10%;
+
+    /* Softer destructive */
+    --destructive: 8 70% 55%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 30 20% 86%;
     --input: 30 20% 86%;
-    --ring: 14 72% 48%;
+    --ring: 14 65% 52%;
 
     --radius: 0.75rem;
 
@@ -53,7 +60,7 @@
     /* Shadows */
     --shadow-soft: 0 2px 8px -2px hsl(25 30% 18% / 0.06);
     --shadow-medium: 0 4px 16px -4px hsl(25 30% 18% / 0.10);
-    --shadow-glow: 0 0 24px hsl(14 72% 48% / 0.18);
+    --shadow-glow: 0 0 24px hsl(14 65% 52% / 0.18);
 
     /* Sidebar */
     --sidebar-background: 30 22% 95%;
@@ -113,6 +120,8 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-size: 16px;
+    line-height: 1.6;
   }
 
   h1, h2, h3, h4, h5, h6 {

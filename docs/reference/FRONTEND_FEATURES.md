@@ -1,3 +1,10 @@
+---
+**Summary**: Frontend tech stack and feature specifications for v0.1. Contains React, TypeScript, shadcn-ui details, and page-by-page feature breakdown. Reference doc for frontend architecture.
+**Last Updated**: 2025-12-03
+**Status**: Reference
+**Read This If**: You need frontend tech stack details or component library information
+---
+
 # Meal Planner v0.1 - Product Features for Frontend
 
 ## Overview

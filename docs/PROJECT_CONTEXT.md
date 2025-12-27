@@ -1,3 +1,10 @@
+---
+**Summary**: Complete project development history from inception to Sprint 4. Contains all phases, technical decisions, architecture principles, and sprint summaries. Primary reference for understanding the project journey.
+**Last Updated**: 2025-12-18
+**Status**: Reference
+**Read This If**: You want the full development history and all sprint details in one place
+---
+
 # Meal Planner with RAG - Project Context
 
 ## Project Philosophy

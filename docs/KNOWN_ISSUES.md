@@ -1,3 +1,10 @@
+---
+**Summary**: Active bugs, limitations, and technical debt. Updated frequently to track current issues.
+**Last Updated**: 2025-12-26
+**Status**: Current
+**Read This If**: You're debugging, planning bug fixes, or need to know current limitations
+---
+
 # Known Issues & Bugs
 
 This document tracks known issues that need to be fixed in future sprints.
@@ -84,6 +91,41 @@ Add a cleanup hook when updating household profile:
 **Future Considerations**:
 - Consider soft-delete pattern (mark members as inactive instead of deleting)
 - Add data migration script to clean up orphaned ratings in existing data
+
+---
+
+### 3. Favicon Looks Like Santa Hat Instead of Carrot
+**Priority**: Low (Design Polish)
+**Discovered**: 2025-12-26
+**Status**: Open
+
+**Description**:
+The custom SVG favicon created during the mobile redesign doesn't render clearly at small sizes (16x16px, 32x32px). The hand-drawn carrot icon looks more like a Santa hat due to poor rendering at favicon sizes.
+
+**Expected Behavior**:
+- Clear, recognizable carrot icon at all sizes
+- Matches groceries-first theme
+- Professional appearance in browser tab
+
+**Actual Behavior**:
+- SVG carrot appears ambiguous at small sizes
+- Looks like a Santa hat rather than a carrot
+
+**Potential Fixes**:
+- **Option A**: Use a professional icon library (e.g., export from Lucide React's Carrot icon as SVG)
+- **Option B**: Simplify the hand-drawn SVG to work better at small sizes (fewer details, clearer silhouette)
+- **Option C**: Use an emoji-based favicon: `🥕` (simple, universally recognized)
+- **Option D**: Generate multi-size favicon with proper .ico format for different resolutions
+
+**Workaround**:
+Current favicon works functionally, just not aesthetically ideal.
+
+**Related Files**:
+- `/frontend/public/favicon.svg` (current hand-drawn SVG)
+- `/frontend/index.html` (lines 11-12: favicon references)
+
+**Recommended Fix**:
+Option A - Export Lucide's Carrot icon as optimized SVG, or use a favicon generator service for professional multi-size output.
 
 ---
 

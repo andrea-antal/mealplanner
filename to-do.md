@@ -1,47 +1,24 @@
-# To do
+# TO DO
+- test receipt OCR feature
+- 
+- test voice input feature
+- deploy for beta testing
 
-## DISCUSS
+
+# DISCUSS
 - how to set up beta testing? don't want to handle accounts for now
 - future: create accounts, auth, storage, payments
 
-## FRONTEND
+# META/DEVOPS
+- token efficient docs
 
-### GENERAL
-- remove H1 titles of pages
-- remove Dashboard
-- redo color scheme
-
-### MEAL PLANS
-
-### RECIPES
-
-### HOUSEHOLD
-- change to "Settings"
-
-### GROCERIES
-- move Add grocery item to top of page
-- remove shopping cart icon next to item
-- show each item as a button with name only
-- clicking on item name opens modal with details and edit/delete options
-
-once type is added:
-- display grouping by type (dropdown and conditional display? display all but in sections?)
-
------------
-
-## BACKEND
-
-### GENERAL
-- remove H1 titles of pages
-- remove Dashboard
-- redo color scheme
-
-### MEAL PLANS
-
-### RECIPES
-
-### HOUSEHOLD
-
-### GROCERIES
+# FEATURES
 - add "type" to schema (e.g. pantry, fresh produce, freezer)
-- 
+
+# BUGS TO FIX
+
+- Receipt OCR test 2025-12-25 10:48PM
+
+```
+Receipt OCR failed: API Error 500: {"detail":"Internal server error: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-sonnet-20241022'}, 'request_id': 'req_011CWUqwBhmKVLK2Qwn6bGkn'}"}
+```
