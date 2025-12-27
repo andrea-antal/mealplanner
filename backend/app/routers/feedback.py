@@ -3,9 +3,7 @@ Feedback router for beta testing feedback submission.
 Sends feedback emails to the configured email address.
 """
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -31,28 +29,25 @@ class FeedbackRequest(BaseModel):
 
 def send_feedback_email(feedback_data: FeedbackRequest) -> bool:
     """
-    Send feedback email using SMTP.
+    Send feedback email using Resend API.
 
     Environment variables required:
-    - SMTP_HOST: SMTP server host (e.g., smtp.gmail.com)
-    - SMTP_PORT: SMTP server port (e.g., 587)
-    - SMTP_USER: SMTP username/email
-    - SMTP_PASSWORD: SMTP password/app password
-    - FEEDBACK_EMAIL: Email address to send feedback to (defaults to hi@andrea-antal.com)
+    - RESEND_API_KEY: Resend API key (get from resend.com/api-keys)
+    - FEEDBACK_EMAIL_FROM: Sender email (must be verified domain)
+    - FEEDBACK_EMAIL_TO: Recipient email (defaults to hi@andrea-antal.com)
     """
     # Get email configuration from environment variables
-    smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.getenv('SMTP_PORT', '587'))
-    smtp_user = os.getenv('SMTP_USER', '')
-    smtp_password = os.getenv('SMTP_PASSWORD', '')
-    feedback_email = os.getenv('FEEDBACK_EMAIL', 'hi@andrea-antal.com')
+    resend_api_key = os.getenv('RESEND_API_KEY', '')
+    feedback_email_from = os.getenv('FEEDBACK_EMAIL_FROM', 'onboarding@resend.dev')
+    feedback_email_to = os.getenv('FEEDBACK_EMAIL_TO', 'hi@andrea-antal.com')
 
-    if not smtp_user or not smtp_password:
-        # If SMTP not configured, print to console for development
+    if not resend_api_key:
+        # If Resend API not configured, print to console for development
         print("=" * 80)
-        print("FEEDBACK SUBMISSION (SMTP not configured)")
+        print("FEEDBACK SUBMISSION (Resend API not configured)")
         print("=" * 80)
-        print(f"To: {feedback_email}")
+        print(f"From: {feedback_email_from}")
+        print(f"To: {feedback_email_to}")
         print(f"Subject: Meal planner beta feedback")
         print(f"\nDate of submission: {feedback_data.timestamp}")
         print(f"Workspace ID: {feedback_data.workspace_id}")
@@ -69,13 +64,10 @@ def send_feedback_email(feedback_data: FeedbackRequest) -> bool:
         return True
 
     try:
-        # Create message
-        msg = MIMEMultipart()
-        msg['From'] = smtp_user
-        msg['To'] = feedback_email
-        msg['Subject'] = 'Meal planner beta feedback'
+        # Set Resend API key
+        resend.api_key = resend_api_key
 
-        # Format email body
+        # Format email body (same as SMTP version)
         body = f"""Date of submission: {feedback_data.timestamp}
 Workspace ID: {feedback_data.workspace_id}
 
@@ -91,17 +83,20 @@ Feedback:
 {feedback_data.feedback}
 """
 
-        msg.attach(MIMEText(body, 'plain'))
+        # Send email via Resend API
+        params: resend.Emails.SendParams = {
+            "from": feedback_email_from,
+            "to": [feedback_email_to],
+            "subject": "Meal planner beta feedback",
+            "text": body,
+        }
 
-        # Send email
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_password)
-            server.send_message(msg)
+        response = resend.Emails.send(params)
+        print(f"Feedback email sent successfully. Email ID: {response.get('id', 'N/A')}")
 
         return True
     except Exception as e:
-        print(f"Error sending email: {e}")
+        print(f"Error sending email via Resend: {e}")
         raise
 
 

@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # Resend API for feedback emails
+    RESEND_API_KEY: str = ""
+    FEEDBACK_EMAIL_FROM: str = "onboarding@resend.dev"
+    FEEDBACK_EMAIL_TO: str = "hi@andrea-antal.com"
+
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS_ORIGINS string into list"""
