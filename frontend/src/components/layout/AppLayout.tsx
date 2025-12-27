@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, ChefHat, Carrot } from 'lucide-react';
+import { Carrot, ShoppingBasket, UtensilsCrossed } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
@@ -8,8 +8,8 @@ interface AppLayoutProps {
 
 const navigation = [
   { name: 'Home', href: '/', icon: Carrot },
-  { name: 'Cook', href: '/cook', icon: ChefHat },
-  { name: 'Plan', href: '/plan', icon: Calendar },
+  { name: 'Groceries', href: '/groceries', icon: ShoppingBasket },
+  { name: 'Recipes', href: '/recipes', icon: UtensilsCrossed },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
