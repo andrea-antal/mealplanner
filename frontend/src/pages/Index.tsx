@@ -1,20 +1,50 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { householdAPI } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, UtensilsCrossed, Users, Carrot, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { getCurrentWorkspace } from '@/lib/workspace';
+import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector';
 
 const Index = () => {
-  // Fetch household profile from backend
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [showWorkspaceSelector, setShowWorkspaceSelector] = useState(false);
+
+  // Check for workspace on mount
+  useEffect(() => {
+    const currentWorkspace = getCurrentWorkspace();
+    if (currentWorkspace) {
+      setWorkspaceId(currentWorkspace);
+    } else {
+      setShowWorkspaceSelector(true);
+    }
+  }, []);
+
+  // Handle workspace selection
+  const handleWorkspaceSelected = (selectedWorkspaceId: string) => {
+    setWorkspaceId(selectedWorkspaceId);
+    setShowWorkspaceSelector(false);
+  };
+
+  // Fetch household profile from backend (only when workspace is set)
   const { data: householdProfile, isLoading: isLoadingProfile } = useQuery({
-    queryKey: ['householdProfile'],
-    queryFn: householdAPI.getProfile,
+    queryKey: ['householdProfile', workspaceId],
+    queryFn: () => householdAPI.getProfile(workspaceId!),
+    enabled: !!workspaceId, // Only run query when workspace is set
   });
 
   return (
-    <div className="space-y-12">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-secondary to-accent/10 p-8 md:p-12">
+    <>
+      {/* Workspace Selector Modal (for first-time users) */}
+      <WorkspaceSelector
+        open={showWorkspaceSelector}
+        onWorkspaceSelected={handleWorkspaceSelected}
+      />
+
+      <div className="space-y-12">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-secondary to-accent/10 p-8 md:p-12">
         <div className="relative z-10 max-w-2xl">
           <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4 animate-fade-in">
             Your Weekly Meals,{' '}
@@ -138,6 +168,7 @@ const Index = () => {
         )}
       </section>
     </div>
+    </>
   );
 };
 

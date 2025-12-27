@@ -8,10 +8,12 @@ import { RecipeCard } from '@/components/RecipeCard';
 import { RecipeModal } from '@/components/RecipeModal';
 import { RecipeForm } from '@/components/RecipeForm';
 import { recipesAPI, householdAPI, type Recipe } from '@/lib/api';
+import { getCurrentWorkspace } from '@/lib/workspace';
 import { Plus, Search, Filter, Loader2 } from 'lucide-react';
 
 const Recipes = () => {
   const location = useLocation();
+  const workspaceId = getCurrentWorkspace()!; // Ensured by Index page
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -21,15 +23,15 @@ const Recipes = () => {
 
   // Fetch household profile for member names
   const { data: household, isLoading: householdLoading } = useQuery({
-    queryKey: ['householdProfile'],
-    queryFn: householdAPI.getProfile,
+    queryKey: ['householdProfile', workspaceId],
+    queryFn: () => householdAPI.getProfile(workspaceId),
     staleTime: 300000, // 5 minutes
   });
 
   // Fetch recipes from backend
   const { data: recipes, isLoading, error } = useQuery({
-    queryKey: ['recipes'],
-    queryFn: recipesAPI.getAll,
+    queryKey: ['recipes', workspaceId],
+    queryFn: () => recipesAPI.getAll(workspaceId),
   });
 
   // Extract member name from filter value
@@ -39,24 +41,24 @@ const Recipes = () => {
 
   // Fetch favorites for selected member (only when member filter active)
   const { data: favorites, isLoading: favoritesLoading } = useQuery({
-    queryKey: ['recipes', 'favorites', filterMemberName],
-    queryFn: () => recipesAPI.getFavorites(filterMemberName!),
+    queryKey: ['recipes', 'favorites', workspaceId, filterMemberName],
+    queryFn: () => recipesAPI.getFavorites(workspaceId, filterMemberName!),
     enabled: selectedFilter.startsWith('member-'),
     staleTime: 60000, // 1 minute
   });
 
   // Fetch popular recipes (only when popular filter active)
   const { data: popular, isLoading: popularLoading } = useQuery({
-    queryKey: ['recipes', 'popular'],
-    queryFn: recipesAPI.getPopular,
+    queryKey: ['recipes', 'popular', workspaceId],
+    queryFn: () => recipesAPI.getPopular(workspaceId),
     enabled: selectedFilter === 'popular',
     staleTime: 60000,
   });
 
   // Fetch all ratings for unrated filter (only when unrated filter active)
   const { data: allRatings, isLoading: ratingsLoading } = useQuery({
-    queryKey: ['recipes', 'ratings'],
-    queryFn: recipesAPI.getAllRatings,
+    queryKey: ['recipes', 'ratings', workspaceId],
+    queryFn: () => recipesAPI.getAllRatings(workspaceId),
     enabled: selectedFilter === 'unrated',
     staleTime: 60000,
   });
@@ -76,18 +78,18 @@ const Recipes = () => {
 
   // Create recipe mutation
   const createMutation = useMutation({
-    mutationFn: recipesAPI.create,
+    mutationFn: (recipe: Omit<Recipe, 'recipe_id'>) => recipesAPI.create(workspaceId, recipe),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
     },
   });
 
   // Delete recipe mutation
   const deleteMutation = useMutation({
-    mutationFn: recipesAPI.delete,
+    mutationFn: (id: string) => recipesAPI.delete(workspaceId, id),
     onSuccess: () => {
       // Invalidate and refetch recipes
-      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
     },
   });
 

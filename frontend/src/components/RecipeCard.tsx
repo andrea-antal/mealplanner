@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import type { Recipe } from '@/lib/api';
 import { recipesAPI, householdAPI } from '@/lib/api';
+import { getCurrentWorkspace } from '@/lib/workspace';
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -10,17 +11,19 @@ interface RecipeCardProps {
 }
 
 export function RecipeCard({ recipe, onViewDetails }: RecipeCardProps) {
+  const workspaceId = getCurrentWorkspace()!;
+
   // Fetch household members
   const { data: household } = useQuery({
-    queryKey: ['householdProfile'],
-    queryFn: householdAPI.getProfile,
+    queryKey: ['householdProfile', workspaceId],
+    queryFn: () => householdAPI.getProfile(workspaceId),
     staleTime: 60000, // Cache for 1 minute
   });
 
   // Fetch ratings for this recipe
   const { data: ratings } = useQuery({
-    queryKey: ['recipeRatings', recipe.id],
-    queryFn: () => recipesAPI.getRatings(recipe.id),
+    queryKey: ['recipeRatings', workspaceId, recipe.id],
+    queryFn: () => recipesAPI.getRatings(workspaceId, recipe.id),
     staleTime: 30000, // Cache for 30 seconds
   });
 

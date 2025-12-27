@@ -5,10 +5,6 @@
 # DISCUSS
 - future: create accounts, auth, storage, payments
 
-
-# META/DEVOPS
-
-
 # FEATURES
 - introduce daycare rules CRUD
 - add "how we're feeling today" vibe generator for meal plans
@@ -22,3 +18,8 @@
 - nav arrows are still there, meal titles display still squished
 
 # BUGS TO FIX
+
+
+# META/DEVOPS
+- persistent volume on backend
+

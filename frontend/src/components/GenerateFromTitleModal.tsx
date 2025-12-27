@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { recipesAPI, GenerateFromTitleRequest } from '@/lib/api';
+import { getCurrentWorkspace } from '@/lib/workspace';
 import { Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,6 +29,7 @@ export function GenerateFromTitleModal({
   onRecipeGenerated,
 }: GenerateFromTitleModalProps) {
   const queryClient = useQueryClient();
+  const workspaceId = getCurrentWorkspace()!;
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   // Reset state when modal opens/closes
@@ -46,11 +48,11 @@ export function GenerateFromTitleModal({
         meal_type: mealType,
         servings: 4,
       };
-      return await recipesAPI.generateFromTitle(request);
+      return await recipesAPI.generateFromTitle(workspaceId, request);
     },
     onSuccess: (recipe) => {
-      queryClient.invalidateQueries({ queryKey: ['recipes'] });
-      queryClient.invalidateQueries({ queryKey: ['mealPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['mealPlan', workspaceId] });
       toast.success(`Recipe "${recipeTitle}" generated successfully!`);
       if (onRecipeGenerated) {
         onRecipeGenerated(recipe.id);

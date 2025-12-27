@@ -20,6 +20,7 @@ import { GroceryItemModal } from '@/components/groceries/GroceryItemModal';
 import { StickyActionBar } from '@/components/groceries/StickyActionBar';
 import { groceriesAPI, type GroceryItem, type Recipe } from '@/lib/api';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { getCurrentWorkspace } from '@/lib/workspace';
 import {
   Plus,
   X,
@@ -41,6 +42,7 @@ import { cn } from '@/lib/utils';
 const Groceries = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const workspaceId = getCurrentWorkspace()!; // Ensured by Index page
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [showAdvancedForm, setShowAdvancedForm] = useState(false);
@@ -75,23 +77,23 @@ const Groceries = () => {
 
   // Fetch groceries from backend
   const { data: groceryList, isLoading, error } = useQuery({
-    queryKey: ['groceries'],
-    queryFn: groceriesAPI.getAll,
+    queryKey: ['groceries', workspaceId],
+    queryFn: () => groceriesAPI.getAll(workspaceId),
   });
 
   // Fetch expiring soon items
   const { data: expiringSoon } = useQuery({
-    queryKey: ['groceries-expiring'],
-    queryFn: () => groceriesAPI.getExpiringSoon(1),
+    queryKey: ['groceries-expiring', workspaceId],
+    queryFn: () => groceriesAPI.getExpiringSoon(workspaceId, 1),
     refetchInterval: 60000, // Refetch every minute
   });
 
   // Add grocery mutation
   const addMutation = useMutation({
-    mutationFn: (item: GroceryItem) => groceriesAPI.add(item),
+    mutationFn: (item: GroceryItem) => groceriesAPI.add(workspaceId, item),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groceries'] });
-      queryClient.invalidateQueries({ queryKey: ['groceries-expiring'] });
+      queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
       toast.success(`${newItemName} added to list`);
       // Reset form
       setNewItemName('');
@@ -107,10 +109,10 @@ const Groceries = () => {
 
   // Delete grocery mutation
   const deleteMutation = useMutation({
-    mutationFn: (name: string) => groceriesAPI.delete(name),
+    mutationFn: (name: string) => groceriesAPI.delete(workspaceId, name),
     onSuccess: (_, name) => {
-      queryClient.invalidateQueries({ queryKey: ['groceries'] });
-      queryClient.invalidateQueries({ queryKey: ['groceries-expiring'] });
+      queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
       toast.success(`${name} removed`);
       setSelectedIngredients((prev) => prev.filter((i) => i !== name));
     },
@@ -127,17 +129,17 @@ const Groceries = () => {
       if (!currentItem) throw new Error('Item not found');
 
       // Delete old item
-      await groceriesAPI.delete(name);
+      await groceriesAPI.delete(workspaceId, name);
 
       // Add updated item
-      return groceriesAPI.add({
+      return groceriesAPI.add(workspaceId, {
         ...currentItem,
         ...updates,
       } as GroceryItem);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groceries'] });
-      queryClient.invalidateQueries({ queryKey: ['groceries-expiring'] });
+      queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
       toast.success('Item updated');
     },
     onError: (error: Error) => {
@@ -147,7 +149,7 @@ const Groceries = () => {
 
   // Voice parsing mutation
   const parseVoiceMutation = useMutation({
-    mutationFn: (transcription: string) => groceriesAPI.parseVoice(transcription),
+    mutationFn: (transcription: string) => groceriesAPI.parseVoice(workspaceId, transcription),
     onSuccess: (response) => {
       setProposedItems(response.proposed_items);
       setParseWarnings(response.warnings);
@@ -162,10 +164,10 @@ const Groceries = () => {
 
   // Batch add mutation
   const batchAddMutation = useMutation({
-    mutationFn: (items: GroceryItem[]) => groceriesAPI.batchAdd(items),
+    mutationFn: (items: GroceryItem[]) => groceriesAPI.batchAdd(workspaceId, items),
     onSuccess: (_, items) => {
-      queryClient.invalidateQueries({ queryKey: ['groceries'] });
-      queryClient.invalidateQueries({ queryKey: ['groceries-expiring'] });
+      queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
       toast.success(`${items.length} item${items.length !== 1 ? 's' : ''} added to list`);
       setShowConfirmDialog(false);
       setProposedItems([]);
@@ -178,7 +180,7 @@ const Groceries = () => {
 
   // Receipt parsing mutation
   const parseReceiptMutation = useMutation({
-    mutationFn: (imageBase64: string) => groceriesAPI.parseReceipt(imageBase64),
+    mutationFn: (imageBase64: string) => groceriesAPI.parseReceipt(workspaceId, imageBase64),
     onSuccess: (response) => {
       setProposedItems(response.proposed_items);
       setParseWarnings(response.warnings);

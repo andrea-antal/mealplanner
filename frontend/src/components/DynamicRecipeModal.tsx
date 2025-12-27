@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { recipesAPI, DynamicRecipeRequest, Recipe } from '@/lib/api';
+import { getCurrentWorkspace } from '@/lib/workspace';
 import { Loader2, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,6 +36,7 @@ export function DynamicRecipeModal({
   onRecipeGenerated,
 }: DynamicRecipeModalProps) {
   const queryClient = useQueryClient();
+  const workspaceId = getCurrentWorkspace()!;
   const [mealType, setMealType] = useState<string>('dinner');
   const [cuisineType, setCuisineType] = useState<string>('none');
   const [customCuisine, setCustomCuisine] = useState<string>('');
@@ -58,9 +60,9 @@ export function DynamicRecipeModal({
   // Mutation to generate recipe
   const generateMutation = useMutation({
     mutationFn: (request: DynamicRecipeRequest) =>
-      recipesAPI.generateFromIngredients(request),
+      recipesAPI.generateFromIngredients(workspaceId, request),
     onSuccess: (recipe) => {
-      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
       toast.success(`Recipe "${recipe.title}" generated successfully!`);
       if (onRecipeGenerated) {
         onRecipeGenerated(recipe);

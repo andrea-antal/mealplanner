@@ -2,14 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { mealPlansAPI, recipesAPI, type MealPlan, type Recipe } from '@/lib/api';
+import { getCurrentWorkspace } from '@/lib/workspace';
 import { Sparkles, Loader2, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeModal } from '@/components/RecipeModal';
 import { GenerateFromTitleModal } from '@/components/GenerateFromTitleModal';
 import { MealPlanGenerationModal } from '@/components/MealPlanGenerationModal';
-
-const MEAL_PLAN_STORAGE_KEY = 'mealplanner_current_meal_plan';
 
 // Meal type emoji mapping (lowercase to match API data)
 const mealTypeIcons: Record<string, string> = {
@@ -20,7 +19,11 @@ const mealTypeIcons: Record<string, string> = {
 };
 
 const MealPlans = () => {
-  // Load meal plan from localStorage on mount
+  const workspaceId = getCurrentWorkspace()!; // Ensured by Index page
+
+  // Load meal plan from localStorage on mount (scoped to workspace)
+  const MEAL_PLAN_STORAGE_KEY = `mealplanner_${workspaceId}_meal_plan`;
+
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(() => {
     const stored = localStorage.getItem(MEAL_PLAN_STORAGE_KEY);
     if (stored) {
@@ -70,6 +73,7 @@ const MealPlans = () => {
 
       try {
         const result = await mealPlansAPI.generate(
+          workspaceId,
           { week_start_date, num_recipes: 7 },
           { signal: abortControllerRef.current.signal }
         );
@@ -165,7 +169,7 @@ const MealPlans = () => {
 
     setLoadingRecipeId(recipeId);
     try {
-      const recipe = await recipesAPI.getById(recipeId);
+      const recipe = await recipesAPI.getById(workspaceId, recipeId);
       setSelectedRecipe(recipe);
       setRecipeModalOpen(true);
     } catch (error) {
@@ -192,7 +196,7 @@ const MealPlans = () => {
   // Handle recipe generated - update meal plan with new recipe_id
   const handleRecipeGenerated = async (recipeId: string) => {
     try {
-      const recipe = await recipesAPI.getById(recipeId);
+      const recipe = await recipesAPI.getById(workspaceId, recipeId);
 
       // Update the meal plan to link this recipe to the meal
       if (mealPlan && generateMealContext) {

@@ -12,18 +12,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { householdAPI, type HouseholdProfile, type FamilyMember } from '@/lib/api';
+import { getCurrentWorkspace } from '@/lib/workspace';
 import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Household = () => {
   const queryClient = useQueryClient();
+  const workspaceId = getCurrentWorkspace()!; // Ensured by Index page
   const [profile, setProfile] = useState<HouseholdProfile | null>(null);
   const [newMemberName, setNewMemberName] = useState('');
 
   // Fetch household profile from backend
   const { data: fetchedProfile, isLoading, error } = useQuery({
-    queryKey: ['householdProfile'],
-    queryFn: householdAPI.getProfile,
+    queryKey: ['householdProfile', workspaceId],
+    queryFn: () => householdAPI.getProfile(workspaceId),
   });
 
   // Update local state when data is fetched
@@ -35,9 +37,9 @@ const Household = () => {
 
   // Mutation to save profile to backend
   const saveMutation = useMutation({
-    mutationFn: (updatedProfile: HouseholdProfile) => householdAPI.updateProfile(updatedProfile),
+    mutationFn: (updatedProfile: HouseholdProfile) => householdAPI.updateProfile(workspaceId, updatedProfile),
     onSuccess: (savedProfile) => {
-      queryClient.setQueryData(['householdProfile'], savedProfile);
+      queryClient.setQueryData(['householdProfile', workspaceId], savedProfile);
       setProfile(savedProfile);
       toast.success('Profile saved successfully!');
     },

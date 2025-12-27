@@ -22,6 +22,7 @@ import { RecipeTag } from './RecipeTag';
 import { RecipeRating } from './RecipeRating';
 import type { Recipe } from '@/lib/api';
 import { householdAPI, recipesAPI } from '@/lib/api';
+import { getCurrentWorkspace } from '@/lib/workspace';
 import { Clock, Users, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,27 +36,28 @@ interface RecipeModalProps {
 export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModalProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const workspaceId = getCurrentWorkspace()!;
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
 
   // Fetch household members
   const { data: household } = useQuery({
-    queryKey: ['householdProfile'],
-    queryFn: householdAPI.getProfile,
+    queryKey: ['householdProfile', workspaceId],
+    queryFn: () => householdAPI.getProfile(workspaceId),
   });
 
   // Fetch current ratings for this recipe
   const { data: ratings } = useQuery({
-    queryKey: ['recipeRatings', recipe?.id],
-    queryFn: () => recipesAPI.getRatings(recipe!.id),
+    queryKey: ['recipeRatings', workspaceId, recipe?.id],
+    queryFn: () => recipesAPI.getRatings(workspaceId, recipe!.id),
     enabled: !!recipe,
   });
 
   // Mutation for rating updates
   const rateMutation = useMutation({
     mutationFn: ({ recipeId, memberName, rating }: { recipeId: string; memberName: string; rating: string | null }) =>
-      recipesAPI.rateRecipe(recipeId, memberName, rating),
+      recipesAPI.rateRecipe(workspaceId, recipeId, memberName, rating),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recipeRatings', recipe?.id] });
+      queryClient.invalidateQueries({ queryKey: ['recipeRatings', workspaceId, recipe?.id] });
       toast.success('Rating saved!');
     },
     onError: (error: Error) => {
