@@ -262,7 +262,7 @@ const MealPlans = () => {
         <>
           {/* Week Selector - Horizontal Days */}
           <div className="rounded-2xl bg-card shadow-soft p-4">
-            <div className="grid grid-cols-7 gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide md:grid md:grid-cols-7">
               {mealPlan.days.map((day, index) => {
                 const { dayOfWeek, shortDate } = formatDate(day.date);
                 const isSelected = index === selectedDayIndex;
@@ -274,7 +274,7 @@ const MealPlans = () => {
                     onClick={() => setSelectedDayIndex(index)}
                     className={cn(
                       'flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200',
-                      'hover:bg-muted cursor-pointer',
+                      'hover:bg-muted cursor-pointer min-w-[70px] md:min-w-0',
                       isSelected && 'bg-primary text-primary-foreground hover:bg-primary'
                     )}
                   >
