@@ -83,6 +83,7 @@ The frontend connects to the FastAPI backend at `http://localhost:8000`.
 - `GET /recipes/{id}` - Get single recipe
 - `POST /recipes` - Create new recipe
 - `PUT /recipes/{id}` - Update recipe
+- `POST /feedback` - Submit beta testing feedback
 
 See [../docs/FRONTEND_FEATURES.md](../docs/FRONTEND_FEATURES.md) for detailed API documentation and integration guide.
 
@@ -106,6 +107,19 @@ Configure household profile:
 
 ### Groceries (Groceries.tsx)
 Manage available ingredients. Simple interface to add/remove items from current grocery inventory.
+
+### Feedback System
+Beta testing feedback system available on all pages via floating bug button (bottom-right corner).
+
+**Components**:
+- `FeedbackModal.tsx` - Feedback submission form with auto-collected browser diagnostics
+- Floating bug button in `AppLayout.tsx` - Always accessible for quick feedback
+
+**Features**:
+- 10,000 character limit for detailed feedback
+- Automatically collects: workspace ID, browser info, screen size, timezone
+- Sends to backend `/feedback` endpoint → Email via Resend API
+- Email includes PST timestamps and parsed browser/OS information
 
 ## Development
 
@@ -156,7 +170,7 @@ vercel --prod
 ```
 
 **Environment Variables** (set in Vercel dashboard):
-- `VITE_API_URL`: Backend API URL (e.g., `https://your-backend.onrender.com`)
+- `VITE_API_URL`: Backend API URL (e.g., `https://mealplanner-backend-production-3e88.up.railway.app`)
 
 ## Architecture Notes
 

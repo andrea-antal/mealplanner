@@ -13,7 +13,7 @@ AI-powered meal planning for families with complex dietary constraints. Uses RAG
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # Add your ANTHROPIC_API_KEY
+cp .env.example .env  # Add ANTHROPIC_API_KEY and optionally RESEND_API_KEY
 uvicorn app.main:app --reload --port 8000
 
 # Frontend (new terminal)
@@ -42,6 +42,11 @@ Visit `http://localhost:5173`
 - **Individual Preferences**: Per-member dietary preferences (pescetarian, low-carb, etc.)
 - **Flexible Constraints**: Allergies (hard rules) vs dislikes (soft preferences)
 - **Cooking Profiles**: Appliances, methods, weeknight/weekend time limits
+
+### Beta Testing Feedback
+- **In-App Feedback**: Floating bug button on all pages for easy feedback submission
+- **Smart Email Delivery**: Resend API integration with PST timestamps and browser detection
+- **Diagnostic Info**: Automatically includes workspace ID, browser/OS details, and session context
 
 ## Current Status
 
