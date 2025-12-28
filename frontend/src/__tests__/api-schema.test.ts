@@ -55,6 +55,87 @@ describe('Recipe Interface Schema', () => {
   });
 });
 
+describe('Recipe Interface - Source Fields', () => {
+  it('should support optional source_url field', () => {
+    const recipe: Recipe = {
+      id: 'test',
+      title: 'Test Recipe',
+      description: 'A test recipe',
+      ingredients: ['flour', 'sugar'],
+      instructions: '1. Mix. 2. Bake.',
+      tags: ['dessert'],
+      prep_time_minutes: 5,
+      active_cooking_time_minutes: 10,
+      serves: 2,
+      required_appliances: ['oven'],
+      is_generated: false,
+      source_url: 'https://example.com/recipe',
+    };
+
+    expect(recipe.source_url).toBe('https://example.com/recipe');
+  });
+
+  it('should support optional source_name field', () => {
+    const recipe: Recipe = {
+      id: 'test',
+      title: 'Test Recipe',
+      description: 'A test recipe',
+      ingredients: ['flour', 'sugar'],
+      instructions: '1. Mix. 2. Bake.',
+      tags: ['dessert'],
+      prep_time_minutes: 5,
+      active_cooking_time_minutes: 10,
+      serves: 2,
+      required_appliances: ['oven'],
+      is_generated: false,
+      source_name: 'Example.com',
+    };
+
+    expect(recipe.source_name).toBe('Example.com');
+  });
+
+  it('should allow recipes without source fields', () => {
+    const recipe: Recipe = {
+      id: 'test',
+      title: 'Test Recipe',
+      description: 'A test recipe',
+      ingredients: ['flour', 'sugar'],
+      instructions: '1. Mix. 2. Bake.',
+      tags: ['dessert'],
+      prep_time_minutes: 5,
+      active_cooking_time_minutes: 10,
+      serves: 2,
+      required_appliances: ['oven'],
+      is_generated: false,
+      // No source_url or source_name
+    };
+
+    expect(recipe.source_url).toBeUndefined();
+    expect(recipe.source_name).toBeUndefined();
+  });
+
+  it('should allow recipes with both source fields populated', () => {
+    const recipe: Recipe = {
+      id: 'imported-123',
+      title: 'Imported Recipe',
+      description: 'From a cooking website',
+      ingredients: ['chicken', 'vegetables'],
+      instructions: '1. Cook. 2. Serve.',
+      tags: ['dinner'],
+      prep_time_minutes: 10,
+      active_cooking_time_minutes: 20,
+      serves: 4,
+      required_appliances: ['stove'],
+      is_generated: false,
+      source_url: 'https://www.allrecipes.com/recipe/12345',
+      source_name: 'AllRecipes',
+    };
+
+    expect(recipe.source_url).toBe('https://www.allrecipes.com/recipe/12345');
+    expect(recipe.source_name).toBe('AllRecipes');
+  });
+});
+
 describe('DynamicRecipeRequest Interface', () => {
   it('should match backend DynamicRecipeRequest model', () => {
     // This interface doesn't exist yet - we'll create it next
