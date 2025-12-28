@@ -1,6 +1,6 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2025-12-27
+**Last Updated**: 2025-12-28
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
@@ -15,6 +15,7 @@
 
 ### ✨ Improvements
 
+- **Enhanced Receipt & Voice Accuracy** - Receipt scanning and voice input now use our most advanced AI model (Opus 4) for significantly better accuracy with blurry receipts and natural language understanding
 - Smarter recipe parsing with improved accuracy
 - Better error messages when a website isn't supported
 - Faster import processing

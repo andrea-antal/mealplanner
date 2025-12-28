@@ -11,6 +11,109 @@ This document tracks key decisions, changes, and learnings during development.
 
 ---
 
+## 2025-12-28 Model Upgrade: Opus 4 for Receipt OCR and Voice Parsing
+
+**Status**: Complete | **Duration**: ~2 hours | **Branch**: main
+
+### Summary
+Upgraded receipt OCR and voice input parsing to use Opus 4 (`claude-opus-4-5-20251101`) for significantly better accuracy, while keeping recipe URL import on Sonnet for cost-effectiveness. Receipt OCR quality had degraded when all models were switched to Sonnet, and voice parsing benefits from Opus 4's superior natural language understanding.
+
+### Problem Statement
+- **Receipt OCR**: Quality degraded with Sonnet - struggled with blurry images, handwriting, and low-quality photos
+- **Voice Input**: Could benefit from better language understanding for natural phrasing like "some tomatoes" or "a couple of onions"
+- **Cost vs Quality**: Need to balance accuracy for critical features (vision, NLP) with cost-effectiveness for simpler tasks
+
+### Implementation
+
+**Changes Made:**
+
+1. **Configuration Constant** (`backend/app/config.py`):
+   ```python
+   HIGH_ACCURACY_MODEL_NAME: str = "claude-opus-4-5-20251101"
+   # Opus 4.5: Used for receipt OCR and voice parsing (higher accuracy)
+   ```
+
+2. **Receipt OCR Function** (`backend/app/services/claude_service.py:951-995`):
+   - Added optional `model: str = None` parameter to function signature
+   - Defaults to `settings.HIGH_ACCURACY_MODEL_NAME` (Opus 4)
+   - Updated docstring to document model parameter
+   - Model selection logic:
+     ```python
+     if model is None:
+         model = settings.HIGH_ACCURACY_MODEL_NAME
+     ```
+
+3. **Voice Parsing Function** (`backend/app/services/claude_service.py:691-747`):
+   - Added optional `model: str = None` parameter to function signature
+   - Defaults to `settings.HIGH_ACCURACY_MODEL_NAME` (Opus 4)
+   - Updated docstring to document model parameter
+   - Same model selection pattern as receipt OCR
+
+4. **Recipe URL Parsing Function** (`backend/app/services/claude_service.py:1137-1186`):
+   - Added optional `model: str = None` parameter for consistency
+   - Defaults to `settings.MODEL_NAME` (Sonnet - cost-effective)
+   - Model selection logic:
+     ```python
+     if model is None:
+         model = settings.MODEL_NAME  # Sonnet works well for this
+     ```
+
+### Technical Details
+
+**Model Selection Strategy:**
+- **Opus 4 (HIGH_ACCURACY_MODEL_NAME)**: Vision tasks (receipt OCR), complex NLP (voice parsing)
+- **Sonnet 4.5 (MODEL_NAME)**: Text extraction (recipe URL import), general tasks
+
+**Pattern Used:**
+All parsing functions now follow the same pattern used by meal planning and recipe generation:
+```python
+async def parse_function(..., model: str = None):
+    if model is None:
+        model = settings.DEFAULT_FOR_THIS_TASK
+
+    response = client.messages.create(model=model, ...)
+```
+
+**Backward Compatibility:**
+- No breaking changes - all new parameters are optional
+- Router endpoints continue calling functions without model parameter
+- Functions use sensible defaults based on task requirements
+
+### Cost Impact
+
+**Opus 4 vs Sonnet Pricing:**
+- Opus 4: ~2-3x more expensive per request
+- Higher cost justified by:
+  - **Receipt OCR**: Vision task requiring superior OCR accuracy
+  - **Voice Parsing**: Complex NLP requiring better language understanding
+  - **Infrequent use**: Users don't scan receipts or use voice constantly
+
+**Features Staying on Sonnet:**
+- Recipe URL import (simple text extraction, works well)
+- Meal plan generation (already uses Sonnet effectively)
+- Recipe generation (already uses Sonnet effectively)
+
+### Files Modified
+- `backend/app/config.py` (+1 line) - Added HIGH_ACCURACY_MODEL_NAME constant
+- `backend/app/services/claude_service.py` (+19 lines, -6 lines):
+  - Updated `parse_receipt_to_groceries()` signature, logic, docstring
+  - Updated `parse_voice_to_groceries()` signature, logic, docstring
+  - Updated `parse_recipe_from_url()` signature, logic, docstring
+
+### Testing & Validation
+✅ Receipt OCR now uses Opus 4 by default
+✅ Voice parsing now uses Opus 4 by default
+✅ Recipe URL import continues using Sonnet
+✅ All functions support model override parameter
+✅ Backward compatible - no router changes needed
+
+### Expected Improvements
+- **Receipt OCR**: Better handling of blurry images, handwriting, low-quality photos
+- **Voice Input**: Better understanding of natural language variations and colloquialisms
+- **User Experience**: Fewer errors, less need for manual corrections
+
+---
+
 ## 2025-12-28 Vercel SPA Routing Fix
 
 **Status**: Complete | **Duration**: ~30 minutes | **Branch**: main
