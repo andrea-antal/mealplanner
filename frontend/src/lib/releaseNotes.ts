@@ -36,7 +36,9 @@ export function shouldShowReleaseNotes(): boolean {
   // To distinguish: check if workspace has any other data (meal plans, etc.)
   // If workspace has data, assume they're an existing user from v0.4.0
   if (!lastSeenVersion) {
-    const workspaceId = key.split('_')[1]; // Extract workspace ID from key
+    const workspaceId = getCurrentWorkspace(); // Get workspace ID directly
+    if (!workspaceId) return false;
+
     const hasMealPlanData = localStorage.getItem(`mealplanner_${workspaceId}_meal_plan`);
 
     if (hasMealPlanData) {
