@@ -29,10 +29,24 @@ export function shouldShowReleaseNotes(): boolean {
 
   const lastSeenVersion = localStorage.getItem(key);
 
-  // First-time user - don't show release notes immediately (avoid overwhelming on first visit)
+  // No version tracked yet - this could be:
+  // 1. A brand new first-time user (don't show)
+  // 2. An existing user before release notes system existed (show!)
+  //
+  // To distinguish: check if workspace has any other data (meal plans, etc.)
+  // If workspace has data, assume they're an existing user from v0.4.0
   if (!lastSeenVersion) {
-    markReleaseNotesAsSeen(); // Mark current version as seen
-    return false;
+    const workspaceId = key.split('_')[1]; // Extract workspace ID from key
+    const hasMealPlanData = localStorage.getItem(`mealplanner_${workspaceId}_meal_plan`);
+
+    if (hasMealPlanData) {
+      // Existing user - assume they were on v0.4.0, show release notes!
+      return isNewerVersion(APP_VERSION, '0.4.0');
+    } else {
+      // Brand new user - mark current version as seen, don't show
+      markReleaseNotesAsSeen();
+      return false;
+    }
   }
 
   // Check if current version is newer than last seen version
