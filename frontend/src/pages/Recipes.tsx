@@ -268,6 +268,7 @@ const Recipes = () => {
         open={formOpen}
         onOpenChange={setFormOpen}
         onSubmit={handleCreateRecipe}
+        workspaceId={workspaceId}
       />
     </div>
   );

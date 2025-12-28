@@ -23,7 +23,7 @@ import { RecipeRating } from './RecipeRating';
 import type { Recipe } from '@/lib/api';
 import { householdAPI, recipesAPI } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Clock, Users, Trash2, RefreshCw } from 'lucide-react';
+import { Clock, Users, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface RecipeModalProps {
@@ -31,6 +31,25 @@ interface RecipeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDelete?: (recipeId: string) => void;
+}
+
+// Helper function to extract domain from URL
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return url;
+  }
+}
+
+// URL validation helper to prevent XSS
+function isValidUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModalProps) {
@@ -159,6 +178,38 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
               ))}
             </div>
           </div>
+
+          {/* Recipe Source Section */}
+          {recipe.source_url && (
+            <div className="pb-4">
+              <h4 className="font-display font-semibold text-lg mb-3">Recipe Source</h4>
+              <div className="text-sm text-muted-foreground space-y-2">
+                <div className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">
+                    {recipe.source_name || extractDomain(recipe.source_url)}
+                  </span>
+                </div>
+
+                {isValidUrl(recipe.source_url) ? (
+                  <a
+                    href={recipe.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                    aria-label={`View original recipe at ${recipe.source_name || 'source'} (opens in new tab)`}
+                  >
+                    <span>View Original Recipe</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <p className="truncate">
+                    {recipe.source_url}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bottom Half: Ratings & Actions (Fixed/Scrollable) */}

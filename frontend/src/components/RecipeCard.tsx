@@ -1,4 +1,4 @@
-import { Clock, Users, Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Clock, Users, Sparkles, ThumbsUp, ThumbsDown, ExternalLink } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import type { Recipe } from '@/lib/api';
@@ -8,6 +8,16 @@ import { getCurrentWorkspace } from '@/lib/workspace';
 interface RecipeCardProps {
   recipe: Recipe;
   onViewDetails: (recipe: Recipe) => void;
+}
+
+// URL validation helper to prevent XSS
+function isValidUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 export function RecipeCard({ recipe, onViewDetails }: RecipeCardProps) {
@@ -43,12 +53,46 @@ export function RecipeCard({ recipe, onViewDetails }: RecipeCardProps) {
           <h3 className="font-display text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
             {recipe.title}
           </h3>
-          {recipe.is_generated && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
-              <Sparkles className="h-3 w-3" />
-              <span>AI</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {recipe.is_generated && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                <Sparkles className="h-3 w-3" />
+                <span>AI</span>
+              </div>
+            )}
+            {recipe.source_url && recipe.source_name && isValidUrl(recipe.source_url) && (
+              <a
+                href={recipe.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`View recipe source at ${recipe.source_name} (opens in new tab)`}
+                tabIndex={0}
+                className="inline-block"
+              >
+                <Badge variant="outline" className="text-xs gap-1 max-w-[150px] truncate hover:bg-secondary/50 transition-colors">
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{recipe.source_name || 'View Source'}</span>
+                </Badge>
+              </a>
+            )}
+            {recipe.source_url && !recipe.source_name && isValidUrl(recipe.source_url) && (
+              <a
+                href={recipe.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`View recipe source (opens in new tab)`}
+                tabIndex={0}
+                className="inline-block"
+              >
+                <Badge variant="outline" className="text-xs gap-1 max-w-[150px] truncate hover:bg-secondary/50 transition-colors">
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                  <span className="truncate">View Source</span>
+                </Badge>
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Aggregate Ratings Badge */}
