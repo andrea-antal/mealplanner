@@ -33,19 +33,24 @@ export function shouldShowReleaseNotes(): boolean {
   // 1. A brand new first-time user (don't show)
   // 2. An existing user before release notes system existed (show!)
   //
-  // To distinguish: check if workspace has any other data (meal plans, etc.)
+  // To distinguish: check if workspace has ANY data in localStorage
   // If workspace has data, assume they're an existing user from v0.4.0
   if (!lastSeenVersion) {
     const workspaceId = getCurrentWorkspace(); // Get workspace ID directly
     if (!workspaceId) return false;
 
-    const hasMealPlanData = localStorage.getItem(`mealplanner_${workspaceId}_meal_plan`);
+    // Check if workspace has ANY data (groceries, recipes, meal plans, household, etc.)
+    const workspacePrefix = `mealplanner_${workspaceId}_`;
+    const hasAnyWorkspaceData = Object.keys(localStorage).some(key =>
+      key.startsWith(workspacePrefix) &&
+      key !== `${workspacePrefix}last_release_notes_version` // Exclude the version key itself
+    );
 
-    if (hasMealPlanData) {
-      // Existing user - assume they were on v0.4.0, show release notes!
+    if (hasAnyWorkspaceData) {
+      // Existing user with data - assume they were on v0.4.0, show release notes!
       return isNewerVersion(APP_VERSION, '0.4.0');
     } else {
-      // Brand new user - mark current version as seen, don't show
+      // Brand new user with no data - mark current version as seen, don't show
       markReleaseNotesAsSeen();
       return false;
     }
