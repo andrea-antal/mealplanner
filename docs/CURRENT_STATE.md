@@ -1,6 +1,6 @@
 ---
 **Summary**: Quick snapshot of what's working right now (Deployed to production). Updated after each sprint. Use this to quickly understand current capabilities.
-**Last Updated**: 2025-12-26
+**Last Updated**: 2025-12-27
 **Status**: Current
 **Read This If**: You need a quick feature inventory or tech stack summary
 ---
@@ -45,11 +45,18 @@
    - Respects dietary constraints and preferences
    - Considers recipe ratings
 
-### Latest Features (Sprint 4)
-- **Phase 1**: Voice input for groceries (Web Speech API + Claude parsing)
-- **Phase 2**: Receipt OCR (Claude Vision API + image compression)
-- **Phase 3**: Production deployment (Vercel + Railway)
-- **Phase 4**: Mobile meal plan UX enhancement
+5. ✅ **Beta Testing Feedback**
+   - Floating bug button on all pages
+   - Submit feedback, bugs, and feature requests
+   - Automatic browser info and workspace ID collection
+   - Email delivery via Resend API
+
+### Latest Features (December 27, 2025)
+- **Beta Testing Feedback System**: Floating bug button with email delivery via Resend API
+- **Email Infrastructure**: Replaced SMTP with Resend API for reliable feedback delivery
+- **Browser Detection**: Automatic user agent parsing for better debugging
+- **PST Timezone Formatting**: Human-readable timestamps in feedback emails
+- **Navigation Updates**: Streamlined UI focusing on core features
 
 ---
 

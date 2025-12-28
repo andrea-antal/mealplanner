@@ -42,6 +42,13 @@ See [DOC_STANDARDS.md](DOC_STANDARDS.md) for full documentation conventions.
 - **[CHANGELOG.md](CHANGELOG.md)** - Chronological feature history *(Current)*
   - 🎯 Detailed implementation notes, technical decisions, file changes by sprint
 
+### User-Facing Documentation
+- **[RELEASE_NOTES.md](RELEASE_NOTES.md)** - Release notes for beta testers *(Current)*
+  - 🎯 View latest features, improvements, and bug fixes in user-friendly language
+  - ⚠️ Written for non-technical users - friendly tone with emoji
+  - 📦 Displayed in app as modal dialog on each release
+  - ✨ Auto-shows when new version detected (workspace-scoped tracking)
+
 ### Standards & Conventions
 - **[DOC_STANDARDS.md](DOC_STANDARDS.md)** - Documentation governance *(Current)*
   - 🎯 Creating new docs, naming conventions, archival rules
