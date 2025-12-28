@@ -9,15 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Recipe } from '@/lib/api';
+import { recipesAPI } from '@/lib/api';
 
 interface RecipeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (recipe: Recipe) => void;
+  workspaceId: string;
 }
 
-export function RecipeForm({ open, onOpenChange, onSubmit }: RecipeFormProps) {
+export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId }: RecipeFormProps) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -28,7 +33,62 @@ export function RecipeForm({ open, onOpenChange, onSubmit }: RecipeFormProps) {
     active_cooking_time_minutes: '',
     serves: '',
     required_appliances: '',
+    source_url: '',
+    source_name: '',
   });
+
+  // URL Import state
+  const [importUrl, setImportUrl] = useState('');
+  const [isFetching, setIsFetching] = useState(false);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+
+  const handleFetchRecipe = async () => {
+    if (!importUrl || !importUrl.trim()) {
+      toast.error('Please enter a URL');
+      return;
+    }
+
+    setIsFetching(true);
+    setImportWarnings([]);
+
+    try {
+      const response = await recipesAPI.importFromUrl(workspaceId, importUrl);
+
+      // Auto-populate form fields
+      setFormData({
+        title: response.recipe_data.title || '',
+        description: response.recipe_data.description || '',
+        ingredients: response.recipe_data.ingredients?.join('\n') || '',
+        instructions: response.recipe_data.instructions || '',
+        tags: response.recipe_data.tags?.join(', ') || '',
+        prep_time_minutes: response.recipe_data.prep_time_minutes?.toString() || '',
+        active_cooking_time_minutes: response.recipe_data.active_cooking_time_minutes?.toString() || '',
+        serves: response.recipe_data.serves?.toString() || '',
+        required_appliances: response.recipe_data.required_appliances?.join(', ') || '',
+        source_url: response.recipe_data.source_url || '',
+        source_name: response.recipe_data.source_name || '',
+      });
+
+      // Show warnings if any
+      const warnings = [...response.warnings];
+      if (response.missing_fields.length > 0) {
+        warnings.push(`Missing fields: ${response.missing_fields.join(', ')}. Please fill them in.`);
+      }
+      if (response.confidence === 'low') {
+        warnings.push('Low confidence parsing. Please review all fields carefully.');
+      } else if (response.confidence === 'medium') {
+        warnings.push('Some fields may need review.');
+      }
+      setImportWarnings(warnings);
+
+      toast.success('Recipe imported! Please review and edit as needed.');
+    } catch (error: any) {
+      console.error('Failed to import recipe:', error);
+      toast.error(`Failed to import recipe: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +107,8 @@ export function RecipeForm({ open, onOpenChange, onSubmit }: RecipeFormProps) {
       active_cooking_time_minutes: parseInt(formData.active_cooking_time_minutes) || 0,
       serves: parseInt(formData.serves) || 1,
       required_appliances: formData.required_appliances.split(',').map(a => a.trim()).filter(a => a),
+      source_url: formData.source_url || undefined,
+      source_name: formData.source_name || undefined,
     };
 
     onSubmit(recipe);
@@ -62,7 +124,11 @@ export function RecipeForm({ open, onOpenChange, onSubmit }: RecipeFormProps) {
       active_cooking_time_minutes: '',
       serves: '',
       required_appliances: '',
+      source_url: '',
+      source_name: '',
     });
+    setImportUrl('');
+    setImportWarnings([]);
 
     onOpenChange(false);
   };
@@ -75,6 +141,53 @@ export function RecipeForm({ open, onOpenChange, onSubmit }: RecipeFormProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* URL Import Section */}
+          <div className="border-b border-border pb-4 mb-4">
+            <Label htmlFor="import-url" className="text-base font-semibold">
+              Import from URL (Optional)
+            </Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Paste a recipe URL to automatically extract recipe data
+            </p>
+            <div className="flex gap-2">
+              <Input
+                id="import-url"
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                placeholder="https://www.allrecipes.com/recipe/..."
+                disabled={isFetching}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                onClick={handleFetchRecipe}
+                disabled={!importUrl || isFetching}
+                variant="secondary"
+              >
+                {isFetching ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Fetching...
+                  </>
+                ) : (
+                  'Fetch Recipe'
+                )}
+              </Button>
+            </div>
+            {importWarnings.length > 0 && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <ul className="text-sm space-y-1 mt-1">
+                    {importWarnings.map((warning, i) => (
+                      <li key={i}>• {warning}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
           <div>
             <Label htmlFor="title">Recipe Title *</Label>
             <Input

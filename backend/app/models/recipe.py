@@ -41,6 +41,14 @@ class Recipe(BaseModel):
         default=None,
         description="Optional recipe description or notes"
     )
+    source_url: Optional[str] = Field(
+        default=None,
+        description="URL of original recipe source (if imported from web)"
+    )
+    source_name: Optional[str] = Field(
+        default=None,
+        description="Display name of source (e.g., 'AllRecipes', 'FoodNetwork')"
+    )
 
     class Config:
         json_schema_extra = {
@@ -105,5 +113,68 @@ class DynamicRecipeRequest(BaseModel):
                 "cuisine_type": "italian",
                 "cooking_time_max": 30,
                 "servings": 4
+            }
+        }
+
+
+class ImportFromUrlRequest(BaseModel):
+    """
+    Request model for importing recipe from URL.
+
+    Attributes:
+        url: URL of the recipe to import
+    """
+    url: str = Field(..., description="URL of recipe to import")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "url": "https://www.allrecipes.com/recipe/chocolate-chip-cookies"
+            }
+        }
+
+
+class ImportedRecipeResponse(BaseModel):
+    """
+    Response model for recipe import from URL.
+
+    Contains parsed recipe data along with metadata about parsing quality.
+
+    Attributes:
+        recipe_data: Parsed recipe (may have partial data)
+        confidence: Confidence level of parsing ("high", "medium", "low")
+        missing_fields: List of optional fields that couldn't be extracted
+        warnings: List of warnings (e.g., paywall detected, incomplete data)
+    """
+    recipe_data: Recipe
+    confidence: str = Field(..., description="Parsing confidence: high, medium, or low")
+    missing_fields: List[str] = Field(
+        default_factory=list,
+        description="Fields that couldn't be extracted from HTML"
+    )
+    warnings: List[str] = Field(
+        default_factory=list,
+        description="Warnings about parsing quality (paywalls, incomplete data)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "recipe_data": {
+                    "id": "chocolate-chip-cookies",
+                    "title": "Chocolate Chip Cookies",
+                    "ingredients": ["2 cups flour", "1 cup sugar"],
+                    "instructions": "Mix and bake at 350F",
+                    "prep_time_minutes": 15,
+                    "active_cooking_time_minutes": 12,
+                    "serves": 24,
+                    "tags": ["dessert", "baking"],
+                    "required_appliances": ["oven"],
+                    "source_url": "https://www.allrecipes.com/recipe/...",
+                    "source_name": "Allrecipes"
+                },
+                "confidence": "high",
+                "missing_fields": [],
+                "warnings": []
             }
         }

@@ -78,6 +78,7 @@ def embed_recipes(workspace_id: str, recipes: List[Recipe]) -> int:
 
     Metadata is stored for filtering:
     - workspace_id, id, tags, required_appliances, prep_time_minutes, active_cooking_time_minutes, serves
+    - source_url, source_name (for imported recipes)
 
     Args:
         workspace_id: Workspace identifier for data isolation
@@ -120,6 +121,8 @@ def embed_recipes(workspace_id: str, recipes: List[Recipe]) -> int:
             "prep_time_minutes": recipe.prep_time_minutes,
             "active_cooking_time_minutes": recipe.active_cooking_time_minutes,
             "serves": recipe.serves,
+            "source_url": recipe.source_url or "",  # URL import feature - source tracking
+            "source_name": recipe.source_name or "",  # Display name of source (e.g., "Allrecipes")
         })
 
     # Add to collection (will update if IDs already exist)

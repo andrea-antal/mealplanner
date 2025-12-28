@@ -89,6 +89,8 @@ export interface Recipe {
   serves: number;
   required_appliances: string[];
   is_generated?: boolean;
+  source_url?: string;
+  source_name?: string;
 }
 
 export interface RecipeRating {
@@ -109,6 +111,17 @@ export interface GenerateFromTitleRequest {
   recipe_title: string;
   meal_type?: string;
   servings?: number;
+}
+
+export interface ImportFromUrlRequest {
+  url: string;
+}
+
+export interface ImportedRecipeResponse {
+  recipe_data: Recipe;
+  confidence: 'high' | 'medium' | 'low';
+  missing_fields: string[];
+  warnings: string[];
 }
 
 export interface MealPlanRequest {
@@ -301,6 +314,15 @@ export const recipesAPI = {
       body: JSON.stringify(request),
     });
     return handleResponse<Recipe>(response);
+  },
+
+  async importFromUrl(workspaceId: string, url: string): Promise<ImportedRecipeResponse> {
+    const response = await fetch(`${API_BASE_URL}/recipes/import-from-url?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    return handleResponse<ImportedRecipeResponse>(response);
   },
 
   async getRatings(workspaceId: string, recipeId: string): Promise<Record<string, string | null>> {

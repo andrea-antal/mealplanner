@@ -1117,3 +1117,267 @@ def _parse_receipt_response(response_text: str) -> dict:
         logger.error(f"Failed to parse Claude Vision response as JSON: {e}")
         logger.error(f"Response text: {response_text}")
         raise ValueError(f"Failed to parse Claude Vision response: {e}")
+
+
+# Recipe URL Parsing (URL Import Feature)
+
+
+async def parse_recipe_from_url(
+    url: str,
+    html_content: str
+) -> tuple[Recipe, str, list[str], list[str]]:
+    """
+    Parse recipe from HTML content using Claude AI.
+
+    Args:
+        url: Source URL of the recipe
+        html_content: Raw HTML content from the recipe page
+
+    Returns:
+        Tuple of (recipe, confidence, missing_fields, warnings)
+        - recipe: Recipe object with extracted fields
+        - confidence: "high", "medium", or "low"
+        - missing_fields: List of optional fields that couldn't be extracted
+        - warnings: List of user-facing warnings (e.g., paywall detected)
+
+    Raises:
+        ValueError: If no recipe found in HTML or parsing fails
+        ConnectionError: If Claude API is unavailable
+
+    Examples:
+        >>> recipe, conf, missing, warns = await parse_recipe_from_url(
+        ...     "https://allrecipes.com/...",
+        ...     "<html>...</html>"
+        ... )
+        >>> recipe.title
+        'Chocolate Chip Cookies'
+        >>> conf
+        'high'
+    """
+    if not html_content or not html_content.strip():
+        raise ValueError("HTML content cannot be empty")
+
+    logger.info(f"Parsing recipe from URL: {url}")
+
+    # Build prompt for recipe parsing
+    prompt = _build_recipe_parse_prompt(url, html_content)
+
+    try:
+        # Call Claude API
+        response = client.messages.create(
+            model=settings.MODEL_NAME,
+            max_tokens=2048,
+            temperature=0.3,  # Lower temp for consistent parsing
+            system=_get_recipe_parse_system_prompt(),
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
+
+        # Extract response text
+        response_text = response.content[0].text
+        logger.debug(f"Claude recipe parse response: {response_text[:200]}...")
+
+        # Parse JSON response
+        parsed_data = _parse_recipe_response(response_text)
+
+        if parsed_data:
+            recipe_data = parsed_data.get("recipe")
+            confidence = parsed_data.get("confidence", "low")
+            missing_fields = parsed_data.get("missing_fields", [])
+            warnings = parsed_data.get("warnings", [])
+
+            # Generate recipe ID from title
+            recipe_id = recipe_data.get("title", "").lower().replace(" ", "-").replace("'", "")
+            recipe_id = ''.join(c for c in recipe_id if c.isalnum() or c == '-')
+            recipe_data["id"] = recipe_id
+
+            # Create Recipe object
+            try:
+                recipe = Recipe(**recipe_data)
+                logger.info(f"Successfully parsed recipe: '{recipe.title}' with {confidence} confidence")
+                return recipe, confidence, missing_fields, warnings
+            except Exception as e:
+                logger.error(f"Failed to create Recipe object: {e}")
+                raise ValueError(f"Invalid recipe data from Claude: {e}")
+        else:
+            raise ValueError("Failed to parse recipe from Claude response")
+
+    except Exception as e:
+        logger.error(f"Error calling Claude API for recipe parsing: {e}", exc_info=True)
+        if "connection" in str(e).lower() or "api" in str(e).lower():
+            raise ConnectionError(f"Claude API unavailable: {e}")
+        raise ValueError(f"Failed to parse recipe from HTML: {e}")
+
+
+def _get_recipe_parse_system_prompt() -> str:
+    """
+    Get the system prompt for HTML-to-recipe parsing.
+
+    Returns:
+        System prompt string
+    """
+    return """You are a recipe extraction assistant specializing in parsing HTML content to extract structured recipe data.
+
+Your expertise:
+- Extracting recipe information from various HTML structures
+- Handling poorly formatted or inconsistent HTML
+- Detecting paywalled or restricted content
+- Inferring missing information when possible (prep time, servings, tags, appliances)
+- Assigning confidence scores based on extraction quality
+
+You always:
+- Extract all available recipe fields accurately
+- Clean up formatting issues (extra spaces, inconsistent capitalization)
+- Detect keywords indicating paywalled content (subscribe, login required, member-only)
+- Infer tags from recipe type, cuisine, and characteristics
+- Infer required appliances from cooking instructions
+- Report missing fields honestly
+- Assign confidence scores: high (all required + most optional fields), medium (required fields + some optional), low (missing required fields or paywall)
+
+IMPORTANT:
+- If you don't find clear recipe content, return an error
+- If content appears behind a paywall, mark confidence as "low" and add paywall warning
+- Generate recipe IDs from titles (lowercase, hyphenated, alphanumeric only)"""
+
+
+def _build_recipe_parse_prompt(url: str, html_content: str) -> str:
+    """
+    Build the user prompt for recipe parsing from HTML.
+
+    Args:
+        url: Source URL
+        html_content: Raw HTML
+
+    Returns:
+        Formatted prompt string
+    """
+    # Truncate HTML if too long (to fit in context window)
+    max_html_length = 50000
+    if len(html_content) > max_html_length:
+        html_content = html_content[:max_html_length] + "\n[... HTML truncated ...]"
+        logger.warning(f"HTML content truncated from {len(html_content)} to {max_html_length} chars")
+
+    return f"""Extract recipe information from this HTML content.
+
+SOURCE URL: {url}
+
+HTML CONTENT:
+{html_content}
+
+TASK:
+Parse the HTML and extract recipe fields. Return JSON with this exact schema:
+
+{{
+  "recipe": {{
+    "title": "string (required)",
+    "description": "string (optional)",
+    "ingredients": ["list of strings (required)"],
+    "instructions": "string (required, can be numbered or paragraphs)",
+    "tags": ["list of strings (optional, infer from content like 'dessert', 'italian', 'quick')"],
+    "prep_time_minutes": number (optional, total prep time),
+    "active_cooking_time_minutes": number (optional, active cooking time),
+    "serves": number (optional, number of servings),
+    "required_appliances": ["list of strings (optional, infer from instructions like 'oven', 'blender')"]
+  }},
+  "confidence": "high" | "medium" | "low",
+  "missing_fields": ["list of field names that couldn't be extracted"],
+  "warnings": ["list of warnings like 'Paywall detected', 'Incomplete data'"]
+}}
+
+INSTRUCTIONS:
+1. **Required fields**: title, ingredients (list), instructions
+2. **Optional fields**: description, prep_time_minutes, active_cooking_time_minutes, serves, tags, required_appliances
+3. **Paywall detection**: Look for keywords like "subscribe", "login", "member-only", "premium content"
+4. **Confidence scoring**:
+   - "high": All required fields + most optional fields extracted clearly
+   - "medium": All required fields + some optional fields
+   - "low": Missing required fields, paywall detected, or very incomplete data
+5. **Infer when possible**: If cooking time says "45 minutes total", split into prep + cooking time estimates
+6. **Clean formatting**: Remove extra whitespace, normalize capitalization
+7. **Tags**: Infer from recipe type (dessert, breakfast, etc.), cuisine (Italian, Mexican), characteristics (quick, healthy)
+8. **Appliances**: Infer from instructions (oven, stove, blender, microwave, instant pot, food processor)
+
+Return ONLY valid JSON, no other text."""
+
+
+def _parse_recipe_response(response_text: str) -> Optional[dict]:
+    """
+    Parse Claude's JSON response for recipe parsing.
+
+    Args:
+        response_text: Raw text response from Claude
+
+    Returns:
+        Dict with recipe, confidence, missing_fields, and warnings
+
+    Raises:
+        ValueError: If no recipe found or invalid JSON
+    """
+    try:
+        # Claude sometimes wraps JSON in markdown code blocks
+        if "```json" in response_text:
+            start = response_text.find("```json") + 7
+            end = response_text.find("```", start)
+            response_text = response_text[start:end].strip()
+        elif "```" in response_text:
+            start = response_text.find("```") + 3
+            end = response_text.find("```", start)
+            response_text = response_text[start:end].strip()
+
+        # Parse JSON
+        data = json.loads(response_text)
+
+        # Validate structure
+        if "recipe" not in data:
+            logger.error("Response missing 'recipe' field")
+            raise ValueError("No recipe found in HTML content")
+
+        recipe_data = data.get("recipe")
+
+        # Check if recipe data exists
+        if not recipe_data or recipe_data is None:
+            raise ValueError("No recipe found in HTML content")
+
+        # Validate required fields (but allow partial data for paywalls)
+        if not recipe_data.get("title"):
+            raise ValueError("No recipe title found in HTML content")
+
+        # For paywall or partial recipes, be more lenient
+        # Allow empty ingredients/instructions if confidence is low
+        confidence = data.get("confidence", "low")
+        warnings = data.get("warnings", [])
+        is_paywall = any("paywall" in str(w).lower() or "subscribe" in str(w).lower() for w in warnings)
+
+        if not recipe_data.get("ingredients") and not is_paywall and confidence != "low":
+            raise ValueError("No recipe ingredients found in HTML content")
+        if not recipe_data.get("instructions") and not is_paywall and confidence != "low":
+            raise ValueError("No recipe instructions found in HTML content")
+
+        # For partial/paywall recipes, fill in minimal required fields
+        if not recipe_data.get("ingredients"):
+            recipe_data["ingredients"] = ["Ingredients not available (paywall or incomplete)"]
+        if not recipe_data.get("instructions"):
+            recipe_data["instructions"] = "Instructions not available (paywall or incomplete)"
+
+        # Ensure all required Recipe fields have values (use defaults if missing)
+        if recipe_data.get("prep_time_minutes") is None:
+            recipe_data["prep_time_minutes"] = 0
+        if recipe_data.get("active_cooking_time_minutes") is None:
+            recipe_data["active_cooking_time_minutes"] = 0
+        if recipe_data.get("serves") is None:
+            recipe_data["serves"] = 1
+
+        return data
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON from recipe response: {e}")
+        logger.debug(f"Response text: {response_text}")
+        raise ValueError(f"Failed to parse recipe - invalid JSON response: {e}")
+    except Exception as e:
+        logger.error(f"Failed to parse recipe response: {e}")
+        logger.debug(f"Response text: {response_text}")
+        raise
