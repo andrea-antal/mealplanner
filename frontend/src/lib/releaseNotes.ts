@@ -29,31 +29,13 @@ export function shouldShowReleaseNotes(): boolean {
 
   const lastSeenVersion = localStorage.getItem(key);
 
-  // No version tracked yet - this could be:
-  // 1. A brand new first-time user (don't show)
-  // 2. An existing user before release notes system existed (show!)
-  //
-  // To distinguish: check if workspace has ANY data in localStorage
-  // If workspace has data, assume they're an existing user from v0.4.0
+  // No version tracked yet - this is the first time this workspace is seeing release notes
+  // Since all app data is stored on backend (not localStorage), we can't distinguish
+  // between new and existing users. So we'll show the modal on first deployment.
   if (!lastSeenVersion) {
-    const workspaceId = getCurrentWorkspace(); // Get workspace ID directly
-    if (!workspaceId) return false;
-
-    // Check if workspace has ANY data (groceries, recipes, meal plans, household, etc.)
-    const workspacePrefix = `mealplanner_${workspaceId}_`;
-    const hasAnyWorkspaceData = Object.keys(localStorage).some(key =>
-      key.startsWith(workspacePrefix) &&
-      key !== `${workspacePrefix}last_release_notes_version` // Exclude the version key itself
-    );
-
-    if (hasAnyWorkspaceData) {
-      // Existing user with data - assume they were on v0.4.0, show release notes!
-      return isNewerVersion(APP_VERSION, '0.4.0');
-    } else {
-      // Brand new user with no data - mark current version as seen, don't show
-      markReleaseNotesAsSeen();
-      return false;
-    }
+    // Show release notes (assume existing user from v0.4.0)
+    // After user dismisses, we'll start tracking their version
+    return isNewerVersion(APP_VERSION, '0.4.0');
   }
 
   // Check if current version is newer than last seen version
