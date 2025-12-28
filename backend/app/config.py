@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Anthropic API
     ANTHROPIC_API_KEY: str
     MODEL_NAME: str = "claude-sonnet-4-5-20250929"  # Sonnet 4.5: 70% cost reduction, 2-3x faster than Opus 4
+    HIGH_ACCURACY_MODEL_NAME: str = "claude-opus-4-5-20251101"  # Opus 4.5: Used for receipt OCR and voice parsing (higher accuracy)
 
     # Data directories
     # In production (Railway), set DATA_DIR=/app/data to use persistent volume

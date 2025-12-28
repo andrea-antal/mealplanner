@@ -690,7 +690,8 @@ IMPORTANT:
 
 async def parse_voice_to_groceries(
     transcription: str,
-    existing_groceries: list[str]
+    existing_groceries: list[str],
+    model: str = None
 ) -> tuple[list[dict], list[str]]:
     """
     Parse voice transcription into structured grocery items using Claude AI.
@@ -698,6 +699,7 @@ async def parse_voice_to_groceries(
     Args:
         transcription: Voice-to-text transcription from user
         existing_groceries: List of grocery names already in user's list (for duplicate detection)
+        model: Optional Claude model name override (defaults to HIGH_ACCURACY_MODEL_NAME for better language understanding)
 
     Returns:
         Tuple of (proposed_items: list[dict], warnings: list[str])
@@ -732,13 +734,17 @@ async def parse_voice_to_groceries(
 
     logger.info(f"Parsing voice transcription: '{transcription[:100]}...'")
 
+    # Use Opus 4 for voice parsing by default, allow override
+    if model is None:
+        model = settings.HIGH_ACCURACY_MODEL_NAME
+
     # Build prompt for voice parsing
     prompt = _build_voice_parse_prompt(transcription, existing_groceries)
 
     try:
         # Call Claude API
         response = client.messages.create(
-            model=settings.MODEL_NAME,
+            model=model,
             max_tokens=1500,
             temperature=0.3,  # Lower temp for more consistent parsing
             system=_get_voice_parse_system_prompt(),
@@ -950,7 +956,8 @@ def _parse_voice_response(response_text: str) -> Optional[dict]:
 
 async def parse_receipt_to_groceries(
     image_base64: str,
-    existing_groceries: list
+    existing_groceries: list,
+    model: str = None
 ) -> tuple[list[dict], list[str]]:
     """
     Parse receipt image using Claude Vision API to extract grocery items.
@@ -964,6 +971,7 @@ async def parse_receipt_to_groceries(
     Args:
         image_base64: Base64 encoded receipt image (PNG/JPG)
         existing_groceries: List of existing grocery items for duplicate detection
+        model: Optional Claude model name override (defaults to HIGH_ACCURACY_MODEL_NAME for better OCR)
 
     Returns:
         Tuple of (proposed_items, warnings)
@@ -977,6 +985,10 @@ async def parse_receipt_to_groceries(
 
     logger.info("Parsing receipt with Claude Vision API")
 
+    # Use Opus 4 for receipt OCR by default, allow override
+    if model is None:
+        model = settings.HIGH_ACCURACY_MODEL_NAME
+
     try:
         # Build system prompt for OCR
         system_prompt = _get_receipt_parse_system_prompt()
@@ -986,7 +998,7 @@ async def parse_receipt_to_groceries(
 
         # Call Claude Vision API (multimodal)
         response = client.messages.create(
-            model=settings.MODEL_NAME,  # Use configured vision-capable model
+            model=model,
             max_tokens=2000,
             temperature=0.1,  # Very low for OCR accuracy
             system=system_prompt,
@@ -1124,7 +1136,8 @@ def _parse_receipt_response(response_text: str) -> dict:
 
 async def parse_recipe_from_url(
     url: str,
-    html_content: str
+    html_content: str,
+    model: str = None
 ) -> tuple[Recipe, str, list[str], list[str]]:
     """
     Parse recipe from HTML content using Claude AI.
@@ -1132,6 +1145,7 @@ async def parse_recipe_from_url(
     Args:
         url: Source URL of the recipe
         html_content: Raw HTML content from the recipe page
+        model: Optional Claude model name override (defaults to MODEL_NAME for cost-effectiveness)
 
     Returns:
         Tuple of (recipe, confidence, missing_fields, warnings)
@@ -1159,13 +1173,17 @@ async def parse_recipe_from_url(
 
     logger.info(f"Parsing recipe from URL: {url}")
 
+    # Use default Sonnet for URL parsing, allow override
+    if model is None:
+        model = settings.MODEL_NAME
+
     # Build prompt for recipe parsing
     prompt = _build_recipe_parse_prompt(url, html_content)
 
     try:
         # Call Claude API
         response = client.messages.create(
-            model=settings.MODEL_NAME,
+            model=model,
             max_tokens=2048,
             temperature=0.3,  # Lower temp for consistent parsing
             system=_get_recipe_parse_system_prompt(),
