@@ -119,6 +119,11 @@ const Household = () => {
     toast.success(`${newMember.name} added to family`);
   };
 
+  const handleAddMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    addFamilyMember();
+  };
+
   const removeFamilyMember = (name: string) => {
     if (!profile) return;
     setProfile((prev) => prev ? ({
@@ -502,12 +507,11 @@ const Household = () => {
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
+        <form onSubmit={handleAddMember} className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="Add family member..."
             value={newMemberName}
             onChange={(e) => setNewMemberName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addFamilyMember()}
             className="flex-1"
           />
           <Select
@@ -523,11 +527,11 @@ const Household = () => {
               <SelectItem value="adult">Adult</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={addFamilyMember} disabled={!newMemberName.trim()}>
+          <Button type="submit" disabled={!newMemberName.trim()}>
             <Plus className="h-4 w-4" />
             Add
           </Button>
-        </div>
+        </form>
       </section>
 
       {/* Daycare Rules - Hardcoded (not editable in v0.1) */}

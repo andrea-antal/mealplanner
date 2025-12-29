@@ -1,11 +1,19 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2025-12-27
+**Last Updated**: 2025-12-28
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.5.1 - December 28, 2025
+
+### 🐛 Bug Fixes
+
+- **Family Member Age Group** - Fixed an issue where adding a new family member with a specific age group (like "Toddler" or "Child") would save them as "Adult" instead. Now your selections are properly saved!
+
+---
 
 ## Version 0.5.0 - December 28, 2025
 

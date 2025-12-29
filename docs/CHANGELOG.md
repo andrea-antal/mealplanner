@@ -11,6 +11,73 @@ This document tracks key decisions, changes, and learnings during development.
 
 ---
 
+## 2025-12-28 Bug Fix: Family Member Age Group Not Saving
+
+**Status**: Complete | **Duration**: ~30 minutes | **Branch**: main
+
+### Summary
+Fixed a bug where adding a new family member with a non-default age group (e.g., "Toddler") would save them as "Adult" instead. The dropdown selection was not being properly captured due to a React state timing issue.
+
+### Problem Statement
+- User adds a family member (e.g., "Nathan")
+- User selects "Toddler" from the age group dropdown
+- User clicks "Add" or presses Enter
+- Family member appears with age group "Adult" instead of "Toddler"
+
+### Root Cause
+The `addFamilyMember()` function could execute before the Select component's `onValueChange` state update had fully propagated through React's render cycle. This race condition occurred because:
+1. The Input field had an `onKeyDown` handler for Enter key
+2. The Select dropdown's state update and the Enter key event could fire in unpredictable order
+3. The function would read the stale default value ('adult') instead of the selected value
+
+### Solution
+Wrapped the add member controls (Input, Select, Button) in a `<form>` element with proper `onSubmit` handling. Forms naturally batch events, ensuring state updates complete before the submit handler executes.
+
+### Changes Made
+
+| File | Changes |
+|------|---------|
+| `frontend/src/pages/Household.tsx` | +8/-3 lines - Added form wrapper, submit handler, removed onKeyDown |
+
+**Key Code Changes:**
+
+1. **Added form submission handler** (line 122-125):
+```tsx
+const handleAddMember = (e: React.FormEvent) => {
+  e.preventDefault();
+  addFamilyMember();
+};
+```
+
+2. **Changed container from div to form** (line 510):
+```tsx
+// Before: <div className="flex flex-col sm:flex-row gap-2">
+// After:
+<form onSubmit={handleAddMember} className="flex flex-col sm:flex-row gap-2">
+```
+
+3. **Removed Input onKeyDown handler** - Form submission handles Enter key naturally
+
+4. **Changed Button to type="submit"** (line 530):
+```tsx
+// Before: <Button onClick={addFamilyMember} ...>
+// After:
+<Button type="submit" disabled={!newMemberName.trim()}>
+```
+
+### Technical Details
+
+**Why Forms Solve This:**
+- HTML forms batch all input state before firing `onSubmit`
+- The browser ensures all change events complete before the submit handler runs
+- This eliminates the race condition between dropdown selection and form submission
+
+**Bonus UX Improvement:**
+- Enter key now works from anywhere in the form (not just the Input field)
+- More intuitive behavior for keyboard users
+
+---
+
 ## 2025-12-28 Household Page Mobile UX Improvements
 
 **Status**: Complete | **Duration**: ~2 hours | **Branch**: main

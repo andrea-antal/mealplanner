@@ -1,15 +1,15 @@
 ---
 **Summary**: Quick snapshot of what's working right now (Deployed to production). Updated after each sprint. Use this to quickly understand current capabilities.
-**Last Updated**: 2025-12-27
+**Last Updated**: 2025-12-28
 **Status**: Current
 **Read This If**: You need a quick feature inventory or tech stack summary
 ---
 
 # Current State - Meal Planner
 
-**As of**: Production Deployment (2025-12-26)
+**As of**: Production Deployment (2025-12-28)
 **Branch**: `main`
-**Version**: v0.4 (production)
+**Version**: v0.5.1 (production)
 **Status**: 🚀 **LIVE IN PRODUCTION**
 
 ## 🌐 Production URLs
@@ -38,6 +38,8 @@
    - Per-person 👍/👎 ratings
    - Filter by member favorites, all-member liked, tags
    - **AI recipe generation** from selected ingredients
+   - **Recipe URL import** - Import recipes from 50+ cooking websites
+   - Recipe source display with badges and external links
 
 4. ✅ **Meal Plan Generation**
    - AI-powered weekly meal plans using Claude Sonnet 3.5
@@ -51,7 +53,13 @@
    - Automatic browser info and workspace ID collection
    - Email delivery via Resend API
 
-### Latest Features (December 27, 2025)
+### Latest Features (December 28, 2025)
+- **Recipe URL Import (v0.5.0)**: Import recipes from 50+ cooking websites with automatic parsing
+- **Recipe Source Display**: Visual badges on recipe cards with clickable source links
+- **Release Notes System**: Automatic "What's New" modal on version updates (workspace-scoped)
+- **Version Management**: Semantic versioning with automatic detection and tracking
+
+### Recent Features (December 27, 2025)
 - **Beta Testing Feedback System**: Floating bug button with email delivery via Resend API
 - **Email Infrastructure**: Replaced SMTP with Resend API for reliable feedback delivery
 - **Browser Detection**: Automatic user agent parsing for better debugging
@@ -129,6 +137,7 @@ mealplanner/
 - **Pre-existing**: 13 tests (data manager, core services)
 
 ### Frontend
+- **Recipe URL Import**: 37 tests (TDD approach)
 - **Build**: TypeScript compilation successful
 - **Manual testing**: All features tested end-to-end
 
