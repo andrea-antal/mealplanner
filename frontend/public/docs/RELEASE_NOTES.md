@@ -1,11 +1,19 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2025-12-28
+**Last Updated**: 2025-12-29
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.6.1 - December 29, 2025
+
+### Bug Fixes
+
+- **Recipe Generation Fixed** - Fixed an issue where generating recipes from your grocery ingredients would fail with "no recipe found" error. You can now generate custom recipes from your groceries again!
+
+---
 
 ## Version 0.6.0 - December 28, 2025
 

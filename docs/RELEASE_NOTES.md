@@ -1,11 +1,31 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2025-12-28
+**Last Updated**: 2025-12-29
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.6.1 - December 29, 2025
+
+### Bug Fixes
+
+- **Recipe Generation Fixed** - Fixed an issue where generating recipes from your grocery ingredients would fail with "no recipe found" error. You can now generate custom recipes from your groceries again!
+
+---
+
+## Version 0.6.0 - December 28, 2025
+
+### New Features
+
+- **Bulk Delete for Groceries** - Select multiple grocery items and delete them all at once! No more clicking into each item individually. Just tap the checkboxes, hit the trash button, and confirm. Perfect for clearing out your list after a shopping trip or meal prep session.
+
+### Improvements
+
+- **Better Action Bar Layering** - The grocery action bar now properly appears above the feedback button, ensuring all buttons are accessible when items are selected
+
+---
 
 ## Version 0.5.1 - December 28, 2025
 
