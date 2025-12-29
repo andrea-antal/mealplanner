@@ -7,6 +7,18 @@
 
 # What's New in Meal Planner
 
+## Version 0.6.0 - December 28, 2025
+
+### 🎉 New Features
+
+- **Bulk Delete for Groceries** - Select multiple grocery items and delete them all at once! No more clicking into each item individually. Just tap the checkboxes, hit the trash button, and confirm. Perfect for clearing out your list after a shopping trip or meal prep session.
+
+### ✨ Improvements
+
+- **Better Action Bar Layering** - The grocery action bar now properly appears above the feedback button, ensuring all buttons are accessible when items are selected
+
+---
+
 ## Version 0.5.1 - December 28, 2025
 
 ### 🐛 Bug Fixes
