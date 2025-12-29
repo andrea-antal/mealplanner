@@ -12,6 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { DynamicRecipeModal } from '@/components/DynamicRecipeModal';
 import { GroceryConfirmationDialog, type ProposedGroceryItem } from '@/components/GroceryConfirmationDialog';
 import { GroceryInputHero } from '@/components/groceries/GroceryInputHero';
@@ -62,6 +72,7 @@ const Groceries = () => {
   const [showExpiringDetails, setShowExpiringDetails] = useState(false);
   const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
 
   // Form state for adding new grocery
   const [newItemName, setNewItemName] = useState('');
@@ -191,6 +202,20 @@ const Groceries = () => {
     },
   });
 
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (itemNames: string[]) => groceriesAPI.batchDelete(workspaceId, itemNames),
+    onSuccess: (_, itemNames) => {
+      queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
+      toast.success(`${itemNames.length} item${itemNames.length !== 1 ? 's' : ''} deleted`);
+      setSelectedIngredients([]); // Clear selection after successful delete
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete items: ${error.message}`);
+    },
+  });
+
   // Receipt parsing mutation
   const parseReceiptMutation = useMutation({
     mutationFn: (imageBase64: string) => groceriesAPI.parseReceipt(workspaceId, imageBase64),
@@ -282,6 +307,20 @@ const Groceries = () => {
 
   const handleConfirmItems = (items: GroceryItem[]) => {
     batchAddMutation.mutate(items);
+  };
+
+  // Bulk delete handlers
+  const handleBulkDeleteRequest = () => {
+    if (selectedIngredients.length === 0) {
+      toast.error('Please select at least one item to delete');
+      return;
+    }
+    setShowDeleteConfirmDialog(true);
+  };
+
+  const handleBulkDeleteConfirm = () => {
+    bulkDeleteMutation.mutate(selectedIngredients);
+    setShowDeleteConfirmDialog(false);
   };
 
   // Receipt upload handlers
@@ -549,11 +588,35 @@ const Groceries = () => {
         isLoading={batchAddMutation.isPending}
       />
 
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIngredients.length} item{selectedIngredients.length !== 1 ? 's' : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected grocery items. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Sticky Action Bar */}
       <StickyActionBar
         selectedCount={selectedIngredients.length}
         onCook={handleCookWithSelected}
         onPlan={() => navigate('/plan', { state: { selectedIngredients } })}
+        onDelete={handleBulkDeleteRequest}
       />
 
       {/* Grocery Item Modal */}

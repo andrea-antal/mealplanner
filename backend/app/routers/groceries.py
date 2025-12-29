@@ -14,6 +14,7 @@ from app.models.grocery import (
     VoiceParseResponse,
     ProposedGroceryItem,
     BatchAddRequest,
+    BatchDeleteRequest,
     ReceiptParseRequest,
     ReceiptParseResponse
 )
@@ -85,6 +86,76 @@ async def add_grocery(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to add grocery: {str(e)}"
+        )
+
+
+@router.delete("/batch", response_model=GroceryList)
+async def batch_delete_groceries(
+    request: BatchDeleteRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Delete multiple grocery items at once.
+
+    This endpoint deletes items by name using case-insensitive matching.
+    Items not found are silently skipped (idempotent behavior).
+
+    Args:
+        request: BatchDeleteRequest with list of item names to delete
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        Updated GroceryList with remaining items after deletion
+
+    Raises:
+        HTTPException 400: Invalid request or validation failed
+        HTTPException 500: Failed to save groceries
+
+    Example:
+        Request: {"item_names": ["chicken", "milk", "eggs"]}
+        Response: {"items": [/* remaining groceries */]}
+    """
+    try:
+        if not request.item_names:
+            raise HTTPException(
+                status_code=400,
+                detail="At least one item name is required"
+            )
+
+        # Load existing groceries
+        items = load_groceries(workspace_id)
+
+        # Create set of names to delete (lowercase for case-insensitive matching)
+        names_to_delete = {name.lower() for name in request.item_names}
+
+        # Track statistics
+        original_count = len(items)
+
+        # Filter out items to delete
+        items = [item for item in items if item.name.lower() not in names_to_delete]
+
+        deleted_count = original_count - len(items)
+
+        # Save updated list
+        save_groceries(workspace_id, items)
+
+        logger.info(
+            f"Batch deleted {deleted_count} items from workspace '{workspace_id}' "
+            f"({len(request.item_names) - deleted_count} items not found)"
+        )
+
+        return GroceryList(items=items)
+
+    except ValueError as e:
+        logger.error(f"Invalid delete request: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to batch delete groceries for workspace '{workspace_id}': {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to batch delete groceries: {str(e)}"
         )
 
 

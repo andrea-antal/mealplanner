@@ -106,6 +106,11 @@ class BatchAddRequest(BaseModel):
     items: list[GroceryItem] = Field(..., min_length=1, description="Items to add (must have at least one)")
 
 
+class BatchDeleteRequest(BaseModel):
+    """Request to delete multiple grocery items at once"""
+    item_names: list[str] = Field(..., min_length=1, description="Names of items to delete (must have at least one)")
+
+
 # Receipt OCR models for Sprint 4 Phase 2
 
 

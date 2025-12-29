@@ -246,6 +246,15 @@ export const groceriesAPI = {
     return handleResponse<GroceryList>(response);
   },
 
+  async batchDelete(workspaceId: string, itemNames: string[]): Promise<GroceryList> {
+    const response = await fetch(`${API_BASE_URL}/groceries/batch?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_names: itemNames }),
+    });
+    return handleResponse<GroceryList>(response);
+  },
+
   // Receipt OCR methods (Sprint 4 Phase 2)
   async parseReceipt(workspaceId: string, imageBase64: string): Promise<ReceiptParseResponse> {
     const response = await fetch(`${API_BASE_URL}/groceries/parse-receipt?workspace_id=${encodeURIComponent(workspaceId)}`, {
