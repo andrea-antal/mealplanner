@@ -11,6 +11,93 @@ This document tracks key decisions, changes, and learnings during development.
 
 ---
 
+## 2025-12-28 Household Page Mobile UX Improvements
+
+**Status**: Complete | **Duration**: ~2 hours | **Branch**: main
+
+### Summary
+Major refactoring of the Household Profile page to improve mobile usability, particularly the Family Members section which was cramped and difficult to read on small screens. Also added a dynamic "unsaved changes" banner to prevent data loss.
+
+### Problem Statement
+- **Family Members section too cramped**: Avatar (48px) + Age selector (128px) + Delete button (48px) left only ~100-200px for name, badges, and 3 input fields on mobile
+- **No unsaved changes warning**: Users could lose work by navigating away without saving
+- **Static reminder text**: "Remember to hit Save Changes" was always visible and redundant
+
+### Changes Made
+
+**1. Family Members Layout Overhaul:**
+- **Removed avatar circles** - Saved ~60px horizontal space per member
+- **Responsive stack layout** - Vertical on mobile (`flex-col`), horizontal on desktop (`md:flex-row`)
+- **Age group as static text** - Displayed as "(Adult)" next to name, set once when adding member
+- **Moved age selector to Add Member form** - Users select age when creating member, not after
+- **Removed `updateMemberAgeGroup` function** - No longer needed since age is set-once
+
+**2. Input Field Improvements:**
+- Labels moved above fields instead of below (better visual hierarchy)
+- Simplified placeholders with italicized examples: `e.g., peanuts, shellfish, tree nuts`
+- Used `placeholder:italic` Tailwind class for visual distinction
+
+**3. Unsaved Changes Banner:**
+- **State detection**: Compares `profile` with `fetchedProfile` using `JSON.stringify()`
+- **React Portal rendering**: Banner renders into slot in AppLayout for correct positioning
+- **Fixed positioning**: Appears directly below navigation bar, stays visible while scrolling
+- **Clickable anchor**: "Save Changes" link scrolls user to the save button
+- **Auto-dismiss**: Disappears when changes are saved or fresh data is loaded
+
+**4. Save Button Responsive Alignment:**
+- Centered on mobile (`justify-center`)
+- Right-aligned on desktop (`md:justify-end`)
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `frontend/src/pages/Household.tsx` | +110/-59 lines - Major layout refactor, portal banner, state management |
+| `frontend/src/components/layout/AppLayout.tsx` | +3 lines - Added `unsaved-banner-slot` div |
+
+### Technical Details
+
+**Portal Pattern for Banner:**
+```tsx
+const bannerSlot = document.getElementById('unsaved-banner-slot');
+const unsavedBanner = hasUnsavedChanges && bannerSlot
+  ? createPortal(<BannerContent />, bannerSlot)
+  : null;
+```
+
+**Unsaved Changes Detection:**
+```tsx
+useEffect(() => {
+  const hasChanges = JSON.stringify(profile) !== JSON.stringify(fetchedProfile);
+  setHasUnsavedChanges(hasChanges);
+}, [profile, fetchedProfile]);
+```
+
+### Mobile vs Desktop Layout
+
+**Mobile (< 768px):**
+```
+┌─────────────────────────────┐
+│ Name (Adult)          [Del] │
+│ 🔴 Allergy  🟢 Preference   │
+│ Allergies                   │
+│ [e.g., peanuts, shellfish]  │
+│ Dislikes                    │
+│ [e.g., mushrooms, cilantro] │
+│ Dietary Preferences         │
+│ [e.g., vegetarian, low-carb]│
+└─────────────────────────────┘
+```
+
+**Desktop (≥ 768px):**
+```
+┌──────────────────────────────────────────────────┐
+│ Name (Adult) + Badges + Inputs          [Delete] │
+└──────────────────────────────────────────────────┘
+```
+
+---
+
 ## 2025-12-28 Model Upgrade: Opus 4 for Receipt OCR and Voice Parsing
 
 **Status**: Complete | **Duration**: ~2 hours | **Branch**: main
