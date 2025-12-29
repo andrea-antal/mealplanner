@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ const Household = () => {
 
   const [profile, setProfile] = useState<HouseholdProfile | null>(null);
   const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberAgeGroup, setNewMemberAgeGroup] = useState<FamilyMember['age_group']>('adult');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Fetch household profile from backend
   const { data: fetchedProfile, isLoading, error } = useQuery({
@@ -48,6 +51,7 @@ const Household = () => {
   useEffect(() => {
     if (fetchedProfile) {
       setProfile(fetchedProfile);
+      setHasUnsavedChanges(false); // Reset unsaved changes when fresh data is loaded
     } else if (error && error.message.includes('404')) {
       // No profile exists yet - initialize with empty profile
       const emptyProfile: HouseholdProfile = {
@@ -73,6 +77,17 @@ const Household = () => {
     }
   }, [fetchedProfile, error]);
 
+  // Detect unsaved changes by comparing current profile with fetched profile
+  useEffect(() => {
+    if (!profile || !fetchedProfile) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    const hasChanges = JSON.stringify(profile) !== JSON.stringify(fetchedProfile);
+    setHasUnsavedChanges(hasChanges);
+  }, [profile, fetchedProfile]);
+
   // Mutation to save profile to backend
   const saveMutation = useMutation({
     mutationFn: (updatedProfile: HouseholdProfile) => householdAPI.updateProfile(workspaceId, updatedProfile),
@@ -90,7 +105,7 @@ const Household = () => {
     if (!newMemberName.trim() || !profile) return;
     const newMember: FamilyMember = {
       name: newMemberName.trim(),
-      age_group: 'adult',
+      age_group: newMemberAgeGroup,
       allergies: [],
       dislikes: [],
       preferences: [],
@@ -100,6 +115,7 @@ const Household = () => {
       family_members: [...prev.family_members, newMember],
     }) : null);
     setNewMemberName('');
+    setNewMemberAgeGroup('adult');
     toast.success(`${newMember.name} added to family`);
   };
 
@@ -110,16 +126,6 @@ const Household = () => {
       family_members: prev.family_members.filter((m) => m.name !== name),
     }) : null);
     toast.success(`${name} removed from family`);
-  };
-
-  const updateMemberAgeGroup = (name: string, age_group: FamilyMember['age_group']) => {
-    if (!profile) return;
-    setProfile((prev) => prev ? ({
-      ...prev,
-      family_members: prev.family_members.map((m) =>
-        m.name === name ? { ...m, age_group } : m
-      ),
-    }) : null);
   };
 
   const updateMemberPreferencesText = (name: string, rawText: string) => {
@@ -239,19 +245,48 @@ const Household = () => {
     return null;
   }
 
-  return (
-    <div className="space-y-8 max-w-4xl">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl font-bold text-foreground">
-          Household Profile
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Configure your cooking preferences, family members and constraints/preferences. Remember to hit the Save Change button at the bottom.
-        </p>
+  // Render unsaved changes banner into the slot in AppLayout
+  const bannerSlot = document.getElementById('unsaved-banner-slot');
+  const unsavedBanner = hasUnsavedChanges && bannerSlot ? createPortal(
+    <div className="sticky top-0 z-40 bg-orange-50 dark:bg-orange-950/95 border-b border-orange-200 dark:border-orange-800 p-3 flex items-center justify-center gap-3 shadow-md backdrop-blur-sm">
+      <div className="flex items-center gap-3 max-w-4xl w-full px-8">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+            You have unsaved changes — remember to click{' '}
+            <a
+              href="#save-changes-section"
+              className="underline hover:text-orange-900 dark:hover:text-orange-100 transition-colors"
+            >
+              Save Changes
+            </a>{' '}
+            at the bottom of the page.
+          </p>
+        </div>
       </div>
+    </div>,
+    bannerSlot
+  ) : null;
 
-      {/* Cooking Preferences */}
+  return (
+    <>
+      {unsavedBanner}
+      <div className="space-y-8 max-w-4xl">
+        {/* Header */}
+        <div>
+          <h1 className="font-display text-3xl font-bold text-foreground">
+            Household Profile
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Configure your cooking preferences, family members and constraints/preferences.
+          </p>
+        </div>
+
+        {/* Cooking Preferences */}
       <section className="rounded-2xl bg-card p-6 shadow-soft space-y-6">
         <h2 className="font-display text-xl font-semibold text-foreground">
           Cooking Preferences
@@ -380,13 +415,25 @@ const Household = () => {
           {profile.family_members.map((member: FamilyMember) => (
             <div
               key={member.name}
-              className="flex items-center gap-4 p-4 rounded-xl bg-muted/50"
+              className="flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl bg-muted/50"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-display font-semibold">
-                {member.name[0]}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <p className="flex-1 md:flex-none font-medium text-foreground">
+                  {member.name}{' '}
+                  <span className="text-muted-foreground">
+                    ({member.age_group.charAt(0).toUpperCase() + member.age_group.slice(1)})
+                  </span>
+                </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeFamilyMember(member.name)}
+                  className="md:hidden"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
-              <div className="flex-1">
-                <p className="font-medium text-foreground">{member.name}</p>
+              <div className="flex-1 w-full md:w-auto">
                 <div className="flex flex-wrap gap-1 mt-1">
                   {member.allergies.length > 0 && (
                     <Badge variant="destructive" className="text-xs">
@@ -406,62 +453,48 @@ const Household = () => {
                 </div>
                 <div className="mt-2 space-y-2">
                   <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Allergies
+                    </label>
                     <Input
-                      placeholder="Add allergies (e.g., peanuts, shellfish)..."
+                      placeholder="e.g., peanuts, shellfish, tree nuts"
                       value={member.allergies?.join(', ') || ''}
                       onChange={(e) => updateMemberAllergiesText(member.name, e.target.value)}
                       onBlur={() => parseMemberAllergies(member.name)}
-                      className="text-sm h-8"
+                      className="text-sm h-8 placeholder:italic"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Allergies (strict exclusions for safety)
-                    </p>
                   </div>
                   <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Dislikes
+                    </label>
                     <Input
-                      placeholder="Add dislikes (e.g., mushrooms, cilantro)..."
+                      placeholder="e.g., mushrooms, cilantro, olives"
                       value={member.dislikes?.join(', ') || ''}
                       onChange={(e) => updateMemberDislikesText(member.name, e.target.value)}
                       onBlur={() => parseMemberDislikes(member.name)}
-                      className="text-sm h-8"
+                      className="text-sm h-8 placeholder:italic"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Dislikes (strong preferences to avoid)
-                    </p>
                   </div>
                   <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Dietary Preferences
+                    </label>
                     <Input
-                      placeholder="Add dietary preferences (e.g., lactose-intolerant, pescetarian)..."
+                      placeholder="e.g., vegetarian, lactose-intolerant, low-carb"
                       value={member.preferences?.join(', ') || ''}
                       onChange={(e) => updateMemberPreferencesText(member.name, e.target.value)}
                       onBlur={() => parseMemberPreferences(member.name)}
-                      className="text-sm h-8"
+                      className="text-sm h-8 placeholder:italic"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Dietary patterns/guidelines (e.g., mostly pescetarian, low-carb)
-                    </p>
                   </div>
                 </div>
               </div>
-              <Select
-                value={member.age_group}
-                onValueChange={(value) =>
-                  updateMemberAgeGroup(member.name, value as FamilyMember['age_group'])
-                }
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="toddler">Toddler</SelectItem>
-                  <SelectItem value="child">Child</SelectItem>
-                  <SelectItem value="adult">Adult</SelectItem>
-                </SelectContent>
-              </Select>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => removeFamilyMember(member.name)}
+                className="hidden md:inline-flex"
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
@@ -469,13 +502,27 @@ const Household = () => {
           ))}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="Add family member..."
             value={newMemberName}
             onChange={(e) => setNewMemberName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addFamilyMember()}
+            className="flex-1"
           />
+          <Select
+            value={newMemberAgeGroup}
+            onValueChange={(value) => setNewMemberAgeGroup(value as FamilyMember['age_group'])}
+          >
+            <SelectTrigger className="w-full sm:w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="toddler">Toddler</SelectItem>
+              <SelectItem value="child">Child</SelectItem>
+              <SelectItem value="adult">Adult</SelectItem>
+            </SelectContent>
+          </Select>
           <Button onClick={addFamilyMember} disabled={!newMemberName.trim()}>
             <Plus className="h-4 w-4" />
             Add
@@ -508,7 +555,7 @@ const Household = () => {
       </section>
 
       {/* Save Changes Button */}
-      <div className="flex justify-end pt-6 border-t">
+      <div id="save-changes-section" className="flex justify-center md:justify-end pt-6 border-t">
         <Button
           variant="hero"
           size="lg"
@@ -524,6 +571,7 @@ const Household = () => {
         </Button>
       </div>
     </div>
+    </>
   );
 };
 

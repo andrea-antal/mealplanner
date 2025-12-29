@@ -57,6 +57,9 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </header>
 
+      {/* Unsaved Changes Banner Slot - rendered via portal from page components */}
+      <div id="unsaved-banner-slot" />
+
       {/* Mobile Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg md:hidden">
         <div className="flex justify-around py-2">
