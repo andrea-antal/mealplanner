@@ -385,7 +385,7 @@ async def generate_recipe_from_ingredients(
         logger.debug(f"Claude recipe response: {response_text[:200]}...")
 
         # Parse JSON response into Recipe
-        recipe = _parse_recipe_response(response_text)
+        recipe = _parse_generated_recipe_response(response_text)
 
         if recipe:
             logger.info(f"Successfully generated recipe: {recipe.title}")
@@ -507,9 +507,9 @@ IMPORTANT:
     return prompt
 
 
-def _parse_recipe_response(response_text: str) -> Optional[Recipe]:
+def _parse_generated_recipe_response(response_text: str) -> Optional[Recipe]:
     """
-    Parse Claude's JSON response into a Recipe object.
+    Parse Claude's JSON response into a Recipe object for generated recipes.
 
     Args:
         response_text: Raw text response from Claude
@@ -607,7 +607,7 @@ async def generate_recipe_from_title(
         logger.debug(f"Claude recipe response: {response_text[:200]}...")
 
         # Parse JSON response into Recipe
-        recipe = _parse_recipe_response(response_text)
+        recipe = _parse_generated_recipe_response(response_text)
 
         if recipe:
             logger.info(f"Successfully generated recipe: {recipe.title}")
