@@ -135,6 +135,8 @@ export interface Meal {
   recipe_id: string | null;
   recipe_title: string;
   notes: string;
+  previous_recipe_id?: string | null;
+  previous_recipe_title?: string | null;
 }
 
 export interface Day {
@@ -143,8 +145,38 @@ export interface Day {
 }
 
 export interface MealPlan {
+  id?: string;
   week_start_date: string;
   days: Day[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Meal plan customization types
+export interface AlternativeRecipesRequest {
+  meal_type: string;
+  exclude_recipe_ids: string[];
+  limit?: number;
+}
+
+export interface AlternativeRecipeSuggestion {
+  recipe_id: string;
+  recipe_title: string;
+  tags: string[];
+  match_score: number;
+  warnings: string[];
+}
+
+export interface SwapMealRequest {
+  day_index: number;
+  meal_index: number;
+  new_recipe_id: string;
+  new_recipe_title: string;
+}
+
+export interface UndoSwapRequest {
+  day_index: number;
+  meal_index: number;
 }
 
 // API Error handling
@@ -377,6 +409,62 @@ export const mealPlansAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
       signal: options?.signal,
+    });
+    return handleResponse<MealPlan>(response);
+  },
+
+  async getAll(workspaceId: string): Promise<MealPlan[]> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans?workspace_id=${encodeURIComponent(workspaceId)}`);
+    return handleResponse<MealPlan[]>(response);
+  },
+
+  async getById(workspaceId: string, mealPlanId: string): Promise<MealPlan> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/${encodeURIComponent(mealPlanId)}?workspace_id=${encodeURIComponent(workspaceId)}`);
+    return handleResponse<MealPlan>(response);
+  },
+
+  async save(workspaceId: string, mealPlan: MealPlan): Promise<MealPlan> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mealPlan),
+    });
+    return handleResponse<MealPlan>(response);
+  },
+
+  async delete(workspaceId: string, mealPlanId: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/${encodeURIComponent(mealPlanId)}?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new APIError(response.status, `Failed to delete meal plan: ${errorText}`);
+    }
+  },
+
+  async getAlternatives(workspaceId: string, request: AlternativeRecipesRequest): Promise<AlternativeRecipeSuggestion[]> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/alternatives?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    return handleResponse<AlternativeRecipeSuggestion[]>(response);
+  },
+
+  async swap(workspaceId: string, mealPlanId: string, request: SwapMealRequest): Promise<MealPlan> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/${encodeURIComponent(mealPlanId)}?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    return handleResponse<MealPlan>(response);
+  },
+
+  async undoSwap(workspaceId: string, mealPlanId: string, request: UndoSwapRequest): Promise<MealPlan> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/${encodeURIComponent(mealPlanId)}/undo-swap?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
     });
     return handleResponse<MealPlan>(response);
   },

@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { mealPlansAPI, recipesAPI, type MealPlan, type Recipe } from '@/lib/api';
+import { mealPlansAPI, recipesAPI, type MealPlan, type Recipe, type AlternativeRecipeSuggestion } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Sparkles, Loader2, Plus } from 'lucide-react';
+import { Sparkles, Loader2, Plus, RefreshCw, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeModal } from '@/components/RecipeModal';
 import { GenerateFromTitleModal } from '@/components/GenerateFromTitleModal';
 import { MealPlanGenerationModal } from '@/components/MealPlanGenerationModal';
+import { SwapRecipeModal } from '@/components/SwapRecipeModal';
 
 // Meal type emoji mapping (lowercase to match API data)
 const mealTypeIcons: Record<string, string> = {
@@ -35,21 +36,22 @@ const MealPlans = () => {
     return null;
   }
 
-  // Load meal plan from localStorage on mount (scoped to workspace)
-  const MEAL_PLAN_STORAGE_KEY = `mealplanner_${workspaceId}_meal_plan`;
-
-  const [mealPlan, setMealPlan] = useState<MealPlan | null>(() => {
-    const stored = localStorage.getItem(MEAL_PLAN_STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error('Failed to parse stored meal plan:', e);
-        return null;
-      }
-    }
-    return null;
+  // Fetch most recent meal plan from backend
+  const { data: mealPlans, isLoading: isLoadingMealPlans } = useQuery({
+    queryKey: ['meal-plans', workspaceId],
+    queryFn: () => mealPlansAPI.getAll(workspaceId),
+    enabled: !!workspaceId,
   });
+
+  // Use most recent meal plan (first in list, sorted by date desc)
+  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+
+  // Sync state with fetched data
+  useEffect(() => {
+    if (mealPlans && mealPlans.length > 0) {
+      setMealPlan(mealPlans[0]);
+    }
+  }, [mealPlans]);
 
   // Selected day index (0 = Monday, 6 = Sunday)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
@@ -125,12 +127,14 @@ const MealPlans = () => {
   const [generationModalOpen, setGenerationModalOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Save meal plan to localStorage whenever it changes
-  useEffect(() => {
-    if (mealPlan) {
-      localStorage.setItem(MEAL_PLAN_STORAGE_KEY, JSON.stringify(mealPlan));
-    }
-  }, [mealPlan]);
+  // Swap recipe modal state
+  const [swapModalOpen, setSwapModalOpen] = useState(false);
+  const [swapContext, setSwapContext] = useState<{
+    dayIndex: number;
+    mealIndex: number;
+    mealType: string;
+    currentRecipeTitle: string;
+  } | null>(null);
 
   // Mutation to generate meal plan
   const generateMutation = useMutation({
@@ -144,6 +148,10 @@ const MealPlans = () => {
           { week_start_date, num_recipes: 7 },
           { signal: abortControllerRef.current.signal }
         );
+        // Save to backend for persistence
+        if (result) {
+          await mealPlansAPI.save(workspaceId, result);
+        }
         return result;
       } catch (error) {
         // If aborted, don't throw error
@@ -170,6 +178,59 @@ const MealPlans = () => {
     onError: (error: Error) => {
       setGenerationModalOpen(false);
       toast.error(`Failed to generate meal plan: ${error.message}`);
+    },
+  });
+
+  // Mutation to swap a recipe
+  const swapMutation = useMutation({
+    mutationFn: async ({
+      dayIndex,
+      mealIndex,
+      newRecipeId,
+      newRecipeTitle,
+    }: {
+      dayIndex: number;
+      mealIndex: number;
+      newRecipeId: string;
+      newRecipeTitle: string;
+    }) => {
+      if (!mealPlan?.id) throw new Error('No meal plan to swap');
+      return mealPlansAPI.swap(workspaceId, mealPlan.id, {
+        day_index: dayIndex,
+        meal_index: mealIndex,
+        new_recipe_id: newRecipeId,
+        new_recipe_title: newRecipeTitle,
+      });
+    },
+    onSuccess: (updatedPlan) => {
+      setMealPlan(updatedPlan);
+      setSwapModalOpen(false);
+      toast.success('Recipe swapped!', {
+        description: 'You can undo this change if needed.',
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to swap recipe: ${error.message}`);
+    },
+  });
+
+  // Mutation to undo a swap
+  const undoSwapMutation = useMutation({
+    mutationFn: async ({ dayIndex, mealIndex }: { dayIndex: number; mealIndex: number }) => {
+      if (!mealPlan?.id) throw new Error('No meal plan');
+      return mealPlansAPI.undoSwap(workspaceId, mealPlan.id, {
+        day_index: dayIndex,
+        meal_index: mealIndex,
+      });
+    },
+    onSuccess: (updatedPlan) => {
+      setMealPlan(updatedPlan);
+      toast.success('Swap undone!', {
+        description: 'Original recipe restored.',
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to undo swap: ${error.message}`);
     },
   });
 
@@ -276,6 +337,45 @@ const MealPlans = () => {
     toast.info('Generation continuing in background', {
       description: 'You\'ll be notified when your meal plan is ready.',
     });
+  };
+
+  // Handle swap button click - opens swap modal
+  const handleSwapClick = (
+    dayIndex: number,
+    mealIndex: number,
+    mealType: string,
+    currentRecipeTitle: string
+  ) => {
+    setSwapContext({ dayIndex, mealIndex, mealType, currentRecipeTitle });
+    setSwapModalOpen(true);
+  };
+
+  // Handle selecting a recipe from swap modal
+  const handleSwapSelect = (recipe: AlternativeRecipeSuggestion) => {
+    if (!swapContext) return;
+    swapMutation.mutate({
+      dayIndex: swapContext.dayIndex,
+      mealIndex: swapContext.mealIndex,
+      newRecipeId: recipe.recipe_id,
+      newRecipeTitle: recipe.recipe_title,
+    });
+  };
+
+  // Handle undo swap
+  const handleUndoSwap = (dayIndex: number, mealIndex: number) => {
+    undoSwapMutation.mutate({ dayIndex, mealIndex });
+  };
+
+  // Collect recipe IDs already in the meal plan (for exclusion in alternatives)
+  const getExcludedRecipeIds = (): string[] => {
+    if (!mealPlan) return [];
+    const ids: string[] = [];
+    mealPlan.days.forEach((day) => {
+      day.meals.forEach((meal) => {
+        if (meal.recipe_id) ids.push(meal.recipe_id);
+      });
+    });
+    return ids;
   };
 
   return (
@@ -453,27 +553,72 @@ const MealPlans = () => {
                           {loadingRecipeId && loadingRecipeId === meal.recipe_id ? 'Loading...' : meal.recipe_title}
                         </p>
 
-                        {!meal.recipe_id && (
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {/* Undo button - show if meal was swapped */}
+                          {meal.previous_recipe_id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUndoSwap(dayIndex, mealIdx);
+                              }}
+                              disabled={undoSwapMutation.isPending}
+                              className={cn(
+                                "p-2 rounded-full transition-all duration-200",
+                                "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600",
+                                "focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2",
+                                "disabled:opacity-50"
+                              )}
+                              title={`Undo: restore "${meal.previous_recipe_title}"`}
+                            >
+                              <Undo2 className="h-4 w-4" />
+                            </button>
+                          )}
+
+                          {/* Swap button - always show to swap to library recipe */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleGenerateClick(
-                                meal.meal_type,
-                                meal.recipe_title,
+                              handleSwapClick(
                                 dayIndex,
-                                mealIdx
+                                mealIdx,
+                                meal.meal_type,
+                                meal.recipe_title
                               );
                             }}
                             className={cn(
-                              "flex-shrink-0 p-2 rounded-full transition-all duration-200",
+                              "p-2 rounded-full transition-all duration-200",
                               "bg-primary/10 hover:bg-primary/20 text-primary",
                               "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                             )}
-                            title="Generate recipe"
+                            title="Swap with library recipe"
                           >
-                            <Plus className="h-4 w-4" />
+                            <RefreshCw className="h-4 w-4" />
                           </button>
-                        )}
+
+                          {/* Generate button - show if no recipe (creates new recipe) */}
+                          {!meal.recipe_id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGenerateClick(
+                                  meal.meal_type,
+                                  meal.recipe_title,
+                                  dayIndex,
+                                  mealIdx
+                                );
+                              }}
+                              className={cn(
+                                "p-2 rounded-full transition-all duration-200",
+                                "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600",
+                                "focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                              )}
+                              title="Generate new recipe"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -512,6 +657,17 @@ const MealPlans = () => {
       <MealPlanGenerationModal
         open={generationModalOpen}
         onClose={handleCloseGenerationModal}
+      />
+
+      {/* Swap Recipe Modal */}
+      <SwapRecipeModal
+        open={swapModalOpen}
+        onOpenChange={setSwapModalOpen}
+        mealType={swapContext?.mealType || ''}
+        currentRecipeTitle={swapContext?.currentRecipeTitle || ''}
+        excludeRecipeIds={getExcludedRecipeIds()}
+        onSelect={handleSwapSelect}
+        isSwapping={swapMutation.isPending}
       />
     </div>
   );
