@@ -229,6 +229,12 @@ def get_alternative_recipes(
     filtered_recipes = [r for r in meal_type_recipes if r.id not in exclude_recipe_ids]
     logger.info(f"After exclusions: {len(filtered_recipes)} recipes")
 
+    # Second fallback: if all meal-type recipes were excluded, use all recipes
+    if not filtered_recipes:
+        logger.info(f"All {meal_type} recipes excluded, falling back to all recipes")
+        filtered_recipes = [r for r in all_recipes if r.id not in exclude_recipe_ids]
+        logger.info(f"Fallback to {len(filtered_recipes)} recipes")
+
     # Load household profile for constraints
     household = load_household_profile(workspace_id)
     if household is None:
