@@ -164,8 +164,8 @@ class TestFilterRecipesByMealType:
         assert len(filtered) == 1
         assert filtered[0].title == "Breakfast Pancakes"
 
-    def test_filter_returns_empty_when_no_match(self):
-        """Filter returns empty list when no recipes match."""
+    def test_filter_falls_back_to_all_when_no_match(self):
+        """Filter returns all recipes when no recipes match meal type (fallback behavior)."""
         from app.services.recipe_filter_service import filter_recipes_by_meal_type
 
         recipes = [
@@ -175,7 +175,9 @@ class TestFilterRecipesByMealType:
 
         filtered = filter_recipes_by_meal_type(recipes, "snack")
 
-        assert filtered == []
+        # Fallback: returns all recipes when none match the meal type
+        assert len(filtered) == 2
+        assert filtered == recipes
 
 
 # ===== Tests for score_recipe_for_swap =====

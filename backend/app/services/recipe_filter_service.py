@@ -124,17 +124,28 @@ def filter_recipes_by_meal_type(
     meal_type: str
 ) -> List[Recipe]:
     """
-    Filter recipes by meal type tag.
+    Filter recipes by meal type tag, with fallback to all recipes.
+
+    If no recipes have the exact meal_type tag, returns ALL recipes
+    to allow users to swap to any available option.
 
     Args:
         recipes: List of recipes to filter
         meal_type: Meal type to filter by (breakfast, lunch, dinner, snack)
 
     Returns:
-        List of recipes that have the meal_type in their tags
+        List of recipes that have the meal_type in their tags,
+        or all recipes if none match the meal type
     """
     meal_type_lower = meal_type.lower()
-    return [r for r in recipes if meal_type_lower in [t.lower() for t in r.tags]]
+    filtered = [r for r in recipes if meal_type_lower in [t.lower() for t in r.tags]]
+
+    # Fallback: if no recipes match meal type, return all recipes
+    if not filtered:
+        logger.info(f"No recipes tagged with '{meal_type}', returning all {len(recipes)} recipes")
+        return recipes
+
+    return filtered
 
 
 def score_recipe_for_swap(
