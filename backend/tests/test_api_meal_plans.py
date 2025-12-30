@@ -266,5 +266,81 @@ class TestDeleteMealPlanEndpoint:
         assert response.status_code == 422
 
 
+class TestAlternativesEndpoint:
+    """Test POST /meal-plans/alternatives endpoint"""
+
+    def test_get_alternatives_success(self, client, temp_data_dir):
+        """Test successful alternatives retrieval"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # Save test recipes
+        recipe = Recipe(
+            id="dinner_recipe",
+            title="Test Dinner",
+            ingredients=["chicken", "rice"],
+            instructions="Cook",
+            tags=["dinner"],
+            prep_time_minutes=10,
+            active_cooking_time_minutes=20,
+            serves=4
+        )
+        save_recipe(workspace_id, recipe)
+
+        response = client.post(
+            "/meal-plans/alternatives",
+            json={"meal_type": "dinner", "exclude_recipe_ids": [], "limit": 10},
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["recipe"]["id"] == "dinner_recipe"
+        assert "match_score" in data[0]
+        assert "warnings" in data[0]
+
+    def test_get_alternatives_filters_by_meal_type(self, client, temp_data_dir):
+        """Test that alternatives are filtered by meal type"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # Save breakfast and dinner recipes
+        save_recipe(workspace_id, Recipe(
+            id="breakfast_1", title="Pancakes", ingredients=["flour"],
+            instructions="Make", tags=["breakfast"], prep_time_minutes=5,
+            active_cooking_time_minutes=10, serves=2
+        ))
+        save_recipe(workspace_id, Recipe(
+            id="dinner_1", title="Chicken", ingredients=["chicken"],
+            instructions="Cook", tags=["dinner"], prep_time_minutes=5,
+            active_cooking_time_minutes=20, serves=4
+        ))
+
+        response = client.post(
+            "/meal-plans/alternatives",
+            json={"meal_type": "breakfast", "exclude_recipe_ids": [], "limit": 10},
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["recipe"]["id"] == "breakfast_1"
+
+    def test_get_alternatives_requires_workspace_id(self, client, temp_data_dir):
+        """Test that workspace_id is required"""
+        response = client.post(
+            "/meal-plans/alternatives",
+            json={"meal_type": "dinner", "exclude_recipe_ids": [], "limit": 10}
+        )
+
+        assert response.status_code == 422
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

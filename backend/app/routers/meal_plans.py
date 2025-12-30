@@ -16,6 +16,10 @@ from app.data.data_manager import (
     list_all_meal_plans,
     delete_meal_plan
 )
+from app.services.recipe_filter_service import (
+    get_alternative_recipes,
+    AlternativeRecipeSuggestion
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,13 @@ class GenerateMealPlanRequest(BaseModel):
     """Request body for generating a meal plan"""
     week_start_date: str  # ISO format: "2025-12-08"
     num_recipes: int = 15  # Number of candidate recipes to retrieve
+
+
+class AlternativeRecipesRequest(BaseModel):
+    """Request body for getting alternative recipe suggestions"""
+    meal_type: str  # breakfast, lunch, dinner, snack
+    exclude_recipe_ids: List[str] = []  # Recipe IDs to exclude (already in plan)
+    limit: int = 10  # Maximum suggestions to return
 
 
 @router.post("/generate", response_model=MealPlan)
@@ -82,6 +93,44 @@ async def generate_meal_plan_endpoint(
 
     logger.info(f"Successfully generated meal plan with {len(meal_plan.days)} days for workspace '{workspace_id}'")
     return meal_plan
+
+
+# ===== Alternative Recipes Endpoint =====
+
+@router.post("/alternatives", response_model=List[AlternativeRecipeSuggestion])
+async def get_alternatives_endpoint(
+    request: AlternativeRecipesRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Get alternative recipe suggestions for swapping.
+
+    Filters recipes based on:
+    - Meal type (breakfast, lunch, dinner, snack)
+    - Household constraints (excludes recipes with allergens)
+    - Excludes specified recipe IDs (already in meal plan)
+
+    Returns suggestions sorted by match score (highest first).
+    Includes warnings for dislikes or other potential issues.
+
+    Args:
+        request: Contains meal_type, exclude_recipe_ids, and limit
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        List of AlternativeRecipeSuggestion objects
+    """
+    logger.info(f"Getting alternative {request.meal_type} recipes for workspace '{workspace_id}'")
+
+    suggestions = get_alternative_recipes(
+        workspace_id=workspace_id,
+        meal_type=request.meal_type,
+        exclude_recipe_ids=request.exclude_recipe_ids,
+        limit=request.limit
+    )
+
+    logger.info(f"Found {len(suggestions)} alternative recipes")
+    return suggestions
 
 
 # ===== CRUD Endpoints =====
