@@ -5,10 +5,17 @@ Provides REST API for generating and managing meal plans.
 """
 import logging
 from datetime import date as Date
-from fastapi import APIRouter, HTTPException, Query
+from typing import List
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel
 from app.services.meal_plan_service import generate_meal_plan
 from app.models.meal_plan import MealPlan
+from app.data.data_manager import (
+    load_meal_plan,
+    save_meal_plan,
+    list_all_meal_plans,
+    delete_meal_plan
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,3 +82,107 @@ async def generate_meal_plan_endpoint(
 
     logger.info(f"Successfully generated meal plan with {len(meal_plan.days)} days for workspace '{workspace_id}'")
     return meal_plan
+
+
+# ===== CRUD Endpoints =====
+
+@router.get("", response_model=List[MealPlan])
+async def list_meal_plans_endpoint(
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    List all meal plans for a workspace.
+
+    Returns meal plans sorted by week_start_date (most recent first).
+
+    Args:
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        List of MealPlan objects
+    """
+    logger.info(f"Listing all meal plans for workspace '{workspace_id}'")
+    meal_plans = list_all_meal_plans(workspace_id)
+    return meal_plans
+
+
+@router.get("/{meal_plan_id}", response_model=MealPlan)
+async def get_meal_plan_endpoint(
+    meal_plan_id: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Get a specific meal plan by ID.
+
+    Args:
+        meal_plan_id: Unique meal plan identifier (typically week_start_date)
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        MealPlan object
+
+    Raises:
+        HTTPException 404: Meal plan not found
+    """
+    logger.info(f"Getting meal plan {meal_plan_id} for workspace '{workspace_id}'")
+    meal_plan = load_meal_plan(workspace_id, meal_plan_id)
+
+    if not meal_plan:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Meal plan '{meal_plan_id}' not found"
+        )
+
+    return meal_plan
+
+
+@router.post("", response_model=MealPlan, status_code=201)
+async def save_meal_plan_endpoint(
+    meal_plan: MealPlan,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Save a meal plan.
+
+    Creates a new meal plan or updates an existing one with the same ID.
+
+    Args:
+        meal_plan: MealPlan object to save
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        Saved MealPlan object with updated timestamps
+    """
+    logger.info(f"Saving meal plan {meal_plan.id} for workspace '{workspace_id}'")
+    save_meal_plan(workspace_id, meal_plan)
+
+    # Reload to get updated timestamps
+    saved_plan = load_meal_plan(workspace_id, meal_plan.id)
+    return saved_plan
+
+
+@router.delete("/{meal_plan_id}", status_code=204)
+async def delete_meal_plan_endpoint(
+    meal_plan_id: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Delete a meal plan.
+
+    Args:
+        meal_plan_id: Unique meal plan identifier
+        workspace_id: Workspace identifier for data isolation
+
+    Raises:
+        HTTPException 404: Meal plan not found
+    """
+    logger.info(f"Deleting meal plan {meal_plan_id} for workspace '{workspace_id}'")
+    deleted = delete_meal_plan(workspace_id, meal_plan_id)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Meal plan '{meal_plan_id}' not found"
+        )
+
+    return Response(status_code=204)
