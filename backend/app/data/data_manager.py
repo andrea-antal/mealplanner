@@ -14,6 +14,7 @@ from typing import List, Optional, Dict
 from datetime import date as Date
 from app.models import Recipe, HouseholdProfile
 from app.models.grocery import GroceryItem, GroceryList
+from app.models.meal_plan import MealPlan
 
 logger = logging.getLogger(__name__)
 
@@ -467,4 +468,139 @@ def delete_recipe(workspace_id: str, recipe_id: str) -> bool:
         return True
     except Exception as e:
         logger.error(f"Error deleting recipe {recipe_id} for workspace '{workspace_id}': {e}")
+        raise
+
+
+# ===== Meal Plans =====
+
+def _ensure_meal_plans_dir(workspace_id: str) -> Path:
+    """
+    Ensure meal_plans directory exists for a workspace.
+
+    Args:
+        workspace_id: Workspace identifier
+
+    Returns:
+        Path to the meal_plans directory
+    """
+    _ensure_data_dir(workspace_id)
+    meal_plans_dir = DATA_DIR / workspace_id / "meal_plans"
+    meal_plans_dir.mkdir(exist_ok=True)
+    return meal_plans_dir
+
+
+def load_meal_plan(workspace_id: str, meal_plan_id: str) -> Optional[MealPlan]:
+    """
+    Load a meal plan by ID.
+
+    Args:
+        workspace_id: Workspace identifier
+        meal_plan_id: Unique meal plan identifier (typically week_start_date string)
+
+    Returns:
+        MealPlan if found, None otherwise
+    """
+    meal_plans_dir = _ensure_meal_plans_dir(workspace_id)
+    filepath = meal_plans_dir / f"{meal_plan_id}.json"
+
+    if not filepath.exists():
+        logger.warning(f"Meal plan {meal_plan_id} not found at {filepath}")
+        return None
+
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        meal_plan = MealPlan(**data)
+        logger.info(f"Loaded meal plan: {meal_plan_id} from workspace '{workspace_id}'")
+        return meal_plan
+    except Exception as e:
+        logger.error(f"Error loading meal plan {meal_plan_id} for workspace '{workspace_id}': {e}")
+        raise
+
+
+def save_meal_plan(workspace_id: str, meal_plan: MealPlan) -> None:
+    """
+    Save a meal plan to JSON file.
+
+    Updates the updated_at timestamp automatically.
+
+    Args:
+        workspace_id: Workspace identifier
+        meal_plan: MealPlan to save
+    """
+    from datetime import datetime
+
+    meal_plans_dir = _ensure_meal_plans_dir(workspace_id)
+    filepath = meal_plans_dir / f"{meal_plan.id}.json"
+
+    # Update the updated_at timestamp
+    # Use model_copy to create a new instance with updated field
+    meal_plan_data = meal_plan.model_dump(mode='json')
+    meal_plan_data['updated_at'] = datetime.now().isoformat()
+
+    try:
+        with open(filepath, 'w') as f:
+            json.dump(meal_plan_data, f, indent=2, default=str)
+        logger.info(f"Saved meal plan: {meal_plan.id} to {filepath} in workspace '{workspace_id}'")
+    except Exception as e:
+        logger.error(f"Error saving meal plan {meal_plan.id} for workspace '{workspace_id}': {e}")
+        raise
+
+
+def list_all_meal_plans(workspace_id: str) -> List[MealPlan]:
+    """
+    Load all meal plans for a workspace.
+
+    Returns meal plans sorted by week_start_date (most recent first).
+
+    Args:
+        workspace_id: Workspace identifier
+
+    Returns:
+        List of all MealPlan objects, sorted by week_start_date descending
+    """
+    meal_plans_dir = _ensure_meal_plans_dir(workspace_id)
+    meal_plans = []
+
+    for filepath in meal_plans_dir.glob("*.json"):
+        try:
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+            meal_plan = MealPlan(**data)
+            meal_plans.append(meal_plan)
+        except Exception as e:
+            logger.error(f"Error loading meal plan from {filepath}: {e}")
+            # Continue loading other meal plans even if one fails
+
+    # Sort by week_start_date (most recent first)
+    meal_plans.sort(key=lambda mp: mp.week_start_date, reverse=True)
+
+    logger.info(f"Loaded {len(meal_plans)} meal plans for workspace '{workspace_id}'")
+    return meal_plans
+
+
+def delete_meal_plan(workspace_id: str, meal_plan_id: str) -> bool:
+    """
+    Delete a meal plan by ID.
+
+    Args:
+        workspace_id: Workspace identifier
+        meal_plan_id: Unique meal plan identifier
+
+    Returns:
+        True if deleted, False if meal plan didn't exist
+    """
+    meal_plans_dir = _ensure_meal_plans_dir(workspace_id)
+    filepath = meal_plans_dir / f"{meal_plan_id}.json"
+
+    if not filepath.exists():
+        logger.warning(f"Meal plan {meal_plan_id} not found for deletion in workspace '{workspace_id}'")
+        return False
+
+    try:
+        filepath.unlink()
+        logger.info(f"Deleted meal plan: {meal_plan_id} from workspace '{workspace_id}'")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting meal plan {meal_plan_id} for workspace '{workspace_id}': {e}")
         raise
