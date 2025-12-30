@@ -266,6 +266,189 @@ class TestDeleteMealPlanEndpoint:
         assert response.status_code == 422
 
 
+class TestSwapMealEndpoint:
+    """Test PATCH /meal-plans/{meal_plan_id} endpoint for swapping recipes"""
+
+    def test_swap_meal_success(self, client, temp_data_dir):
+        """Test successful recipe swap"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+
+        # Save meal plan
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        # Swap the first meal
+        response = client.patch(
+            "/meal-plans/2025-01-06",
+            json={
+                "day_index": 0,
+                "meal_index": 0,
+                "new_recipe_id": "new_recipe_123",
+                "new_recipe_title": "New Delicious Recipe"
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify swap happened
+        swapped_meal = data["days"][0]["meals"][0]
+        assert swapped_meal["recipe_id"] == "new_recipe_123"
+        assert swapped_meal["recipe_title"] == "New Delicious Recipe"
+
+    def test_swap_stores_previous_recipe(self, client, temp_data_dir):
+        """Test that swap stores the previous recipe for undo"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+
+        # Save meal plan (first meal has recipe_000)
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        # Swap the first meal
+        response = client.patch(
+            "/meal-plans/2025-01-06",
+            json={
+                "day_index": 0,
+                "meal_index": 0,
+                "new_recipe_id": "new_recipe",
+                "new_recipe_title": "New Recipe"
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify previous recipe is stored
+        swapped_meal = data["days"][0]["meals"][0]
+        assert swapped_meal["previous_recipe_id"] == "recipe_000"
+        assert swapped_meal["previous_recipe_title"] == "Test Recipe 0"
+
+    def test_swap_meal_not_found(self, client, temp_data_dir):
+        """Test 404 when meal plan doesn't exist"""
+        response = client.patch(
+            "/meal-plans/nonexistent",
+            json={
+                "day_index": 0,
+                "meal_index": 0,
+                "new_recipe_id": "new_recipe",
+                "new_recipe_title": "New Recipe"
+            },
+            params={"workspace_id": "test-workspace"}
+        )
+
+        assert response.status_code == 404
+
+    def test_swap_invalid_day_index(self, client, temp_data_dir):
+        """Test 400 for invalid day index"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.patch(
+            "/meal-plans/2025-01-06",
+            json={
+                "day_index": 99,  # Invalid
+                "meal_index": 0,
+                "new_recipe_id": "new_recipe",
+                "new_recipe_title": "New Recipe"
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 400
+
+    def test_swap_requires_workspace_id(self, client, temp_data_dir):
+        """Test that workspace_id is required"""
+        response = client.patch(
+            "/meal-plans/2025-01-06",
+            json={
+                "day_index": 0,
+                "meal_index": 0,
+                "new_recipe_id": "new_recipe",
+                "new_recipe_title": "New Recipe"
+            }
+        )
+
+        assert response.status_code == 422
+
+
+class TestUndoSwapEndpoint:
+    """Test POST /meal-plans/{meal_plan_id}/undo-swap endpoint"""
+
+    def test_undo_swap_success(self, client, temp_data_dir):
+        """Test successful undo of a swap"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+
+        # Save and then swap
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+        client.patch(
+            "/meal-plans/2025-01-06",
+            json={
+                "day_index": 0,
+                "meal_index": 0,
+                "new_recipe_id": "new_recipe",
+                "new_recipe_title": "New Recipe"
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        # Undo the swap
+        response = client.post(
+            "/meal-plans/2025-01-06/undo-swap",
+            json={"day_index": 0, "meal_index": 0},
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify original recipe is restored
+        restored_meal = data["days"][0]["meals"][0]
+        assert restored_meal["recipe_id"] == "recipe_000"
+        assert restored_meal["recipe_title"] == "Test Recipe 0"
+
+        # Previous recipe fields should be cleared
+        assert restored_meal["previous_recipe_id"] is None
+        assert restored_meal["previous_recipe_title"] is None
+
+    def test_undo_swap_no_previous_recipe(self, client, temp_data_dir):
+        """Test 400 when there's no previous recipe to restore"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        # Try to undo without any swap
+        response = client.post(
+            "/meal-plans/2025-01-06/undo-swap",
+            json={"day_index": 0, "meal_index": 0},
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 400
+
+    def test_undo_swap_meal_plan_not_found(self, client, temp_data_dir):
+        """Test 404 when meal plan doesn't exist"""
+        response = client.post(
+            "/meal-plans/nonexistent/undo-swap",
+            json={"day_index": 0, "meal_index": 0},
+            params={"workspace_id": "test-workspace"}
+        )
+
+        assert response.status_code == 404
+
+    def test_undo_swap_requires_workspace_id(self, client, temp_data_dir):
+        """Test that workspace_id is required"""
+        response = client.post(
+            "/meal-plans/2025-01-06/undo-swap",
+            json={"day_index": 0, "meal_index": 0}
+        )
+
+        assert response.status_code == 422
+
+
 class TestAlternativesEndpoint:
     """Test POST /meal-plans/alternatives endpoint"""
 

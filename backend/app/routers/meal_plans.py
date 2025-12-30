@@ -42,6 +42,20 @@ class AlternativeRecipesRequest(BaseModel):
     limit: int = 10  # Maximum suggestions to return
 
 
+class SwapMealRequest(BaseModel):
+    """Request body for swapping a recipe in a meal plan"""
+    day_index: int  # 0-6 for day of week
+    meal_index: int  # Index of meal within the day
+    new_recipe_id: str  # New recipe ID to swap in
+    new_recipe_title: str  # New recipe title
+
+
+class UndoSwapRequest(BaseModel):
+    """Request body for undoing a recipe swap"""
+    day_index: int  # 0-6 for day of week
+    meal_index: int  # Index of meal within the day
+
+
 @router.post("/generate", response_model=MealPlan)
 async def generate_meal_plan_endpoint(
     request: GenerateMealPlanRequest,
@@ -131,6 +145,158 @@ async def get_alternatives_endpoint(
 
     logger.info(f"Found {len(suggestions)} alternative recipes")
     return suggestions
+
+
+# ===== Swap & Undo Endpoints =====
+
+@router.patch("/{meal_plan_id}", response_model=MealPlan)
+async def swap_meal_endpoint(
+    meal_plan_id: str,
+    request: SwapMealRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Swap a recipe in a meal plan.
+
+    Stores the current recipe in previous_recipe_id/title for undo capability.
+
+    Args:
+        meal_plan_id: Meal plan identifier
+        request: Contains day_index, meal_index, new_recipe_id, new_recipe_title
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        Updated MealPlan object
+
+    Raises:
+        HTTPException 404: Meal plan not found
+        HTTPException 400: Invalid day_index or meal_index
+    """
+    logger.info(f"Swapping meal in plan {meal_plan_id} for workspace '{workspace_id}'")
+
+    # Load the meal plan
+    meal_plan = load_meal_plan(workspace_id, meal_plan_id)
+    if not meal_plan:
+        raise HTTPException(status_code=404, detail=f"Meal plan '{meal_plan_id}' not found")
+
+    # Validate indices
+    if request.day_index < 0 or request.day_index >= len(meal_plan.days):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid day_index: {request.day_index}. Must be 0-{len(meal_plan.days) - 1}"
+        )
+
+    day = meal_plan.days[request.day_index]
+    if request.meal_index < 0 or request.meal_index >= len(day.meals):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid meal_index: {request.meal_index}. Must be 0-{len(day.meals) - 1}"
+        )
+
+    # Get the meal to swap
+    meal = day.meals[request.meal_index]
+
+    # Store current recipe as previous (for undo)
+    # Create a new meal object with updated fields
+    from app.models.meal_plan import Meal
+    updated_meal = Meal(
+        meal_type=meal.meal_type,
+        for_who=meal.for_who,
+        recipe_id=request.new_recipe_id,
+        recipe_title=request.new_recipe_title,
+        notes=meal.notes,
+        previous_recipe_id=meal.recipe_id,
+        previous_recipe_title=meal.recipe_title
+    )
+
+    # Replace the meal in the plan
+    meal_plan.days[request.day_index].meals[request.meal_index] = updated_meal
+
+    # Save the updated plan
+    save_meal_plan(workspace_id, meal_plan)
+
+    # Reload to get updated timestamps
+    updated_plan = load_meal_plan(workspace_id, meal_plan_id)
+    logger.info(f"Successfully swapped meal in plan {meal_plan_id}")
+    return updated_plan
+
+
+@router.post("/{meal_plan_id}/undo-swap", response_model=MealPlan)
+async def undo_swap_endpoint(
+    meal_plan_id: str,
+    request: UndoSwapRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Undo a recipe swap in a meal plan.
+
+    Restores the previous recipe and clears the previous_recipe fields.
+
+    Args:
+        meal_plan_id: Meal plan identifier
+        request: Contains day_index and meal_index
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        Updated MealPlan object
+
+    Raises:
+        HTTPException 404: Meal plan not found
+        HTTPException 400: No previous recipe to restore or invalid indices
+    """
+    logger.info(f"Undoing swap in plan {meal_plan_id} for workspace '{workspace_id}'")
+
+    # Load the meal plan
+    meal_plan = load_meal_plan(workspace_id, meal_plan_id)
+    if not meal_plan:
+        raise HTTPException(status_code=404, detail=f"Meal plan '{meal_plan_id}' not found")
+
+    # Validate indices
+    if request.day_index < 0 or request.day_index >= len(meal_plan.days):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid day_index: {request.day_index}"
+        )
+
+    day = meal_plan.days[request.day_index]
+    if request.meal_index < 0 or request.meal_index >= len(day.meals):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid meal_index: {request.meal_index}"
+        )
+
+    # Get the meal to undo
+    meal = day.meals[request.meal_index]
+
+    # Check if there's a previous recipe to restore
+    if meal.previous_recipe_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No previous recipe to restore. Swap has not been performed on this meal."
+        )
+
+    # Restore the previous recipe
+    from app.models.meal_plan import Meal
+    restored_meal = Meal(
+        meal_type=meal.meal_type,
+        for_who=meal.for_who,
+        recipe_id=meal.previous_recipe_id,
+        recipe_title=meal.previous_recipe_title,
+        notes=meal.notes,
+        previous_recipe_id=None,  # Clear previous
+        previous_recipe_title=None
+    )
+
+    # Replace the meal in the plan
+    meal_plan.days[request.day_index].meals[request.meal_index] = restored_meal
+
+    # Save the updated plan
+    save_meal_plan(workspace_id, meal_plan)
+
+    # Reload to get updated timestamps
+    updated_plan = load_meal_plan(workspace_id, meal_plan_id)
+    logger.info(f"Successfully undid swap in plan {meal_plan_id}")
+    return updated_plan
 
 
 # ===== CRUD Endpoints =====
