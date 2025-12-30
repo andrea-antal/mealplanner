@@ -57,13 +57,28 @@ const MealPlans = () => {
   // Day picker scroll state for position indicator dots
   const dayPickerRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0); // 0, 1, or 2 for dot position
+  const [isScrollable, setIsScrollable] = useState(true); // Whether content overflows (hides dots when false)
 
   const handleDayPickerScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollLeft, scrollWidth, clientWidth } = e.currentTarget;
     const maxScroll = scrollWidth - clientWidth;
+    setIsScrollable(maxScroll > 1); // 1px tolerance for rounding
     const progress = maxScroll > 0 ? Math.round((scrollLeft / maxScroll) * 2) : 0;
     setScrollProgress(progress);
   };
+
+  // Check scrollability on mount and resize (handles orientation changes)
+  useEffect(() => {
+    const checkScrollable = () => {
+      if (dayPickerRef.current) {
+        const { scrollWidth, clientWidth } = dayPickerRef.current;
+        setIsScrollable(scrollWidth - clientWidth > 1);
+      }
+    };
+    checkScrollable();
+    window.addEventListener('resize', checkScrollable);
+    return () => window.removeEventListener('resize', checkScrollable);
+  }, [mealPlan]);
 
   // Track viewport width for multi-day desktop view
   const [visibleDayCount, setVisibleDayCount] = useState(1);
@@ -353,7 +368,7 @@ const MealPlans = () => {
               <div
                 className={cn(
                   "absolute left-0 top-0 bottom-3 w-12 bg-gradient-to-r from-card to-transparent pointer-events-none md:hidden transition-opacity duration-200",
-                  scrollProgress > 0 ? "opacity-100" : "opacity-0"
+                  isScrollable && scrollProgress > 0 ? "opacity-100" : "opacity-0"
                 )}
               />
 
@@ -361,23 +376,25 @@ const MealPlans = () => {
               <div
                 className={cn(
                   "absolute right-0 top-0 bottom-3 w-12 bg-gradient-to-l from-card to-transparent pointer-events-none md:hidden transition-opacity duration-200",
-                  scrollProgress < 2 ? "opacity-100" : "opacity-0"
+                  isScrollable && scrollProgress < 2 ? "opacity-100" : "opacity-0"
                 )}
               />
             </div>
 
-            {/* Scroll position dots (mobile only) */}
-            <div className="flex justify-center gap-1.5 mt-1 md:hidden">
-              {[0, 1, 2].map((dotIndex) => (
-                <div
-                  key={dotIndex}
-                  className={cn(
-                    'w-1.5 h-1.5 rounded-full transition-colors duration-200',
-                    scrollProgress === dotIndex ? 'bg-primary' : 'bg-muted-foreground/30'
-                  )}
-                />
-              ))}
-            </div>
+            {/* Scroll position dots (mobile only, hidden when all days fit) */}
+            {isScrollable && (
+              <div className="flex justify-center gap-1.5 mt-1 md:hidden">
+                {[0, 1, 2].map((dotIndex) => (
+                  <div
+                    key={dotIndex}
+                    className={cn(
+                      'w-1.5 h-1.5 rounded-full transition-colors duration-200',
+                      scrollProgress === dotIndex ? 'bg-primary' : 'bg-muted-foreground/30'
+                    )}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Day View - Responsive Grid (1-3 days) */}
