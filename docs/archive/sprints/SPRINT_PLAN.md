@@ -1,6 +1,6 @@
 ---
 **Summary**: Original sprint planning document for Sprints 1-8. Contains detailed phase breakdowns and time estimates. Now historical; current sprints tracked in CHANGELOG.md.
-**Last Updated**: 2025-12-22
+**Last Updated**: 2025-12-30
 **Status**: Archived
 **Archived**: 2025-12-25
 **Reason**: Historical planning document; Sprint 4+ planning evolved to TDD approach
@@ -17,8 +17,8 @@ This document outlines active and planned sprints for the Meal Planner project. 
 
 | Sprint | Feature | Status | Target |
 |--------|---------|--------|--------|
-| Sprint 4 | Multi-Modal Grocery Input | 🔜 Next Up | TBD |
-| Sprint 5 | Enhanced Meal Plan Customization | 🔜 Planned | TBD |
+| Sprint 4 | Multi-Modal Grocery Input (Phases 1-2) | ✅ Complete | Dec 2025 |
+| Sprint 5 | Enhanced Meal Plan Customization | 🔜 Next Up | TBD |
 | Sprint 6 | Shopping List Generation | 🔜 Deferred | TBD |
 | Sprint 7 | Recipe Library Expansion Tools | 🔜 Planned | TBD |
 | Sprint 8 | Meal Plan History & Favorites | 🔜 Planned | TBD |
@@ -28,7 +28,8 @@ This document outlines active and planned sprints for the Meal Planner project. 
 - Sprint 1.1-1.3: Enhancements & Bug Fixes ✅
 - Sprint 2: Smart Grocery Management ✅
 - Sprint 2.1-2.2: Critical Fixes ✅
-- **Sprint 3: Recipe Ratings & Filtering ✅ (Dec 17-22, 2025)**
+- Sprint 3: Recipe Ratings & Filtering ✅ (Dec 17-22, 2025)
+- **Sprint 4: Multi-Modal Grocery Input (Phases 1-2) ✅ (Dec 2025)**
 
 ---
 
@@ -59,9 +60,9 @@ This document outlines active and planned sprints for the Meal Planner project. 
 
 ---
 
-## 🔜 Sprint 4: Multi-Modal Grocery Input
+## ✅ Sprint 4: Multi-Modal Grocery Input (Phases 1-2 Complete)
 
-**Status**: Planned
+**Status**: Phases 1-2 Complete (Dec 2025) | Phase 3 Deferred to Backlog
 **Goal**: Enable voice, OCR receipt, and image-based grocery input for faster, more natural data entry
 
 **Target User Story**: "I'm standing at the fridge, rattling off what I see without remembering what's already in my list"
@@ -185,7 +186,7 @@ class BatchAddRequest(BaseModel):
 
 ### Implementation Phases
 
-#### Phase 1: Voice Input (6-8 hours)
+#### Phase 1: Voice Input ✅ COMPLETE
 **Priority: HIGH** (your #1 use case)
 
 **Backend:**
@@ -202,7 +203,7 @@ class BatchAddRequest(BaseModel):
 
 **Browser Support**: Chrome/Safari (desktop + mobile), Firefox fallback message
 
-#### Phase 2: Receipt OCR (4-6 hours)
+#### Phase 2: Receipt OCR ✅ COMPLETE
 **Priority: MEDIUM**
 
 **Backend:**
@@ -217,8 +218,8 @@ class BatchAddRequest(BaseModel):
 7. Reuse confirmation dialog (0 min)
 8. Testing (1 hour)
 
-#### Phase 3: Produce Image Recognition (4-5 hours)
-**Priority: MEDIUM-LOW**
+#### Phase 3: Produce Image Recognition 📋 DEFERRED TO BACKLOG
+**Priority: MEDIUM-LOW** (Deferred - see Future Sprint Ideas)
 
 **Backend:**
 1. Add models (15 min)
@@ -299,6 +300,12 @@ class BatchAddRequest(BaseModel):
 **US5.3**: Swap Recipes in Meal Plan
 - As a user, I can swap a recipe in the meal plan with a different recipe from my library
 - The system suggests alternative recipes that meet the same constraints
+
+**US5.4**: Daycare Meal Planning
+- As a user, I can specify which days my child attends daycare
+- As a user, I can specify which meals need to be packed for daycare (e.g., lunch, snacks)
+- The meal plan generation accounts for daycare days and includes packable meals
+- Daycare meals are flagged in the meal plan as "pack for daycare"
 
 ### Technical Requirements
 
@@ -384,6 +391,13 @@ class BatchAddRequest(BaseModel):
 
 ## Future Sprint Ideas (Backlog)
 
+### Deferred: Produce Image Recognition (from Sprint 4 Phase 3)
+- Photo of fresh produce, identify items and estimate shelf life
+- Uses Claude Vision API for produce identification
+- Estimates shelf life based on produce type (assumes refrigeration)
+- Calculates expiry_date = purchase_date + shelf_life
+- **Deferred reason**: Lower priority compared to other features; voice input and receipt OCR cover primary use cases
+
 ### Sprint 9: Nutrition Tracking
 - Add nutritional information to recipes
 - Show nutrition summary for meal plans
@@ -404,10 +418,16 @@ class BatchAddRequest(BaseModel):
 - Generate budget-friendly meal plans
 - Track grocery spending over time
 
-### Sprint 13: Mobile Optimization
-- Responsive design improvements
-- Offline support for grocery lists
-- Quick add via mobile camera (OCR for ingredients)
+### Sprint 13: Mobile Optimization ✅ PARTIAL (v0.7.0)
+- ✅ Responsive design improvements for Meal Plans page
+- Offline support for grocery lists (future)
+- Quick add via mobile camera (OCR for ingredients) (future)
+
+**Completed in v0.7.0 (Dec 30, 2025):**
+- Mobile-optimized meal plans view with full-width cards
+- Pill-style day picker with scroll indicators
+- Multi-day desktop view (2-3 days side-by-side)
+- Dynamic gradient fades based on scroll position
 
 ---
 

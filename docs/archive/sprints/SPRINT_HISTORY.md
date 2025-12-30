@@ -1,6 +1,6 @@
 ---
 **Summary**: Historical archive of completed sprints 1-3. All sprint implementation details are now maintained in CHANGELOG.md. This doc is kept for historical reference only.
-**Last Updated**: 2025-12-22
+**Last Updated**: 2025-12-30
 **Status**: Archived
 **Archived**: 2025-12-25
 **Reason**: Sprint details now tracked in CHANGELOG.md; archiving to reduce token usage
@@ -10,6 +10,126 @@
 # Sprint History - Completed Features
 
 This document archives all completed sprints from the Meal Planner project. For active and planned sprints, see [SPRINT_PLAN.md](SPRINT_PLAN.md).
+
+---
+
+## ✅ v0.7.0: Mobile Optimization for Meal Plans (Complete)
+
+**Status**: Complete (Dec 30, 2025)
+**Goal**: Optimize meal plans view for mobile devices and add multi-day desktop view
+**Version**: v0.7.0
+
+### Features Completed
+
+**Mobile Optimization:**
+- Redesigned day picker as pill-style buttons with `rounded-full` styling
+- Full-width meal cards (removed navigation arrows that consumed ~128px)
+- Dynamic scroll indicators (gradient fades respond to scroll position)
+- Position indicator dots showing scroll progress (start/middle/end)
+- `scrollbar-hide` CSS utility for clean mobile appearance
+
+**Multi-Day Desktop View:**
+- Responsive grid showing 1-3 days based on viewport width:
+  - < 1000px: 1 day
+  - 1000-1499px: 2 days side-by-side
+  - >= 1500px: 3 days side-by-side
+- Day picker highlights visible range with tinted backgrounds
+- Selected day is leftmost visible; clicking a day repositions view
+- Edge case handling (clamps visible days at end of week)
+
+### Implementation Summary
+
+**Files Modified:**
+- `frontend/src/pages/MealPlans.tsx` - Complete overhaul of day picker and day view
+- `frontend/src/index.css` - Added `scrollbar-hide` utility
+
+**Key Technical Decisions:**
+- Used inline `gridTemplateColumns` style for dynamic column count (avoids multiple Tailwind breakpoint classes)
+- Scroll progress mapped to 3 discrete states via `Math.round((scrollLeft / maxScroll) * 2)`
+- Visual hierarchy: first day gets `bg-primary`, subsequent days get `bg-primary/80` + `opacity-95`
+
+### User Impact
+
+**Before v0.7.0:**
+- Meal cards ~50% viewport width on mobile due to arrow navigation
+- No visual indication that day picker was scrollable
+- Desktop showed only 1 day at a time
+
+**After v0.7.0:**
+- Full-width meal cards for better readability
+- Clear scroll affordances (gradient fades + dots)
+- Desktop users can see 2-3 days at a glance
+
+---
+
+## ✅ Sprint 4: Multi-Modal Grocery Input - Phases 1-2 (Complete)
+
+**Status**: Complete (Dec 2025) | Phase 3 Deferred to Backlog
+**Goal**: Enable voice and OCR receipt-based grocery input for faster, more natural data entry
+**Duration**: Dec 2025
+
+### Completed Phases
+
+**Phase 1: Voice Input ✅**
+- Implemented Web Speech API integration for voice grocery entry
+- Created `useVoiceInput` hook for browser-based speech recognition
+- Claude parses natural language into structured grocery items
+- Supports Chrome/Safari (desktop + mobile)
+- Extracts portions, dates, and infers expiry from natural phrases
+- Confidence scoring for parsed items
+- Duplicate detection against existing groceries
+
+**Phase 2: Receipt OCR ✅**
+- Implemented Claude Vision API for receipt image processing
+- Extracts items from uploaded receipt photos
+- Detects purchase date from receipt header
+- Identifies store name when visible
+- Standardizes item names (removes brands)
+- Batch add functionality for all parsed items
+
+### Deferred to Backlog
+
+**Phase 3: Produce Image Recognition** 📋
+- Photo identification of fresh produce
+- Shelf life estimation
+- **Reason**: Lower priority; voice input and receipt OCR cover primary use cases
+
+### Implementation Summary
+
+**Backend:**
+- New Pydantic models: `ProposedGroceryItem`, `VoiceParseRequest/Response`, `ReceiptParseRequest/Response`, `BatchAddRequest`
+- New Claude service functions: `parse_voice_to_groceries()`, `parse_receipt_to_groceries()`
+- New API endpoints: `/groceries/parse-voice`, `/groceries/parse-receipt`, `/groceries/batch`
+
+**Frontend:**
+- New hook: `useVoiceInput.ts` for Web Speech API
+- New component: `GroceryConfirmationDialog.tsx` for reviewing proposed items
+- Updated Groceries page with voice button and upload functionality
+- Confidence badges and duplicate warnings in UI
+
+### User Impact
+
+**Before Sprint 4:**
+- Manual text entry only for groceries
+- Tedious data entry when standing at the fridge
+
+**After Sprint 4:**
+- Voice input: Speak items naturally while looking in the fridge
+- Receipt scanning: Upload shopping receipt photo to bulk-add items
+- Both methods include smart parsing with Claude AI
+
+### Files Modified
+
+**Backend:**
+- `app/models/grocery.py` - Extended with parsing models
+- `app/services/claude_service.py` - Added voice/receipt parsing functions
+- `app/routers/groceries.py` - Added parsing endpoints
+
+**Frontend:**
+- `src/hooks/useVoiceInput.ts` (NEW)
+- `src/components/GroceryConfirmationDialog.tsx` (NEW)
+- `src/pages/Groceries.tsx` - Voice/upload UI
+- `src/lib/api.ts` - New API methods
 
 ---
 
