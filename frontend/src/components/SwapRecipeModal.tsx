@@ -100,17 +100,17 @@ export function SwapRecipeModal({
             </div>
           ) : alternatives && alternatives.length > 0 ? (
             <div className="space-y-2">
-              {alternatives.map((recipe) => (
+              {alternatives.map((suggestion) => (
                 <button
-                  key={recipe.recipe_id}
-                  onClick={() => handleSelect(recipe)}
+                  key={suggestion.recipe.id}
+                  onClick={() => handleSelect(suggestion)}
                   disabled={isSwapping}
                   className={cn(
                     'w-full text-left p-4 rounded-lg border transition-all duration-200',
                     'hover:border-primary hover:bg-primary/5',
                     'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                     'disabled:opacity-50 disabled:cursor-not-allowed',
-                    recipe.warnings.length > 0
+                    suggestion.warnings.length > 0
                       ? 'border-amber-200 bg-amber-50/50'
                       : 'border-border bg-card'
                   )}
@@ -118,13 +118,13 @@ export function SwapRecipeModal({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground truncate">
-                        {recipe.recipe_title}
+                        {suggestion.recipe.title}
                       </p>
 
                       {/* Tags */}
-                      {recipe.tags.length > 0 && (
+                      {suggestion.recipe.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
-                          {recipe.tags.slice(0, 4).map((tag) => (
+                          {suggestion.recipe.tags.slice(0, 4).map((tag) => (
                             <span
                               key={tag}
                               className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground"
@@ -132,18 +132,18 @@ export function SwapRecipeModal({
                               {tag}
                             </span>
                           ))}
-                          {recipe.tags.length > 4 && (
+                          {suggestion.recipe.tags.length > 4 && (
                             <span className="text-xs text-muted-foreground">
-                              +{recipe.tags.length - 4} more
+                              +{suggestion.recipe.tags.length - 4} more
                             </span>
                           )}
                         </div>
                       )}
 
                       {/* Warnings */}
-                      {recipe.warnings.length > 0 && (
+                      {suggestion.warnings.length > 0 && (
                         <div className="mt-2 space-y-1">
-                          {recipe.warnings.map((warning, idx) => (
+                          {suggestion.warnings.map((warning, idx) => (
                             <p
                               key={idx}
                               className="text-xs text-amber-600 flex items-center gap-1"
@@ -158,9 +158,9 @@ export function SwapRecipeModal({
 
                     {/* Match score indicator */}
                     <div className="flex-shrink-0">
-                      {recipe.match_score >= 0.8 ? (
+                      {suggestion.match_score >= 0.8 ? (
                         <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      ) : recipe.match_score >= 0.5 ? (
+                      ) : suggestion.match_score >= 0.5 ? (
                         <div className="h-5 w-5 rounded-full border-2 border-primary/50" />
                       ) : (
                         <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />

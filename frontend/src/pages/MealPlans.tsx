@@ -351,13 +351,13 @@ const MealPlans = () => {
   };
 
   // Handle selecting a recipe from swap modal
-  const handleSwapSelect = (recipe: AlternativeRecipeSuggestion) => {
+  const handleSwapSelect = (suggestion: AlternativeRecipeSuggestion) => {
     if (!swapContext) return;
     swapMutation.mutate({
       dayIndex: swapContext.dayIndex,
       mealIndex: swapContext.mealIndex,
-      newRecipeId: recipe.recipe_id,
-      newRecipeTitle: recipe.recipe_title,
+      newRecipeId: suggestion.recipe.id,
+      newRecipeTitle: suggestion.recipe.title,
     });
   };
 

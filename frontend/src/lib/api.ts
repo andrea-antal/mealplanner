@@ -160,9 +160,7 @@ export interface AlternativeRecipesRequest {
 }
 
 export interface AlternativeRecipeSuggestion {
-  recipe_id: string;
-  recipe_title: string;
-  tags: string[];
+  recipe: Recipe;
   match_score: number;
   warnings: string[];
 }
