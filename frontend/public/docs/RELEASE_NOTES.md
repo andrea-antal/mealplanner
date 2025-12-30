@@ -1,11 +1,30 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2025-12-29
+**Last Updated**: 2025-12-30
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.7.0 - December 30, 2025
+
+### 🎉 New Features
+
+- **Mobile-Optimized Meal Plans** - The weekly meal plan view is now fully optimized for mobile! Meal cards now take full width for better readability, and the day picker uses a modern pill-style design with visual scroll indicators
+
+- **Multi-Day Desktop View** - On larger screens, see multiple days at once:
+  - 2 days side-by-side on medium screens (1000px+)
+  - 3 days side-by-side on large screens (1500px+)
+  - The day picker highlights all visible days so you always know what you're looking at
+
+### ✨ Improvements
+
+- **Smarter Scroll Indicators** - Gradient fades appear on the edges of the day picker to hint at more content, and they respond dynamically as you scroll (left fade appears when you can scroll back, right fade disappears when you reach the end)
+
+- **Better Day Navigation** - Removed the old arrow buttons in favor of the streamlined day picker - just tap any day to jump to it instantly
+
+---
 
 ## Version 0.6.1 - December 29, 2025
 
