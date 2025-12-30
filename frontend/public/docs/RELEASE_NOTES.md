@@ -7,6 +7,14 @@
 
 # What's New in Meal Planner
 
+## Version 0.7.1 - December 30, 2025
+
+### 🐛 Bug Fixes
+
+- **Mobile Landscape Nav Dots** - Fixed an issue where scroll indicator dots appeared below the day picker even when all 7 days were visible (e.g., on phones in landscape mode). The dots now hide automatically when the content doesn't need scrolling.
+
+---
+
 ## Version 0.7.0 - December 30, 2025
 
 ### 🎉 New Features
