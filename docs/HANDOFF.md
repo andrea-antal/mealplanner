@@ -1,274 +1,163 @@
-# Session Handoff - Release Notes System & v0.5.0 Deployment
+# Session Handoff - Meal Plan Customization Phase 4 (Frontend)
 
-**Date:** 2025-12-28
-**Session Focus:** Release Notes System Implementation & Production Deployment
-**Completion:** 100% (Released v0.5.0 with recipe URL import)
-
----
-
-## 📊 Session Summary
-
-Implemented a complete release notes system for beta testing, updated documentation for December 27 work, released v0.5.0 with recipe URL import feature, and debugged multiple deployment issues. Users now see "What's New" modals automatically when new versions are deployed.
-
-**Key Achievement:** Full release notes system with workspace-scoped tracking, automatic version detection, and user-friendly markdown content.
+**Date:** 2025-12-30
+**Session Focus:** Frontend UI for meal plan swap/undo functionality
+**Branch:** `feature/meal-plan-customization`
+**Completion:** 100% (Phase 4 complete)
 
 ---
 
-## ✅ Completed Tasks (14/14 - 100%)
+## Session Summary
 
-### 1. Documentation Updates
-- ✅ Updated CHANGELOG.md with December 27 work (feedback system, navigation updates)
-- ✅ Updated CURRENT_STATE.md with new features and v0.4.0 baseline
-- ✅ Updated INDEX.md with RELEASE_NOTES.md documentation
-- ✅ Improved release notes text formatting (bullets instead of dense paragraphs)
-
-### 2. Release Notes System Implementation
-- ✅ Created `frontend/src/lib/version.ts` - Version management with semantic versioning
-- ✅ Created `frontend/src/lib/releaseNotes.ts` - localStorage tracking utilities
-- ✅ Created `frontend/src/components/ReleaseNotesModal.tsx` - Modal UI component
-- ✅ Created `docs/RELEASE_NOTES.md` - User-friendly content (non-technical)
-- ✅ Integrated modal into App.tsx with auto-show logic (1s delay for workspace loading)
-- ✅ Installed react-markdown dependency for markdown rendering
-
-### 3. Release v0.5.0
-- ✅ Incremented version from 0.4.0 to 0.5.0
-- ✅ Added recipe URL import feature to release notes
-- ✅ Committed and deployed to production
-
-### 4. Bug Fixes & Debugging
-- ✅ **Fixed workspace data detection** - Changed from checking meal plans only to checking ANY workspace data
-- ✅ **Fixed workspace ID extraction** - Used getCurrentWorkspace() instead of string parsing
-- ✅ **Fixed backend-only architecture issue** - Simplified logic since all data is server-side, not localStorage
-- ✅ **Fixed Vercel build configuration** - Added vercel.json for monorepo structure
-- ✅ **Fixed missing lib files** - Force-added gitignored files (utils.ts, mockData.ts, etc.)
-
-### 5. Deployment & DevOps
-- ✅ Connected GitHub to Vercel for auto-deploy
-- ✅ Configured vercel.json for frontend directory build
-- ✅ Fixed multiple build failures (missing files, wrong directory)
-- ✅ Deployed 8 times total (debugging iterations)
+Implemented the frontend UI for meal plan customization, completing Phase 4 of the feature. Users can now swap any meal in their plan with an alternative from their recipe library, with one-click undo. Meal plans are now persisted to the backend instead of localStorage.
 
 ---
 
-## 🎯 Release Notes System Architecture
+## Completed Tasks (6/6 - 100%)
 
-### How It Works
+1. **Update API types and methods** - Added 8 new types and 7 API methods to `api.ts`
+2. **Backend persistence** - Switched from localStorage to backend API for meal plan storage
+3. **Swap button UI** - Added RefreshCw icon to all meal cards
+4. **SwapRecipeModal** - Created modal showing filtered alternatives with warnings
+5. **Undo functionality** - Added amber undo button for swapped meals
+6. **Build verification** - TypeScript compiles, all 27 backend tests pass
 
-**Version Tracking:**
-- App version stored in `frontend/src/lib/version.ts` as `APP_VERSION`
-- Last seen version stored per workspace in localStorage: `mealplanner_{workspace}_last_release_notes_version`
+---
 
-**Auto-Show Logic:**
-```typescript
-1. On app load (App.tsx useEffect with 1s delay)
-2. Check shouldShowReleaseNotes()
-   - If no version tracked: Show modal (first deployment)
-   - If version tracked: Compare current vs last seen
-   - If current > last seen: Show modal
-3. User clicks "Got it!" → Mark current version as seen
-4. Modal doesn't show again until next version bump
+## In-Progress Tasks
+
+None - Phase 4 is complete.
+
+---
+
+## Next Steps (Priority Ordered)
+
+1. **Manual Testing** - Test swap/undo flow in browser at localhost
+2. **Merge to Main** - After testing, merge feature branch
+3. **Create Release Notes** - v0.8.0 for meal plan customization
+4. **Deploy** - Push to production (Railway + Vercel)
+
+### Future Enhancements (Backlog)
+- Meal plan history view (list all past plans)
+- Multi-level undo (history stack instead of single previous)
+- Regenerate single day feature
+
+---
+
+## Key Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Swap shows on ALL meals | Users expect to swap any meal, not just ones linked to recipes |
+| Generate button in emerald | Distinguish from swap (primary blue) for clearer UX |
+| Single-level undo | Simpler implementation; `previous_recipe_id/title` on Meal model |
+| Auto-save after generate | Seamless persistence without explicit save button |
+
+---
+
+## Files Modified/Created
+
+### Created (1 file)
+- `frontend/src/components/SwapRecipeModal.tsx` (178 lines)
+
+### Modified (2 files)
+- `frontend/src/lib/api.ts` (+88 lines)
+- `frontend/src/pages/MealPlans.tsx` (+187/-31 lines)
+
+### Commits This Session
+```
+e5dce1d feat(frontend): add meal plan swap UI with backend persistence
 ```
 
-**Content:**
-- Markdown file: `docs/RELEASE_NOTES.md` (source)
-- Runtime file: `frontend/public/docs/RELEASE_NOTES.md` (copy)
-- Rendered with react-markdown in modal
+---
 
-**User Experience:**
-- Modal appears automatically on first visit after version update
-- Workspace-scoped tracking (each workspace sees modal independently)
-- Scrollable content with Tailwind Typography prose classes
-- Sparkles icon ✨ for "What's New" vibe
+## Feature Branch Status
+
+```
+feature/meal-plan-customization (ahead of main)
+
+Backend (Phases 1-3):
+- 374e400 feat(api): add swap and undo endpoints
+- 0977d5b feat(api): add alternatives endpoint for recipe suggestions
+- 775e5f3 feat(services): add recipe_filter_service with constraint checking
+- f55ca74 feat(api): add save/get meal plan endpoints
+- 45a8ca4 feat(data): add meal plan CRUD to DataManager
+- 35d4498 feat(models): add id, timestamps, previous_recipe to meal plan models
+
+Frontend (Phase 4):
+- e5dce1d feat(frontend): add meal plan swap UI with backend persistence
+```
 
 ---
 
-## 📝 Next Steps (Future Enhancements)
+## Commands to Resume
 
-### Optional Improvements
-
-1. **"What's New" Menu Button** (Not urgent)
-   - Add button to manually re-open release notes
-   - Useful for users who want to review features
-
-2. **Backend API Endpoint** (Future)
-   - `GET /release-notes` to serve markdown
-   - Allows updating notes without frontend deploy
-
-3. **Email Notifications** (Future)
-   - Send release notes via Resend API
-   - Opt-in/opt-out per workspace
-
-### For Next Release (v0.6.0)
-
-**Process:**
-1. User says: "Create release notes for [feature]"
-2. I update:
-   - `version.ts` → increment version
-   - `RELEASE_NOTES.md` → add new section at top
-   - Copy to `public/docs/RELEASE_NOTES.md`
-3. User commits and pushes
-4. Vercel auto-deploys
-5. Users see modal automatically!
-
----
-
-## 🔑 Key Decisions
-
-1. **Started versioning at 0.4.0** - Reflects existing features (voice, OCR, production)
-2. **Backend-only data architecture** - All app data on server, localStorage only for UI state
-3. **Simplified first-deployment logic** - Show modal to everyone (can't distinguish new vs existing users)
-4. **Markdown for content** - Easy to edit, supports formatting, security via react-markdown
-5. **Workspace-scoped tracking** - Each household gets independent notification
-6. **Manual version bumps** - Developer controls when to increment (no auto-semver)
-7. **User-friendly tone** - Non-technical language with emoji headers (🎉 ✨ 🐛)
-
----
-
-## 📁 Files Created/Modified
-
-### Created (9 files)
-- `frontend/src/lib/version.ts` (25 lines) - Version management
-- `frontend/src/lib/releaseNotes.ts` (43 lines) - Tracking utilities
-- `frontend/src/components/ReleaseNotesModal.tsx` (95 lines) - Modal component
-- `docs/RELEASE_NOTES.md` (65 lines) - User-facing content
-- `frontend/public/docs/RELEASE_NOTES.md` (65 lines) - Runtime copy
-- `vercel.json` (6 lines) - Vercel monorepo config
-- `frontend/src/lib/utils.ts` (force-added from gitignore)
-- `frontend/src/lib/mockData.ts` (force-added from gitignore)
-
-### Modified (6 files)
-- `docs/CHANGELOG.md` (+210 lines) - December 27 work documented
-- `docs/CURRENT_STATE.md` (+12 lines) - Updated features and version
-- `docs/INDEX.md` (+5 lines) - Added release notes documentation
-- `frontend/src/App.tsx` (+39 lines) - Integrated release notes modal
-- `frontend/package.json` (+1 line) - Added react-markdown
-- `frontend/src/lib/releaseNotes.ts` (iterated 3 times for bug fixes)
-
-**Total:** ~580 lines added
-
----
-
-## 🔄 Commands to Resume
-
-### Deploy New Feature with Release Notes
+### Start Development Environment
 ```bash
-# 1. After merging feature, ask Claude:
-"Create release notes for [feature name]"
+# Terminal 1: Backend
+cd /Users/andreachan/Desktop/mealplanner/backend
+source venv/bin/activate
+uvicorn app.main:app --reload
 
-# 2. Claude will update:
-# - version.ts (increment version)
-# - RELEASE_NOTES.md (add new section)
-# - Copy to public/docs/
+# Terminal 2: Frontend
+cd /Users/andreachan/Desktop/mealplanner/frontend
+npm run dev
+```
 
-# 3. Review and commit:
-git add frontend/src/lib/version.ts docs/RELEASE_NOTES.md frontend/public/docs/RELEASE_NOTES.md
-git commit -m "Release v0.6.0 with [feature]"
+### Test the Feature
+1. Open http://localhost:5173
+2. Navigate to Meal Plans
+3. Click swap icon (↺) on any meal
+4. Select an alternative from the modal
+5. Verify undo icon (↩) appears
+6. Click undo to restore
+
+### Run Tests
+```bash
+cd /Users/andreachan/Desktop/mealplanner/backend
+pytest tests/test_api_meal_plans.py -v  # 27 tests
+```
+
+### Merge and Deploy
+```bash
+git checkout main
+git merge feature/meal-plan-customization
 git push origin main
-
-# 4. Vercel auto-deploys (~30-60s)
-# 5. Users see modal automatically!
-```
-
-### Manual Deploy (if auto-deploy fails)
-```bash
-cd frontend
-vercel --prod
-```
-
-### Test Release Notes Locally
-```bash
-# In browser console:
-localStorage.removeItem('mealplanner_andrea_last_release_notes_version');
-location.reload();
-# Modal should appear
+# Vercel auto-deploys frontend
+# Railway auto-deploys backend (if linked)
 ```
 
 ---
 
-## 🐛 Debugging Issues Resolved
+## Blockers / Questions
 
-### Issue 1: Modal Not Showing
-**Problem:** Logic tried to detect "new vs existing user" by checking localStorage for workspace data
-**Root Cause:** App stores all data on backend, not localStorage
-**Solution:** Simplified to always show modal on first deployment (compare vs 0.4.0)
-**Files:** `frontend/src/lib/releaseNotes.ts`
-
-### Issue 2: Vercel Build Failing - No package.json
-**Problem:** Vercel looking for package.json in root, but it's in `frontend/`
-**Root Cause:** Monorepo structure not configured
-**Solution:** Created `vercel.json` with buildCommand and outputDirectory
-**Files:** `vercel.json`
-
-### Issue 3: Vercel Build Failing - Missing lib/utils
-**Problem:** `Could not load /frontend/src/lib/utils`
-**Root Cause:** `lib/` directory in `.gitignore`, files not in git
-**Solution:** Force-added all lib files with `git add -f`
-**Files:** All `frontend/src/lib/*.ts` files
-
-### Issue 4: Text Too Dense in Modal
-**Problem:** Release notes text was squished and hard to read
-**Root Cause:** Paragraph format instead of bullet lists
-**Solution:** Changed to bullet format with spacing classes
-**Files:** `RELEASE_NOTES.md`, `ReleaseNotesModal.tsx`
+None currently.
 
 ---
 
-## 📈 Current Production State
+## Architecture Notes
 
-**Live Version:** v0.5.0
-**Production URL:** https://frontend-ar2gikutb-andreas-projects-a0f1f841.vercel.app
-**Last Deploy:** 2025-12-28 (successful)
-**Auto-Deploy:** ✅ Enabled (GitHub → Vercel webhook)
+### Data Flow
+```
+User clicks swap → SwapRecipeModal opens
+  → useQuery fetches /meal-plans/alternatives
+  → User selects recipe
+  → swapMutation calls PATCH /meal-plans/{id}
+  → Backend stores previous_recipe_id/title
+  → Returns updated MealPlan
+  → setMealPlan updates UI
+```
 
-**Features Live:**
-- ✅ Recipe URL import
-- ✅ Release notes system
-- ✅ Feedback system (floating bug button)
-- ✅ Voice input for groceries
-- ✅ Receipt OCR scanner
-- ✅ AI meal planning
-
----
-
-## 📈 Token Usage
-
-**Session Total:** ~140,500 / 200,000 (70%)
-**Remaining:** ~59,500 tokens (30%)
-
-**Token Breakdown:**
-- Documentation updates: ~15,000
-- Release notes system: ~30,000
-- Debugging & fixes: ~40,000
-- Deployment iterations: ~25,000
-- Handoff creation: ~5,000
-- Explanatory insights: ~25,500
+### Key Files
+- `backend/app/routers/meal_plans.py` - All meal plan endpoints
+- `backend/app/services/recipe_filter_service.py` - Constraint filtering logic
+- `frontend/src/pages/MealPlans.tsx` - Main meal plan page
+- `frontend/src/components/SwapRecipeModal.tsx` - Alternatives modal
 
 ---
 
-## ✨ Session Metrics
+**Session Status:** Complete - Ready for manual testing and merge
 
-- ✅ 9 new files created
-- ✅ 6 files modified
-- ✅ 8 git commits
-- ✅ 8 production deployments
-- ✅ 5 bugs fixed
-- ✅ 1 feature released (v0.5.0)
-- ✅ 100% completion rate
+Generated with [Claude Code](https://claude.com/claude-code)
 
----
-
-## 🎓 Key Learnings
-
-1. **Gitignore Can Bite You** - `lib/` was too broad, caught source files
-2. **Architecture Assumptions Matter** - localStorage-based heuristics don't work with backend-only data
-3. **Monorepos Need Config** - Vercel needs explicit root directory or vercel.json
-4. **Version Bumps Are Powerful** - Simple way to "reset" problematic state
-5. **User-Friendly ≠ Technical** - Release notes need different tone than CHANGELOG
-
----
-
-**Session Status:** ✅ Complete - All features deployed, documentation updated, production stable
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>

@@ -1,6 +1,6 @@
 ---
 **Summary**: Chronological feature history with technical implementation details, test results, and file changes. Authoritative source for "what was built when and how".
-**Last Updated**: 2025-12-28
+**Last Updated**: 2025-12-30
 **Status**: Current
 **Read This If**: You need detailed implementation notes for any feature or sprint
 ---
@@ -8,6 +8,54 @@
 # Meal Planner - Development Changelog
 
 This document tracks key decisions, changes, and learnings during development.
+
+---
+
+## 2025-12-30 Feature: Meal Plan Customization (Phase 4 - Frontend)
+
+**Status**: Complete | **Branch**: feature/meal-plan-customization
+
+### Summary
+Added frontend UI for swapping meals in generated meal plans. Users can now swap any meal with an alternative from their recipe library, with one-level undo capability. Meal plans are now persisted to the backend instead of localStorage.
+
+### Features Implemented
+
+1. **Swap Button UI** - RefreshCw icon appears on every meal card
+2. **SwapRecipeModal** - Shows filtered alternatives by meal type with:
+   - Recipe tags display
+   - Warning badges for dislikes
+   - Match score indicators
+3. **Undo Button** - Amber Undo2 icon appears after a swap
+4. **Backend Persistence** - Meal plans saved to/loaded from backend API
+
+### API Client Updates (`frontend/src/lib/api.ts`)
+
+New types added:
+- `AlternativeRecipeSuggestion` - Recipe suggestion with warnings and match score
+- `SwapMealRequest` / `UndoSwapRequest` - Request payloads
+
+New methods in `mealPlansAPI`:
+- `getAll()` - List all meal plans
+- `getById()` - Get specific meal plan
+- `save()` - Save/update meal plan
+- `delete()` - Delete meal plan
+- `getAlternatives()` - Get filtered recipe suggestions
+- `swap()` - Swap a meal (stores previous for undo)
+- `undoSwap()` - Restore previous recipe
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `frontend/src/lib/api.ts` | +88 lines - New types and API methods |
+| `frontend/src/pages/MealPlans.tsx` | +187/-31 lines - Backend persistence, swap/undo UI |
+| `frontend/src/components/SwapRecipeModal.tsx` | +178 lines (new) - Modal component |
+
+### Architecture Decisions
+
+1. **Swap shows on all meals** - Originally only showed for meals with `recipe_id`, but changed to show on all meals so users can swap any suggested meal to a library recipe
+2. **Generate button differentiated** - Changed to emerald green to distinguish from swap (primary blue)
+3. **Single-level undo** - Uses `previous_recipe_id/title` fields on Meal model rather than complex history stack
 
 ---
 
