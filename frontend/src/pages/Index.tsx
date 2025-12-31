@@ -6,10 +6,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Calendar, UtensilsCrossed, Users, Carrot, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector';
+import { ReleaseNotesModal } from '@/components/ReleaseNotesModal';
 
 const Index = () => {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [showWorkspaceSelector, setShowWorkspaceSelector] = useState(false);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 
   // Check for workspace on mount
   useEffect(() => {
@@ -137,7 +139,24 @@ const Index = () => {
           </div>
         )}
       </section>
+
+      {/* What's New Link */}
+      <div className="text-center pt-4">
+        <button
+          onClick={() => setShowReleaseNotes(true)}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Sparkles className="h-4 w-4" />
+          What's New
+        </button>
+      </div>
     </div>
+
+    {/* Release Notes Modal */}
+    <ReleaseNotesModal
+      open={showReleaseNotes}
+      onOpenChange={setShowReleaseNotes}
+    />
     </>
   );
 };
