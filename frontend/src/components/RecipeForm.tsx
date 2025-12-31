@@ -20,22 +20,53 @@ interface RecipeFormProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (recipe: Recipe) => void;
   workspaceId: string;
+  mode?: 'add' | 'edit';
+  initialRecipe?: Recipe;
 }
 
-export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId }: RecipeFormProps) {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    ingredients: '',
-    instructions: '',
-    tags: '',
-    prep_time_minutes: '',
-    active_cooking_time_minutes: '',
-    serves: '',
-    required_appliances: '',
-    source_url: '',
-    source_name: '',
-  });
+const emptyFormData = {
+  title: '',
+  description: '',
+  ingredients: '',
+  instructions: '',
+  tags: '',
+  meal_types: '',
+  prep_time_minutes: '',
+  active_cooking_time_minutes: '',
+  serves: '',
+  required_appliances: '',
+  source_url: '',
+  source_name: '',
+};
+
+export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = 'add', initialRecipe }: RecipeFormProps) {
+  const [formData, setFormData] = useState(emptyFormData);
+
+  // Populate form when opening in edit mode
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen && mode === 'edit' && initialRecipe) {
+      setFormData({
+        title: initialRecipe.title || '',
+        description: initialRecipe.description || '',
+        ingredients: initialRecipe.ingredients?.join('\n') || '',
+        instructions: initialRecipe.instructions || '',
+        tags: initialRecipe.tags?.join(', ') || '',
+        meal_types: initialRecipe.meal_types?.join(', ') || '',
+        prep_time_minutes: initialRecipe.prep_time_minutes?.toString() || '',
+        active_cooking_time_minutes: initialRecipe.active_cooking_time_minutes?.toString() || '',
+        serves: initialRecipe.serves?.toString() || '',
+        required_appliances: initialRecipe.required_appliances?.join(', ') || '',
+        source_url: initialRecipe.source_url || '',
+        source_name: initialRecipe.source_name || '',
+      });
+    } else if (!isOpen) {
+      // Reset form when closing
+      setFormData(emptyFormData);
+      setImportUrl('');
+      setImportWarnings([]);
+    }
+    onOpenChange(isOpen);
+  };
 
   // URL Import state
   const [importUrl, setImportUrl] = useState('');
@@ -93,8 +124,10 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId }: Recipe
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Generate a simple ID from title (lowercase, replace spaces with hyphens)
-    const id = formData.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    // In edit mode, preserve the original ID; in add mode, generate from title
+    const id = mode === 'edit' && initialRecipe
+      ? initialRecipe.id
+      : formData.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     const recipe: Recipe = {
       id,
@@ -103,45 +136,37 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId }: Recipe
       ingredients: formData.ingredients.split('\n').filter(i => i.trim()),
       instructions: formData.instructions,
       tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+      meal_types: formData.meal_types.split(',').map(t => t.trim()).filter(t => t),
       prep_time_minutes: parseInt(formData.prep_time_minutes) || 0,
       active_cooking_time_minutes: parseInt(formData.active_cooking_time_minutes) || 0,
       serves: parseInt(formData.serves) || 1,
       required_appliances: formData.required_appliances.split(',').map(a => a.trim()).filter(a => a),
       source_url: formData.source_url || undefined,
       source_name: formData.source_name || undefined,
+      // Preserve these fields in edit mode
+      ...(mode === 'edit' && initialRecipe && {
+        is_generated: initialRecipe.is_generated,
+      }),
     };
 
     onSubmit(recipe);
-
-    // Reset form
-    setFormData({
-      title: '',
-      description: '',
-      ingredients: '',
-      instructions: '',
-      tags: '',
-      prep_time_minutes: '',
-      active_cooking_time_minutes: '',
-      serves: '',
-      required_appliances: '',
-      source_url: '',
-      source_name: '',
-    });
-    setImportUrl('');
-    setImportWarnings([]);
-
-    onOpenChange(false);
+    handleOpenChange(false);
   };
 
+  const isEditMode = mode === 'edit';
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Add New Recipe</DialogTitle>
+          <DialogTitle className="font-display text-2xl">
+            {isEditMode ? 'Edit Recipe' : 'Add New Recipe'}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* URL Import Section */}
+          {/* URL Import Section - only show in add mode */}
+          {!isEditMode && (
           <div className="border-b border-border pb-4 mb-4">
             <Label htmlFor="import-url" className="text-base font-semibold">
               Import from URL (Optional)
@@ -187,6 +212,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId }: Recipe
               </Alert>
             )}
           </div>
+          )}
 
           <div>
             <Label htmlFor="title">Recipe Title *</Label>
@@ -276,6 +302,20 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId }: Recipe
           </div>
 
           <div>
+            <Label htmlFor="meal_types">Meal Types (comma-separated) *</Label>
+            <Input
+              id="meal_types"
+              value={formData.meal_types}
+              onChange={(e) => setFormData({ ...formData, meal_types: e.target.value })}
+              required
+              placeholder="breakfast, lunch, dinner, snack"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              When is this recipe suitable? (breakfast, lunch, dinner, snack)
+            </p>
+          </div>
+
+          <div>
             <Label htmlFor="tags">Tags (comma-separated)</Label>
             <Input
               id="tags"
@@ -297,9 +337,9 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId }: Recipe
 
           <div className="flex gap-3 pt-4">
             <Button type="submit" className="flex-1">
-              Add Recipe
+              {isEditMode ? 'Save Changes' : 'Add Recipe'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
           </div>
