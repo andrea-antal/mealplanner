@@ -1,11 +1,29 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2025-12-30
+**Last Updated**: 2025-12-31
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.8.0 - December 31, 2025
+
+### New Features
+
+- **Swap Meals in Your Plan** - Don't like a suggested meal? Tap the swap icon to see alternatives from your recipe library, filtered by meal type with match scores. Changed your mind? Use the undo button to restore the original
+
+- **Edit Any Recipe** - New Edit button in the recipe modal lets you modify any recipe's details, ingredients, or instructions
+
+### Improvements
+
+- **Cleaner Recipe Actions** - Streamlined button labels in the recipe modal (Edit, Regenerate, Delete) for a cleaner look
+
+### Bug Fixes
+
+- **Undo Swap Fix** - Fixed an issue where undoing a swap would fail on AI-suggested meals that didn't have a recipe in your library yet
+
+---
 
 ## Version 0.7.1 - December 30, 2025
 

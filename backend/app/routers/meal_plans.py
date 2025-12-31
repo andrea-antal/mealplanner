@@ -269,7 +269,8 @@ async def undo_swap_endpoint(
     meal = day.meals[request.meal_index]
 
     # Check if there's a previous recipe to restore
-    if meal.previous_recipe_id is None:
+    # Must check both fields - title-only meals have previous_recipe_id=None but valid previous_recipe_title
+    if meal.previous_recipe_id is None and meal.previous_recipe_title is None:
         raise HTTPException(
             status_code=400,
             detail="No previous recipe to restore. Swap has not been performed on this meal."

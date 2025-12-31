@@ -23,7 +23,8 @@ import { RecipeRating } from './RecipeRating';
 import type { Recipe } from '@/lib/api';
 import { householdAPI, recipesAPI } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Clock, Users, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
+import { Clock, Users, Trash2, RefreshCw, ExternalLink, Pencil } from 'lucide-react';
+import { RecipeForm } from './RecipeForm';
 import { toast } from 'sonner';
 
 interface RecipeModalProps {
@@ -57,6 +58,7 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
   const queryClient = useQueryClient();
   const workspaceId = getCurrentWorkspace()!;
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   // Fetch household members
   const { data: household } = useQuery({
@@ -86,6 +88,24 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
 
   const handleRate = (recipeId: string, memberName: string, rating: string | null) => {
     rateMutation.mutate({ recipeId, memberName, rating });
+  };
+
+  // Update mutation for editing recipes
+  const updateMutation = useMutation({
+    mutationFn: (updatedRecipe: Recipe) =>
+      recipesAPI.update(workspaceId, updatedRecipe.id, updatedRecipe),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+      setShowEditForm(false);
+      toast.success('Recipe updated!');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update recipe: ${error.message}`);
+    },
+  });
+
+  const handleEditSubmit = (updatedRecipe: Recipe) => {
+    updateMutation.mutate(updatedRecipe);
   };
 
   if (!recipe) return null;
@@ -227,30 +247,36 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
             )}
 
             {/* Action Buttons */}
-            {(recipe.is_generated || onDelete) && (
-              <div className="flex gap-2">
-                {recipe.is_generated && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowRegenerateDialog(true)}
-                    className="text-primary hover:text-primary hover:bg-primary/10"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Generate Again
-                  </Button>
-                )}
-                {onDelete && (
-                  <Button
-                    variant="outline"
-                    onClick={handleDelete}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Recipe
-                  </Button>
-                )}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {/* Edit button - always show */}
+              <Button
+                variant="outline"
+                onClick={() => setShowEditForm(true)}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+              {recipe.is_generated && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRegenerateDialog(true)}
+                  className="text-primary hover:text-primary hover:bg-primary/10"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Regenerate
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  onClick={handleDelete}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -273,6 +299,16 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Recipe Form */}
+      <RecipeForm
+        open={showEditForm}
+        onOpenChange={setShowEditForm}
+        onSubmit={handleEditSubmit}
+        workspaceId={workspaceId}
+        mode="edit"
+        initialRecipe={recipe}
+      />
     </Dialog>
   );
 }
