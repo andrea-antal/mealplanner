@@ -760,3 +760,81 @@ async def sync_chroma_db(workspace_id: str = Query(..., description="Workspace i
             status_code=500,
             detail=f"Chroma sync failed: {str(e)}"
         )
+
+
+# Keywords for inferring meal types
+MEAL_TYPE_KEYWORDS = {
+    "breakfast": ["breakfast", "oatmeal", "pancake", "waffle", "egg", "cereal", "toast", "muffin", "smoothie", "granola", "yogurt", "french toast", "bacon", "sausage", "bagel"],
+    "lunch": ["lunch", "sandwich", "salad", "wrap", "soup", "panini", "burger", "quesadilla", "bowl", "pita"],
+    "dinner": ["dinner", "stir-fry", "stir fry", "roast", "baked", "casserole", "pasta", "curry", "stew", "grilled", "braised", "chicken", "beef", "pork", "fish", "salmon", "tofu"],
+    "snack": ["snack", "bar", "bars", "bites", "cookie", "cracker", "chip", "dip", "popcorn", "nuts", "fruit"]
+}
+
+
+def infer_meal_types(recipe: dict) -> list:
+    """Infer meal_types for a recipe based on its title and tags."""
+    from app.models.recipe import VALID_MEAL_TYPES
+    meal_types = set()
+    title = recipe.get("title", "").lower()
+    tags = [tag.lower() for tag in recipe.get("tags", [])]
+    search_text = title + " " + " ".join(tags)
+
+    # Check for direct meal type mentions in tags
+    for tag in tags:
+        if tag in VALID_MEAL_TYPES:
+            meal_types.add(tag)
+
+    # If no direct match, check keywords
+    if not meal_types:
+        for meal_type, keywords in MEAL_TYPE_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in search_text:
+                    meal_types.add(meal_type)
+                    break
+
+    # Default to dinner
+    if not meal_types:
+        meal_types.add("dinner")
+
+    return sorted(list(meal_types))
+
+
+@router.post("/migrate-meal-types")
+async def migrate_meal_types(
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    One-time migration to add meal_types to all recipes in a workspace.
+    Safe to run multiple times - skips recipes that already have meal_types.
+    """
+    recipes = list_all_recipes(workspace_id)
+    stats = {"total": 0, "updated": 0, "skipped": 0, "errors": 0}
+
+    for recipe in recipes:
+        stats["total"] += 1
+        try:
+            # Skip if already has meal_types
+            if recipe.meal_types and len(recipe.meal_types) > 0:
+                stats["skipped"] += 1
+                continue
+
+            # Infer meal types
+            recipe_dict = recipe.model_dump()
+            meal_types = infer_meal_types(recipe_dict)
+            recipe_dict["meal_types"] = meal_types
+
+            # Save updated recipe
+            updated_recipe = Recipe(**recipe_dict)
+            save_recipe(workspace_id, updated_recipe)
+            stats["updated"] += 1
+            logger.info(f"Migrated recipe '{recipe.id}': meal_types={meal_types}")
+
+        except Exception as e:
+            stats["errors"] += 1
+            logger.error(f"Failed to migrate recipe '{recipe.id}': {e}")
+
+    logger.info(f"Meal types migration complete for workspace '{workspace_id}': {stats}")
+    return {
+        "message": f"Migration complete for workspace '{workspace_id}'",
+        "stats": stats
+    }
