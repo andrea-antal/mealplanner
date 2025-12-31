@@ -84,6 +84,7 @@ export interface Recipe {
   ingredients: string[];
   instructions: string;
   tags: string[];
+  meal_types: string[];  // Required: breakfast, lunch, dinner, snack (at least one)
   prep_time_minutes: number;
   active_cooking_time_minutes: number;
   serves: number;

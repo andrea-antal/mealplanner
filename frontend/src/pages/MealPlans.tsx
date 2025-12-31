@@ -555,8 +555,8 @@ const MealPlans = () => {
 
                         {/* Action buttons */}
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          {/* Undo button - show if meal was swapped */}
-                          {meal.previous_recipe_id && (
+                          {/* Undo button - show if meal was swapped (check title, not id, since original may not have had a recipe_id) */}
+                          {meal.previous_recipe_title && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
