@@ -34,5 +34,9 @@
     "immersion blender or regular blender"
   ],
   "is_generated": true,
-  "description": "A creamy, comforting soup featuring caramelized sweet potatoes, carrots, and onions with warming spices. Perfect for a cozy dinner."
+  "description": "A creamy, comforting soup featuring caramelized sweet potatoes, carrots, and onions with warming spices. Perfect for a cozy dinner.",
+  "meal_types": [
+    "dinner",
+    "lunch"
+  ]
 }

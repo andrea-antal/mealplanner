@@ -17,5 +17,8 @@
     "stove"
   ],
   "is_generated": false,
-  "description": null
+  "description": null,
+  "meal_types": [
+    "dinner"
+  ]
 }

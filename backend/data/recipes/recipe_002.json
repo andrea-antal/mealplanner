@@ -9,9 +9,18 @@
     "Salt and pepper to taste"
   ],
   "instructions": "1. Whisk eggs and milk together. 2. Melt butter in pan over medium heat. 3. Pour in eggs, stir gently. 4. When almost set, add cheese. 5. Continue stirring until cooked through. 6. Season with salt and pepper.",
-  "tags": ["toddler-friendly", "quick", "breakfast"],
+  "tags": [
+    "toddler-friendly",
+    "quick",
+    "breakfast"
+  ],
   "prep_time_minutes": 5,
   "active_cooking_time_minutes": 10,
   "serves": 3,
-  "required_appliances": ["oven"]
+  "required_appliances": [
+    "oven"
+  ],
+  "meal_types": [
+    "breakfast"
+  ]
 }

@@ -9,10 +9,19 @@
     "Parmesan cheese for serving",
     "Fresh basil (optional)"
   ],
-  "instructions": "1. Cook pasta according to package directions. 2. While pasta cooks, heat olive oil in pan. 3. Sauté garlic until fragrant. 4. Add tomato sauce, simmer 10 minutes. 5. Drain pasta, toss with sauce. 6. Serve with parmesan.",
-  "tags": ["toddler-friendly", "quick", "husband-approved"],
+  "instructions": "1. Cook pasta according to package directions. 2. While pasta cooks, heat olive oil in pan. 3. Saut\u00e9 garlic until fragrant. 4. Add tomato sauce, simmer 10 minutes. 5. Drain pasta, toss with sauce. 6. Serve with parmesan.",
+  "tags": [
+    "toddler-friendly",
+    "quick",
+    "husband-approved"
+  ],
   "prep_time_minutes": 5,
   "active_cooking_time_minutes": 20,
   "serves": 4,
-  "required_appliances": ["oven"]
+  "required_appliances": [
+    "oven"
+  ],
+  "meal_types": [
+    "dinner"
+  ]
 }

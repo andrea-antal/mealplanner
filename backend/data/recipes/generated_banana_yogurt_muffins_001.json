@@ -31,5 +31,9 @@
     "mixing bowls"
   ],
   "is_generated": true,
-  "description": "Moist and fluffy banana muffins made healthier with Greek yogurt. Perfect for snacking or breakfast on-the-go."
+  "description": "Moist and fluffy banana muffins made healthier with Greek yogurt. Perfect for snacking or breakfast on-the-go.",
+  "meal_types": [
+    "breakfast",
+    "snack"
+  ]
 }

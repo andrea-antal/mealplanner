@@ -31,5 +31,8 @@
     "large skillet"
   ],
   "is_generated": true,
-  "description": "Perfectly seared salmon fillets served over tender caramelized onions and saut\u00e9ed zucchini, finished with a light lemon butter sauce"
+  "description": "Perfectly seared salmon fillets served over tender caramelized onions and saut\u00e9ed zucchini, finished with a light lemon butter sauce",
+  "meal_types": [
+    "dinner"
+  ]
 }

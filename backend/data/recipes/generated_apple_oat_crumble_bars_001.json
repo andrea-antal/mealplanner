@@ -29,5 +29,8 @@
     "oven"
   ],
   "is_generated": true,
-  "description": "Delicious homemade snack bars with tender cinnamon apples layered between a buttery oat crumble crust. Perfect for lunchboxes or afternoon snacks."
+  "description": "Delicious homemade snack bars with tender cinnamon apples layered between a buttery oat crumble crust. Perfect for lunchboxes or afternoon snacks.",
+  "meal_types": [
+    "snack"
+  ]
 }

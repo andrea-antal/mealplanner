@@ -1,6 +1,9 @@
 """Recipe data model"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict
+
+# Valid meal types for recipes
+VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
 
 
 class Recipe(BaseModel):
@@ -26,7 +29,21 @@ class Recipe(BaseModel):
         default_factory=list,
         description="Tags like toddler-friendly, quick, daycare-safe, husband-approved, batch-cookable"
     )
+    meal_types: List[str] = Field(
+        default_factory=list,
+        description="What meals this recipe is suitable for: breakfast, lunch, dinner, snack. At least one required."
+    )
     prep_time_minutes: int = Field(..., ge=0, description="Total preparation time")
+
+    @field_validator('meal_types')
+    @classmethod
+    def validate_meal_types(cls, v: List[str]) -> List[str]:
+        """Validate meal_types contains only valid values."""
+        if v:  # Only validate if not empty (empty allowed during migration)
+            invalid = set(v) - VALID_MEAL_TYPES
+            if invalid:
+                raise ValueError(f"Invalid meal types: {invalid}. Valid types: {VALID_MEAL_TYPES}")
+        return v
     active_cooking_time_minutes: int = Field(..., ge=0, description="Active cooking time")
     serves: int = Field(..., gt=0, description="Number of servings")
     required_appliances: List[str] = Field(
@@ -63,6 +80,7 @@ class Recipe(BaseModel):
                 ],
                 "instructions": "1. Sauté chicken. 2. Add rice and broth. 3. Simmer 20 min.",
                 "tags": ["toddler-friendly", "quick", "husband-approved"],
+                "meal_types": ["lunch", "dinner"],
                 "prep_time_minutes": 10,
                 "active_cooking_time_minutes": 25,
                 "serves": 6,

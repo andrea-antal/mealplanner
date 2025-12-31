@@ -33,5 +33,8 @@
     "steamer basket or pot with lid"
   ],
   "is_generated": true,
-  "description": "A wholesome, naturally sweet side dish featuring tender baked sweet potatoes and perfectly steamed carrots, seasoned simply with butter and herbs. This nutritious combination is easy to prepare and pairs well with any protein."
+  "description": "A wholesome, naturally sweet side dish featuring tender baked sweet potatoes and perfectly steamed carrots, seasoned simply with butter and herbs. This nutritious combination is easy to prepare and pairs well with any protein.",
+  "meal_types": [
+    "dinner"
+  ]
 }

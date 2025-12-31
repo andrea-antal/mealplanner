@@ -32,5 +32,9 @@
     "mixing bowls"
   ],
   "is_generated": true,
-  "description": "A refreshing and nutritious snack featuring creamy Greek yogurt topped with sweet, juicy pear slices, honey, and a sprinkle of cinnamon and crunchy walnuts for added texture and flavor."
+  "description": "A refreshing and nutritious snack featuring creamy Greek yogurt topped with sweet, juicy pear slices, honey, and a sprinkle of cinnamon and crunchy walnuts for added texture and flavor.",
+  "meal_types": [
+    "breakfast",
+    "snack"
+  ]
 }

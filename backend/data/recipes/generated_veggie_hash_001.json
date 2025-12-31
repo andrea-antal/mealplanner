@@ -32,5 +32,8 @@
     "baking sheet"
   ],
   "is_generated": true,
-  "description": "A vibrant, nutrient-packed vegetable hash featuring roasted sweet potatoes and saut\u00e9ed zucchini, topped with fresh green onions. This versatile dish works as a healthy dinner side or can be topped with eggs for a complete meal."
+  "description": "A vibrant, nutrient-packed vegetable hash featuring roasted sweet potatoes and saut\u00e9ed zucchini, topped with fresh green onions. This versatile dish works as a healthy dinner side or can be topped with eggs for a complete meal.",
+  "meal_types": [
+    "dinner"
+  ]
 }

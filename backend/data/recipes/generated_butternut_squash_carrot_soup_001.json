@@ -38,5 +38,9 @@
     "immersion blender or countertop blender"
   ],
   "is_generated": true,
-  "description": "A velvety, naturally sweet soup featuring roasted butternut squash and carrots, finished with warm spices and a touch of cream. Perfect comfort food for a cozy dinner."
+  "description": "A velvety, naturally sweet soup featuring roasted butternut squash and carrots, finished with warm spices and a touch of cream. Perfect comfort food for a cozy dinner.",
+  "meal_types": [
+    "dinner",
+    "lunch"
+  ]
 }

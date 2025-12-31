@@ -229,6 +229,7 @@ def prepare_context_for_llm(
                 "ingredients": recipe.ingredients,
                 "instructions": recipe.instructions,
                 "tags": recipe.tags,
+                "meal_types": getattr(recipe, 'meal_types', []),  # breakfast, lunch, dinner, snack
                 "prep_time_minutes": recipe.prep_time_minutes,
                 "active_cooking_time_minutes": recipe.active_cooking_time_minutes,
                 "serves": recipe.serves,

@@ -104,6 +104,7 @@ Your expertise:
 
 You always:
 - Strictly respect all allergies and daycare rules (non-negotiable)
+- Match recipes to appropriate meal types using the "meal_types" field (e.g., breakfast recipes for breakfast slots)
 - Prioritize available groceries, especially those marked "USE SOON" (expiring within 2 days)
 - Consider dietary preferences when selecting recipes (e.g., more fish/seafood for pescetarians)
 - Consider cooking time constraints (weeknights vs weekends)
@@ -234,18 +235,19 @@ TASK:
 Create a 7-day meal plan (breakfast, lunch, dinner, snacks) that:
 
 1. **MUST respect all allergies and daycare rules** (non-negotiable)
-2. Prioritizes using available groceries
-3. Respects cooking time constraints:
+2. **Match recipes to meal types** - use each recipe's "meal_types" field to assign it to appropriate meals
+3. Prioritizes using available groceries
+4. Respects cooking time constraints:
    - Weeknight dinners: ≤ {prefs['max_active_cooking_time_weeknight']} min active cooking
    - Weekend dinners: ≤ {prefs['max_active_cooking_time_weekend']} min active cooking
-4. Specifies which family member(s) each meal is for
-5. **DAYCARE REQUIREMENTS** (Monday-Friday only):
+5. Specifies which family member(s) each meal is for
+6. **DAYCARE REQUIREMENTS** (Monday-Friday only):
    - Nathan needs a daycare lunch AND daycare snack each weekday (Mon-Fri)
    - Daycare meals must explicitly note "for daycare" and meet all daycare rules
    - Weekend meals (Sat-Sun) are family meals - no separate daycare meals
    - Holidays with no daycare should be treated as weekend/family meal days
-6. Provides variety across the week
-7. Uses ONLY recipes from the candidate list above
+7. Provides variety across the week
+8. Uses ONLY recipes from the candidate list above
 
 RESPONSE FORMAT:
 
@@ -384,11 +386,11 @@ async def generate_recipe_from_ingredients(
         response_text = response.content[0].text
         logger.debug(f"Claude recipe response: {response_text[:200]}...")
 
-        # Parse JSON response into Recipe
-        recipe = _parse_generated_recipe_response(response_text)
+        # Parse JSON response into Recipe (pass meal_type for auto-tagging)
+        recipe = _parse_generated_recipe_response(response_text, meal_type)
 
         if recipe:
-            logger.info(f"Successfully generated recipe: {recipe.title}")
+            logger.info(f"Successfully generated recipe: {recipe.title} (meal_types: {recipe.meal_types})")
             return recipe
         else:
             raise ValueError("Failed to parse recipe from Claude response")
@@ -507,12 +509,13 @@ IMPORTANT:
     return prompt
 
 
-def _parse_generated_recipe_response(response_text: str) -> Optional[Recipe]:
+def _parse_generated_recipe_response(response_text: str, meal_type: str = "dinner") -> Optional[Recipe]:
     """
     Parse Claude's JSON response into a Recipe object for generated recipes.
 
     Args:
         response_text: Raw text response from Claude
+        meal_type: Meal type to auto-tag the recipe with (breakfast, lunch, dinner, snack)
 
     Returns:
         Recipe object if parsing succeeds, None otherwise
@@ -537,6 +540,13 @@ def _parse_generated_recipe_response(response_text: str) -> Optional[Recipe]:
         # Generate a unique ID if not provided or doesn't start with "generated_"
         if not data.get("id") or not data["id"].startswith("generated_"):
             data["id"] = f"generated_{uuid.uuid4().hex[:12]}"
+
+        # Auto-set meal_types based on the meal_type parameter
+        # This ensures recipes generated for specific meal slots are properly tagged
+        if meal_type and meal_type.lower() in ["breakfast", "lunch", "dinner", "snack"]:
+            data["meal_types"] = [meal_type.lower()]
+        else:
+            data["meal_types"] = ["dinner"]  # Default to dinner if unknown
 
         # Validate and create Recipe using Pydantic
         recipe = Recipe(**data)
@@ -606,11 +616,11 @@ async def generate_recipe_from_title(
         response_text = response.content[0].text
         logger.debug(f"Claude recipe response: {response_text[:200]}...")
 
-        # Parse JSON response into Recipe
-        recipe = _parse_generated_recipe_response(response_text)
+        # Parse JSON response into Recipe (pass meal_type for auto-tagging)
+        recipe = _parse_generated_recipe_response(response_text, meal_type)
 
         if recipe:
-            logger.info(f"Successfully generated recipe: {recipe.title}")
+            logger.info(f"Successfully generated recipe: {recipe.title} (meal_types: {recipe.meal_types})")
             return recipe
         else:
             raise ValueError("Failed to parse recipe from Claude response")

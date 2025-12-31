@@ -34,5 +34,8 @@
     "wok or large skillet"
   ],
   "is_generated": true,
-  "description": "A savory Chinese-style stir-fry featuring crispy pan-fried tofu and tender broccoli in a flavorful garlic sauce with aromatic green onions"
+  "description": "A savory Chinese-style stir-fry featuring crispy pan-fried tofu and tender broccoli in a flavorful garlic sauce with aromatic green onions",
+  "meal_types": [
+    "dinner"
+  ]
 }

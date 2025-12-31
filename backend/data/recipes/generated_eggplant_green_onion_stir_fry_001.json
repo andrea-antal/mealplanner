@@ -32,5 +32,8 @@
     "wok or large skillet"
   ],
   "is_generated": true,
-  "description": "A savory and tender eggplant dish with aromatic green onions, finished with a glossy garlic-soy glaze. Perfect served over rice or noodles for a satisfying vegetarian lunch."
+  "description": "A savory and tender eggplant dish with aromatic green onions, finished with a glossy garlic-soy glaze. Perfect served over rice or noodles for a satisfying vegetarian lunch.",
+  "meal_types": [
+    "dinner"
+  ]
 }
