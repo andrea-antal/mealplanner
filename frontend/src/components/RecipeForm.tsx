@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -42,9 +42,14 @@ const emptyFormData = {
 export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = 'add', initialRecipe }: RecipeFormProps) {
   const [formData, setFormData] = useState(emptyFormData);
 
-  // Populate form when opening in edit mode
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && mode === 'edit' && initialRecipe) {
+  // URL Import state
+  const [importUrl, setImportUrl] = useState('');
+  const [isFetching, setIsFetching] = useState(false);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+
+  // Populate form when opening in edit mode (useEffect watches the open prop)
+  useEffect(() => {
+    if (open && mode === 'edit' && initialRecipe) {
       setFormData({
         title: initialRecipe.title || '',
         description: initialRecipe.description || '',
@@ -59,19 +64,13 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
         source_url: initialRecipe.source_url || '',
         source_name: initialRecipe.source_name || '',
       });
-    } else if (!isOpen) {
+    } else if (!open) {
       // Reset form when closing
       setFormData(emptyFormData);
       setImportUrl('');
       setImportWarnings([]);
     }
-    onOpenChange(isOpen);
-  };
-
-  // URL Import state
-  const [importUrl, setImportUrl] = useState('');
-  const [isFetching, setIsFetching] = useState(false);
-  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  }, [open, mode, initialRecipe]);
 
   const handleFetchRecipe = async () => {
     if (!importUrl || !importUrl.trim()) {
@@ -150,13 +149,13 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
     };
 
     onSubmit(recipe);
-    handleOpenChange(false);
+    onOpenChange(false);
   };
 
   const isEditMode = mode === 'edit';
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">
@@ -339,7 +338,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
             <Button type="submit" className="flex-1">
               {isEditMode ? 'Save Changes' : 'Add Recipe'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
           </div>
