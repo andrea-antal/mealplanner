@@ -119,11 +119,21 @@ class ReceiptParseRequest(BaseModel):
     image_base64: str = Field(..., min_length=1, description="Base64 encoded receipt image")
 
 
+class ExcludedReceiptItem(BaseModel):
+    """Item excluded from receipt parsing (non-food, tax, etc.)"""
+    name: str = Field(..., description="Item name as it appeared on receipt")
+    reason: str = Field(..., description="Why item was excluded (e.g., 'non-food item', 'tax/total')")
+
+
 class ReceiptParseResponse(BaseModel):
     """Response from receipt OCR parsing with proposed items and metadata"""
     proposed_items: list[ProposedGroceryItem] = Field(
         default_factory=list,
         description="List of proposed grocery items parsed from receipt"
+    )
+    excluded_items: list[ExcludedReceiptItem] = Field(
+        default_factory=list,
+        description="Items excluded from parsing (non-food, tax, totals, etc.)"
     )
     detected_purchase_date: Optional[Date] = Field(None, description="Purchase date from receipt header")
     detected_store: Optional[str] = Field(None, description="Store name from receipt header")

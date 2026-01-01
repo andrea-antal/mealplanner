@@ -70,8 +70,14 @@ export interface VoiceParseResponse {
   warnings: string[];
 }
 
+export interface ExcludedReceiptItem {
+  name: string;
+  reason: string;
+}
+
 export interface ReceiptParseResponse {
   proposed_items: ProposedGroceryItem[];
+  excluded_items: ExcludedReceiptItem[];
   detected_purchase_date: string | null;
   detected_store: string | null;
   warnings: string[];

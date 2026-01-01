@@ -11,8 +11,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle2, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { AlertCircle, CheckCircle2, AlertTriangle, X, Loader2, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+/**
+ * Item excluded from receipt parsing (non-food, tax, etc.)
+ */
+export interface ExcludedReceiptItem {
+  name: string;
+  reason: string;
+}
 
 /**
  * Proposed grocery item from AI parsing
@@ -46,6 +60,8 @@ export interface GroceryConfirmationDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Proposed items from AI parsing */
   proposedItems: ProposedGroceryItem[];
+  /** Items excluded from parsing (non-food, etc.) */
+  excludedItems?: ExcludedReceiptItem[];
   /** Warnings from AI parsing */
   warnings?: string[];
   /** Callback when user confirms items */
@@ -79,17 +95,27 @@ export function GroceryConfirmationDialog({
   open,
   onOpenChange,
   proposedItems,
+  excludedItems = [],
   warnings = [],
   onConfirm,
   isLoading = false,
 }: GroceryConfirmationDialogProps) {
   // Editable items state (initialized from proposed items)
   const [editableItems, setEditableItems] = useState<ProposedGroceryItem[]>([]);
+  // Selected excluded items to add back
+  const [selectedExcluded, setSelectedExcluded] = useState<Set<number>>(new Set());
+  // Excluded section open state
+  const [excludedOpen, setExcludedOpen] = useState(false);
 
   // Update editable items when proposed items change or dialog opens
   useEffect(() => {
     if (open && proposedItems.length > 0) {
       setEditableItems([...proposedItems]);
+    }
+    // Reset excluded selection when dialog opens
+    if (open) {
+      setSelectedExcluded(new Set());
+      setExcludedOpen(false);
     }
   }, [open, proposedItems]);
 
@@ -103,6 +129,27 @@ export function GroceryConfirmationDialog({
 
   const removeItem = (index: number) => {
     setEditableItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleExcludedSelection = (index: number) => {
+    setSelectedExcluded(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const addSelectedExcludedItems = () => {
+    const itemsToAdd: ProposedGroceryItem[] = Array.from(selectedExcluded).map(idx => ({
+      name: excludedItems[idx].name,
+      confidence: 'medium' as const, // User manually added, so medium confidence
+    }));
+    setEditableItems(prev => [...prev, ...itemsToAdd]);
+    setSelectedExcluded(new Set());
   };
 
   const handleConfirm = () => {
@@ -120,33 +167,28 @@ export function GroceryConfirmationDialog({
     onConfirm(confirmed);
   };
 
-  const getConfidenceBadge = (confidence: 'high' | 'medium' | 'low') => {
+  const getConfidenceIcon = (confidence: 'high' | 'medium' | 'low') => {
     const config = {
       high: {
         icon: CheckCircle2,
-        color: 'bg-green-500/10 text-green-700 border-green-500',
-        label: 'High Confidence'
+        color: 'text-green-600',
+        title: 'High confidence'
       },
       medium: {
         icon: AlertTriangle,
-        color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500',
-        label: 'Medium Confidence'
+        color: 'text-yellow-600',
+        title: 'Medium confidence'
       },
       low: {
         icon: AlertCircle,
-        color: 'bg-orange-500/10 text-orange-700 border-orange-500',
-        label: 'Low Confidence'
+        color: 'text-orange-600',
+        title: 'Low confidence'
       },
     };
 
-    const { icon: Icon, color, label } = config[confidence];
+    const { icon: Icon, color, title } = config[confidence];
 
-    return (
-      <Badge variant="outline" className={cn('gap-1 text-xs', color)}>
-        <Icon className="h-3 w-3" />
-        {label}
-      </Badge>
-    );
+    return <Icon className={cn('h-4 w-4', color)} title={title} />;
   };
 
   return (
@@ -160,12 +202,12 @@ export function GroceryConfirmationDialog({
         </DialogHeader>
 
         {/* Warnings Section */}
-        {warnings.length > 0 && (
+        {(warnings.length > 0 || excludedItems.length > 0) && (
           <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3">
             <div className="flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-yellow-700 mt-0.5 shrink-0" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-yellow-700">Warnings</p>
+                <p className="text-sm font-medium text-yellow-700">Notices</p>
                 <ul className="text-sm text-yellow-600 mt-1 space-y-1">
                   {warnings.map((warning, idx) => (
                     <li key={idx} className="flex items-start gap-1">
@@ -173,6 +215,15 @@ export function GroceryConfirmationDialog({
                       <span>{warning}</span>
                     </li>
                   ))}
+                  {excludedItems.length > 0 && (
+                    <li className="flex items-start gap-1">
+                      <span className="text-yellow-600">•</span>
+                      <span>
+                        {excludedItems.length} item{excludedItems.length !== 1 ? 's were' : ' was'} excluded (non-food, tax, etc.).
+                        If something is missing, expand "Excluded items" at the bottom to add it back.
+                      </span>
+                    </li>
+                  )}
                 </ul>
               </div>
             </div>
@@ -189,35 +240,35 @@ export function GroceryConfirmationDialog({
             editableItems.map((item, index) => (
               <div
                 key={index}
-                className="rounded-lg border border-border p-4 space-y-3 bg-card"
+                className="rounded-lg border border-border p-4 space-y-2 bg-card"
               >
-                {/* Header: Name input + Confidence + Remove */}
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 space-y-2">
+                {/* Row 1: Confidence icon + Label + X button */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {getConfidenceIcon(item.confidence)}
                     <Label htmlFor={`item-name-${index}`} className="text-xs text-muted-foreground">
                       Item Name
                     </Label>
-                    <Input
-                      id={`item-name-${index}`}
-                      value={item.name}
-                      onChange={(e) => updateItemName(index, e.target.value)}
-                      placeholder="Enter item name"
-                      className="font-medium"
-                    />
                   </div>
-                  <div className="flex items-center gap-2 pt-7">
-                    {getConfidenceBadge(item.confidence)}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeItem(index)}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      title="Remove item"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeItem(index)}
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    title="Remove item"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
+
+                {/* Row 2: Full-width input */}
+                <Input
+                  id={`item-name-${index}`}
+                  value={item.name}
+                  onChange={(e) => updateItemName(index, e.target.value)}
+                  placeholder="Enter item name"
+                  className="w-full font-medium"
+                />
 
                 {/* Metadata: Portion, Dates */}
                 {(item.portion || item.purchase_date || item.expiry_date) && (
@@ -243,17 +294,67 @@ export function GroceryConfirmationDialog({
                     )}
                   </div>
                 )}
-
-                {/* AI Notes */}
-                {item.notes && (
-                  <div className="text-xs text-muted-foreground italic bg-muted/50 rounded p-2">
-                    <span className="font-semibold not-italic">AI Note:</span> {item.notes}
-                  </div>
-                )}
               </div>
             ))
           )}
         </div>
+
+        {/* Excluded Items Section */}
+        {excludedItems.length > 0 && (
+          <Collapsible open={excludedOpen} onOpenChange={setExcludedOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-between text-muted-foreground hover:text-foreground"
+              >
+                <span className="text-sm">
+                  Excluded items ({excludedItems.length})
+                </span>
+                <ChevronDown className={cn(
+                  "h-4 w-4 transition-transform",
+                  excludedOpen && "rotate-180"
+                )} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 pt-2">
+              <p className="text-xs text-muted-foreground mb-2">
+                Select any items that were incorrectly excluded to add them to your list.
+              </p>
+              {excludedItems.map((item, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-3 p-2 rounded-md bg-muted/50"
+                >
+                  <Checkbox
+                    id={`excluded-${index}`}
+                    checked={selectedExcluded.has(index)}
+                    onCheckedChange={() => toggleExcludedSelection(index)}
+                  />
+                  <label
+                    htmlFor={`excluded-${index}`}
+                    className="flex-1 text-sm cursor-pointer"
+                  >
+                    {item.name}
+                    <span className="text-xs text-muted-foreground ml-2">
+                      ({item.reason})
+                    </span>
+                  </label>
+                </div>
+              ))}
+              {selectedExcluded.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addSelectedExcludedItems}
+                  className="w-full mt-2"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add {selectedExcluded.size} selected item{selectedExcluded.size !== 1 ? 's' : ''}
+                </Button>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         {/* Footer */}
         <DialogFooter className="gap-2 sm:gap-0">

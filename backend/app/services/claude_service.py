@@ -968,7 +968,7 @@ async def parse_receipt_to_groceries(
     image_base64: str,
     existing_groceries: list,
     model: str = None
-) -> tuple[list[dict], list[str]]:
+) -> tuple[list[dict], list[dict], list[str]]:
     """
     Parse receipt image using Claude Vision API to extract grocery items.
 
@@ -977,6 +977,7 @@ async def parse_receipt_to_groceries(
     - Purchase date from receipt header
     - Store name from receipt header
     - Confidence scores based on OCR clarity
+    - Excluded items (non-food, tax, etc.)
 
     Args:
         image_base64: Base64 encoded receipt image (PNG/JPG)
@@ -984,7 +985,7 @@ async def parse_receipt_to_groceries(
         model: Optional Claude model name override (defaults to HIGH_ACCURACY_MODEL_NAME for better OCR)
 
     Returns:
-        Tuple of (proposed_items, warnings)
+        Tuple of (proposed_items, excluded_items, warnings)
 
     Raises:
         ValueError: If image is empty or response cannot be parsed
@@ -1034,7 +1035,7 @@ async def parse_receipt_to_groceries(
         response_text = response.content[0].text
         parsed_data = _parse_receipt_response(response_text)
 
-        return (parsed_data["proposed_items"], parsed_data["warnings"])
+        return (parsed_data["proposed_items"], parsed_data["excluded_items"], parsed_data["warnings"])
 
     except Exception as e:
         if "connection" in str(e).lower() or "timeout" in str(e).lower():
@@ -1055,7 +1056,7 @@ Your task:
 3. Detect the store name from the receipt header
 4. Standardize item names (remove brand names, generic descriptions)
 5. Assign confidence: "high" (clear text), "medium" (some blur), "low" (very unclear)
-6. Ignore non-food items (bags, tax, totals, store info)
+6. Separately list non-food items (bags, cleaning supplies, etc.) as excluded items
 
 Return JSON format:
 {
@@ -1066,14 +1067,21 @@ Return JSON format:
       "notes": "optional notes about the item"
     }
   ],
+  "excluded_items": [
+    {
+      "name": "item name as on receipt",
+      "reason": "non-food item|tax/total|store info|bag fee"
+    }
+  ],
   "detected_purchase_date": "YYYY-MM-DD or null if not found",
   "detected_store": "Store Name or null if not found",
   "warnings": ["warnings about OCR quality or unreadable items"]
 }
 
 Example: "CHKN BRST" → "chicken breast", "2% MILK GAL" → "milk", "ORG BANANAS" → "bananas"
+Exclude: taxes, totals, bag fees, store info, non-food items (cleaning supplies, paper goods, etc.)
 
-Be concise. Focus on food items only."""
+Be concise. Focus on food items in proposed_items, list excluded items separately."""
 
 
 def _build_receipt_user_prompt(existing_groceries: list) -> str:
@@ -1118,6 +1126,7 @@ def _parse_receipt_response(response_text: str) -> dict:
 
         # Validate and set defaults
         proposed_items = data.get("proposed_items", [])
+        excluded_items = data.get("excluded_items", [])
         detected_purchase_date = data.get("detected_purchase_date")
         detected_store = data.get("detected_store")
         warnings = data.get("warnings", [])
@@ -1130,6 +1139,7 @@ def _parse_receipt_response(response_text: str) -> dict:
 
         return {
             "proposed_items": proposed_items,
+            "excluded_items": excluded_items,
             "detected_purchase_date": detected_purchase_date,
             "detected_store": detected_store,
             "warnings": warnings

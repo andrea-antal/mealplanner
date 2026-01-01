@@ -16,7 +16,8 @@ from app.models.grocery import (
     BatchAddRequest,
     BatchDeleteRequest,
     ReceiptParseRequest,
-    ReceiptParseResponse
+    ReceiptParseResponse,
+    ExcludedReceiptItem
 )
 from app.data.data_manager import load_groceries, save_groceries
 from app.services.claude_service import parse_voice_to_groceries, parse_receipt_to_groceries
@@ -436,7 +437,7 @@ async def parse_receipt(
         existing_dicts = [item.model_dump() for item in existing_items]
 
         # Call Claude Vision service
-        proposed_items, warnings = await parse_receipt_to_groceries(
+        proposed_items, excluded_items, warnings = await parse_receipt_to_groceries(
             request.image_base64,
             existing_dicts
         )
@@ -456,6 +457,7 @@ async def parse_receipt(
 
         return ReceiptParseResponse(
             proposed_items=[ProposedGroceryItem(**item) for item in proposed_items],
+            excluded_items=[ExcludedReceiptItem(**item) for item in excluded_items],
             detected_purchase_date=detected_purchase_date,
             detected_store=detected_store,
             warnings=warnings

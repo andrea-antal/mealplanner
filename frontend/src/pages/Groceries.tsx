@@ -28,7 +28,7 @@ import { GroceryInputHero } from '@/components/groceries/GroceryInputHero';
 import { GroceryChip } from '@/components/groceries/GroceryChip';
 import { GroceryItemModal } from '@/components/groceries/GroceryItemModal';
 import { StickyActionBar } from '@/components/groceries/StickyActionBar';
-import { groceriesAPI, type GroceryItem, type Recipe } from '@/lib/api';
+import { groceriesAPI, type GroceryItem, type Recipe, type ExcludedReceiptItem } from '@/lib/api';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import {
@@ -93,6 +93,7 @@ const Groceries = () => {
 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [proposedItems, setProposedItems] = useState<ProposedGroceryItem[]>([]);
+  const [excludedItems, setExcludedItems] = useState<ExcludedReceiptItem[]>([]);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
 
   // Receipt upload state
@@ -221,6 +222,7 @@ const Groceries = () => {
     mutationFn: (imageBase64: string) => groceriesAPI.parseReceipt(workspaceId, imageBase64),
     onSuccess: (response) => {
       setProposedItems(response.proposed_items);
+      setExcludedItems(response.excluded_items || []);
       setParseWarnings(response.warnings);
       setShowConfirmDialog(true);
     },
@@ -583,6 +585,7 @@ const Groceries = () => {
         open={showConfirmDialog}
         onOpenChange={setShowConfirmDialog}
         proposedItems={proposedItems}
+        excludedItems={excludedItems}
         warnings={parseWarnings}
         onConfirm={handleConfirmItems}
         isLoading={batchAddMutation.isPending}
