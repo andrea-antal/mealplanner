@@ -1,14 +1,16 @@
 """
 Feedback router for beta testing feedback submission.
-Sends feedback emails to the configured email address.
+Creates issues in Linear for tracking feedback.
 """
 import re
-import resend
+import httpx
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.config import settings
+
+LINEAR_API_URL = "https://api.linear.app/graphql"
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -110,88 +112,109 @@ class FeedbackRequest(BaseModel):
     timestamp: str
 
 
-def send_feedback_email(feedback_data: FeedbackRequest) -> bool:
+def create_linear_issue(feedback_data: FeedbackRequest) -> dict:
     """
-    Send feedback email using Resend API.
+    Create a Linear issue from feedback submission.
 
     Uses configuration from app settings:
-    - RESEND_API_KEY: Resend API key (get from resend.com/api-keys)
-    - FEEDBACK_EMAIL_FROM: Sender email (must be verified domain)
-    - FEEDBACK_EMAIL_TO: Recipient email (defaults to hi@andrea-antal.com)
+    - LINEAR_API_KEY: Linear API key (get from Linear Settings > API)
+    - LINEAR_TEAM_ID: Team UUID
+    - LINEAR_PROJECT_ID: Project UUID for routing feedback
     """
-    # Get email configuration from settings
-    resend_api_key = settings.RESEND_API_KEY
-    feedback_email_from = settings.FEEDBACK_EMAIL_FROM
-    feedback_email_to = settings.FEEDBACK_EMAIL_TO
+    linear_api_key = settings.LINEAR_API_KEY
+    team_id = settings.LINEAR_TEAM_ID
+    project_id = settings.LINEAR_PROJECT_ID
 
-    if not resend_api_key:
-        # If Resend API not configured, print to console for development
-        print("=" * 80)
-        print("FEEDBACK SUBMISSION (Resend API not configured)")
-        print("=" * 80)
-        print(f"From: {feedback_email_from}")
-        print(f"To: {feedback_email_to}")
-        print(f"Subject: Meal planner beta feedback")
-        print(f"\nDate of submission: {feedback_data.timestamp}")
-        print(f"Workspace ID: {feedback_data.workspace_id}")
-        print(f"\nBrowser Information:")
-        print(f"  User Agent: {feedback_data.browser_info.userAgent}")
-        print(f"  Platform: {feedback_data.browser_info.platform}")
-        print(f"  Language: {feedback_data.browser_info.language}")
-        print(f"  Screen Resolution: {feedback_data.browser_info.screenResolution}")
-        print(f"  Viewport Size: {feedback_data.browser_info.viewportSize}")
-        print(f"  Timezone: {feedback_data.browser_info.timezone}")
-        print(f"\nFeedback:")
-        print(feedback_data.feedback)
-        print("=" * 80)
-        return True
-
+    # Convert timestamp to PST (America/Vancouver)
     try:
-        # Set Resend API key
-        resend.api_key = resend_api_key
+        utc_time = datetime.fromisoformat(feedback_data.timestamp.replace('Z', '+00:00'))
+        pst_time = utc_time.astimezone(ZoneInfo("America/Vancouver"))
+        formatted_time = pst_time.strftime("%B %d, %Y at %I:%M %p PST")
+    except Exception:
+        formatted_time = feedback_data.timestamp
 
-        # Convert timestamp to PST (America/Vancouver)
-        try:
-            utc_time = datetime.fromisoformat(feedback_data.timestamp.replace('Z', '+00:00'))
-            pst_time = utc_time.astimezone(ZoneInfo("America/Vancouver"))
-            formatted_time = pst_time.strftime("%B %d, %Y at %I:%M %p PST")
-        except Exception:
-            formatted_time = feedback_data.timestamp  # Fallback to original if parsing fails
+    # Parse user agent to extract browser and OS info
+    browser_info = parse_user_agent(feedback_data.browser_info.userAgent)
 
-        # Parse user agent to extract browser and OS info
-        user_agent = feedback_data.browser_info.userAgent
-        browser_info = parse_user_agent(user_agent)
+    # Format issue description (same structure as previous email body)
+    description = f"""**Date of submission:** {formatted_time}
+**Workspace ID:** {feedback_data.workspace_id}
 
-        # Format email body
-        body = f"""Date of submission: {formatted_time}
-Workspace ID: {feedback_data.workspace_id}
+## Browser Information
+- **Browser:** {browser_info['browser']} {browser_info['version']}
+- **Operating System:** {browser_info['os']}
+- **Language:** {feedback_data.browser_info.language}
+- **Screen Resolution:** {feedback_data.browser_info.screenResolution}
+- **Viewport Size:** {feedback_data.browser_info.viewportSize}
+- **Timezone:** {feedback_data.browser_info.timezone}
 
-Browser Information:
-  Browser: {browser_info['browser']} {browser_info['version']}
-  Operating System: {browser_info['os']}
-  Language: {feedback_data.browser_info.language}
-  Screen Resolution: {feedback_data.browser_info.screenResolution}
-  Viewport Size: {feedback_data.browser_info.viewportSize}
-  Timezone: {feedback_data.browser_info.timezone}
-
-Feedback:
+## Feedback
 {feedback_data.feedback}
 """
 
-        # Send email via Resend API
-        params: resend.Emails.SendParams = {
-            "from": feedback_email_from,
-            "to": [feedback_email_to],
-            "subject": "Meal planner beta feedback",
-            "text": body,
+    if not linear_api_key:
+        # If Linear API not configured, print to console for development
+        print("=" * 80)
+        print("FEEDBACK SUBMISSION (Linear API not configured)")
+        print("=" * 80)
+        print(f"Title: Meal planner beta feedback")
+        print(description)
+        print("=" * 80)
+        return {"success": True, "issue": None}
+
+    # GraphQL mutation for creating an issue
+    mutation = """
+    mutation IssueCreate($input: IssueCreateInput!) {
+      issueCreate(input: $input) {
+        success
+        issue {
+          id
+          identifier
+          url
         }
+      }
+    }
+    """
 
-        response = resend.Emails.send(params)
-        print(f"Feedback email sent successfully. Email ID: {response.get('id', 'N/A')}")
+    # Build input with required and optional fields
+    issue_input = {
+        "teamId": team_id,
+        "title": "Meal planner beta feedback",
+        "description": description,
+    }
+    if project_id:
+        issue_input["projectId"] = project_id
 
-        return True
+    try:
+        with httpx.Client() as client:
+            response = client.post(
+                LINEAR_API_URL,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": linear_api_key,
+                },
+                json={
+                    "query": mutation,
+                    "variables": {"input": issue_input},
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            if "errors" in result:
+                raise Exception(f"Linear API error: {result['errors']}")
+
+            issue_data = result.get("data", {}).get("issueCreate", {})
+            if issue_data.get("success"):
+                issue = issue_data.get("issue", {})
+                print(f"Linear issue created: {issue.get('identifier')} - {issue.get('url')}")
+                return {"success": True, "issue": issue}
+            else:
+                raise Exception("Linear issue creation failed")
+
     except Exception as e:
-        print(f"Error sending email via Resend: {e}")
+        print(f"Error creating Linear issue: {e}")
         raise
 
 
@@ -199,11 +222,11 @@ Feedback:
 async def submit_feedback(feedback: FeedbackRequest):
     """
     Submit beta testing feedback.
-    Sends an email with the feedback, workspace ID, and browser information.
+    Creates a Linear issue with the feedback, workspace ID, and browser information.
     """
     try:
-        send_feedback_email(feedback)
-        return {"status": "success", "message": "Feedback submitted successfully"}
+        result = create_linear_issue(feedback)
+        return {"status": "success", "message": "Feedback submitted successfully", "issue": result.get("issue")}
     except Exception as e:
         print(f"Error processing feedback: {e}")
         raise HTTPException(
