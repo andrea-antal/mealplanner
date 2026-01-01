@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     LINEAR_API_KEY: str = ""
     LINEAR_TEAM_ID: str = ""
     LINEAR_PROJECT_ID: str = ""
+    LINEAR_LABEL_ID: str = ""
 
     @property
     def cors_origins_list(self) -> List[str]:
