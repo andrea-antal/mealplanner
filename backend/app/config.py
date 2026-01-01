@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     LINEAR_TEAM_ID: str = ""
     LINEAR_PROJECT_ID: str = ""
     LINEAR_LABEL_ID: str = ""
+    LINEAR_ASSIGNEE_ID: str = ""
 
     @property
     def cors_origins_list(self) -> List[str]:

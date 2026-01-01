@@ -125,6 +125,7 @@ def create_linear_issue(feedback_data: FeedbackRequest) -> dict:
     team_id = settings.LINEAR_TEAM_ID
     project_id = settings.LINEAR_PROJECT_ID
     label_id = settings.LINEAR_LABEL_ID
+    assignee_id = settings.LINEAR_ASSIGNEE_ID
 
     # Convert timestamp to PST (America/Vancouver)
     try:
@@ -187,6 +188,8 @@ def create_linear_issue(feedback_data: FeedbackRequest) -> dict:
         issue_input["projectId"] = project_id
     if label_id:
         issue_input["labelIds"] = [label_id]
+    if assignee_id:
+        issue_input["assigneeId"] = assignee_id
 
     try:
         with httpx.Client() as client:
