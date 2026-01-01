@@ -1,79 +1,54 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2025-12-29
+**Last Updated**: 2025-12-31
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
 
-## Version 0.6.1 - December 29, 2025
-
-### Bug Fixes
-
-- **Recipe Generation Fixed** - Fixed an issue where generating recipes from your grocery ingredients would fail with "no recipe found" error. You can now generate custom recipes from your groceries again!
-
----
-
-## Version 0.6.0 - December 28, 2025
+## Version 0.8.0 - December 31, 2025
 
 ### New Features
 
-- **Bulk Delete for Groceries** - Select multiple grocery items and delete them all at once! No more clicking into each item individually. Just tap the checkboxes, hit the trash button, and confirm. Perfect for clearing out your list after a shopping trip or meal prep session.
+- **Swap Meals in Your Plan** - Don't like a suggested meal? Tap the swap icon to see alternatives from your recipe library, filtered by meal type with match scores. Changed your mind? Use the undo button to restore the original
+
+- **Edit Any Recipe** - New Edit button in the recipe modal lets you modify any recipe's details, ingredients, or instructions
 
 ### Improvements
 
-- **Better Action Bar Layering** - The grocery action bar now properly appears above the feedback button, ensuring all buttons are accessible when items are selected
+- **Cleaner Recipe Actions** - Streamlined button labels in the recipe modal (Edit, Regenerate, Delete) for a cleaner look
+
+### Bug Fixes
+
+- **Undo Swap Fix** - Fixed an issue where undoing a swap would fail on AI-suggested meals that didn't have a recipe in your library yet
 
 ---
 
-## Version 0.5.1 - December 28, 2025
+## Version 0.7.1 - December 30, 2025
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
-- **Family Member Age Group** - Fixed an issue where adding a new family member with a specific age group (like "Toddler" or "Child") would save them as "Adult" instead. Now your selections are properly saved!
-
----
-
-## Version 0.5.0 - December 28, 2025
-
-### 🎉 New Features
-
-- **Recipe URL Import** - Import recipes from your favorite cooking websites! Just paste a URL from AllRecipes, Food Network, NYT Cooking, Bon Appétit, or 50+ other sites, and we'll automatically extract the recipe details, ingredients, and instructions
-
-### ✨ Improvements
-
-- Smarter recipe parsing with improved accuracy
-- Better error messages when a website isn't supported
-- Faster import processing
+- **Mobile Landscape Nav Dots** - Fixed an issue where scroll indicator dots appeared below the day picker even when all 7 days were visible (e.g., on phones in landscape mode). The dots now hide automatically when the content doesn't need scrolling.
 
 ---
 
-## Version 0.4.0 - December 27, 2025
+## Version 0.7.0 - December 30, 2025
 
-### 🎉 New Features
+### New Features
 
-- **Beta Testing Feedback System** - Report bugs or share feedback using the floating bug button in the bottom-right corner
+- **Mobile-Optimized Meal Plans** - The weekly meal plan view is now fully optimized for mobile! Meal cards now take full width for better readability, and the day picker uses a modern pill-style design with visual scroll indicators
 
-- **Voice Input for Groceries** - Click the microphone and speak your list. We understand "2 pounds of chicken" or "a dozen eggs"
+- **Multi-Day Desktop View** - On larger screens, see multiple days at once:
+  - 2 days side-by-side on medium screens (1000px+)
+  - 3 days side-by-side on large screens (1500px+)
+  - The day picker highlights all visible days so you always know what you're looking at
 
-- **Receipt Scanner** - Snap a photo of your receipt and we'll add all items automatically. No more manual typing!
+### Improvements
 
-- **AI-Powered Meal Plans** - Get personalized weekly plans based on your preferences, allergies, and pantry items
+- **Smarter Scroll Indicators** - Gradient fades appear on the edges of the day picker to hint at more content, and they respond dynamically as you scroll (left fade appears when you can scroll back, right fade disappears when you reach the end)
 
-### ✨ Improvements
-
-- **Cleaner Navigation** - Streamlined menu focusing on Home, Groceries, and Recipes
-
-- **Household Page Redesign** - Easier to use on mobile with a refreshed layout
-
-- **Better Email Notifications** - Feedback emails include browser details to help us assist you faster
-
-### 🐛 Bug Fixes
-
-- Fixed feedback submission errors
-- Improved mobile touch targets
-- Fixed meal plan week timezone display
+- **Better Day Navigation** - Removed the old arrow buttons in favor of the streamlined day picker - just tap any day to jump to it instantly
 
 ---
 
@@ -86,10 +61,8 @@
 4. **Create meal plans** - Let AI create your weekly meal plan automatically!
 
 **Need Help?**
-Click the bug button (🐛) in the bottom-right corner to send us feedback anytime.
+Click the bug button in the bottom-right corner to send us feedback anytime.
 
 ---
 
-## Future Releases
-
-We'll show you what's new whenever we release an update. You can always dismiss this message and it won't show again until the next release!
+[View older releases](/docs/RELEASE_NOTES_ARCHIVE.md)
