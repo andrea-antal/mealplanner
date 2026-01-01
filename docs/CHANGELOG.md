@@ -1,6 +1,6 @@
 ---
 **Summary**: Chronological feature history with technical implementation details, test results, and file changes. Authoritative source for "what was built when and how".
-**Last Updated**: 2025-12-30
+**Last Updated**: 2025-12-31
 **Status**: Current
 **Read This If**: You need detailed implementation notes for any feature or sprint
 ---
@@ -8,6 +8,46 @@
 # Meal Planner - Development Changelog
 
 This document tracks key decisions, changes, and learnings during development.
+
+---
+
+## 2025-12-31 Feature: Receipt Import UI Improvements
+
+**Status**: Complete | **Branch**: main
+
+### Summary
+Improved the receipt import confirmation dialog with better space utilization and a new excluded items recovery feature. Users can now recover items that were incorrectly excluded by the AI during receipt parsing.
+
+### Features Implemented
+
+1. **Redesigned Item Cards**
+   - Full-width item name input (no longer truncated)
+   - Confidence indicator reduced to icon-only with color (green/yellow/orange)
+   - Delete (X) button moved to top-right corner in its own row
+   - Removed AI Notes section (not actionable)
+
+2. **Excluded Items Tracking**
+   - Backend now tracks non-food items excluded during parsing
+   - Collapsible "Excluded items" section at bottom of dialog
+   - Users can checkbox-select incorrectly excluded items to add them back
+   - Notice shown when items are excluded with guidance
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `backend/app/models/grocery.py` | +10 lines - Added `ExcludedReceiptItem` model and field |
+| `backend/app/services/claude_service.py` | +20/-5 lines - Updated prompt and response parsing |
+| `backend/app/routers/groceries.py` | +6/-4 lines - Pass excluded items to response |
+| `frontend/src/lib/api.ts` | +6 lines - Added `ExcludedReceiptItem` type |
+| `frontend/src/components/GroceryConfirmationDialog.tsx` | +140/-50 lines - New layout and excluded section |
+| `frontend/src/pages/Groceries.tsx` | +5/-2 lines - State and props for excluded items |
+
+### Architecture Decisions
+
+1. **Icon-only confidence** - Removed text labels to save space; uses `title` attribute for accessibility
+2. **Collapsible excluded section** - Keeps UI clean by default, discovery via expand
+3. **Medium confidence for recovered items** - When users add back excluded items, they're marked as medium confidence since they were manually added despite AI exclusion
 
 ---
 

@@ -8,7 +8,7 @@
  * - PATCH: Bug fixes or minor tweaks
  */
 
-export const APP_VERSION = '0.8.0';
+export const APP_VERSION = '0.8.1';
 
 /**
  * Compare two semantic version strings

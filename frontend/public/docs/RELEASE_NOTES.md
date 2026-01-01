@@ -7,6 +7,19 @@
 
 # What's New in Meal Planner
 
+## Version 0.8.1 - December 31, 2025
+
+### Improvements
+
+- **Better Receipt Import** - Redesigned the receipt confirmation screen for easier reviewing:
+  - Item names now use full width so you can see longer names without truncation
+  - Confidence indicators are now compact colored icons instead of taking up space with text
+  - Delete button moved to the top corner for cleaner layout
+
+- **Recover Excluded Items** - When scanning a receipt, non-food items (bags, tax, cleaning supplies) are now tracked separately. If the AI incorrectly excluded something, expand the "Excluded items" section at the bottom to add it back to your list
+
+---
+
 ## Version 0.8.0 - December 31, 2025
 
 ### New Features
