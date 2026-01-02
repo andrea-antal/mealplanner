@@ -33,11 +33,42 @@ export interface Preferences {
   weekend_priority: string;
 }
 
+export interface OnboardingStatus {
+  completed: boolean;
+  skipped_count: number;
+  permanently_dismissed: boolean;
+  completed_at: string | null;
+}
+
+export interface OnboardingData {
+  cooking_frequency: string | null;
+  kitchen_equipment_level: string | null;
+  pantry_stock_level: string | null;
+  primary_goal: string | null;
+  cuisine_preferences: string[];
+  dietary_goals: string | null;
+  dietary_patterns: string[];
+}
+
+export interface OnboardingSubmission {
+  skill_level: 'beginner' | 'intermediate' | 'advanced';
+  cooking_frequency: 'daily' | 'few_times_week' | 'few_times_month' | 'rarely';
+  kitchen_equipment_level: 'minimal' | 'basic' | 'standard' | 'well_equipped';
+  pantry_stock_level: 'minimal' | 'moderate' | 'well_stocked';
+  primary_goal: 'grocery_management' | 'recipe_library' | 'household_preferences' | 'meal_planning';
+  cuisine_preferences: string[];
+  dietary_goals: 'meal_prep' | 'cook_fresh' | 'mixed';
+  dietary_patterns: string[];
+  household_members: FamilyMember[];
+}
+
 export interface HouseholdProfile {
   family_members: FamilyMember[];
   daycare_rules: DaycareRules;
   cooking_preferences: CookingPreferences;
   preferences: Preferences;
+  onboarding_status?: OnboardingStatus;
+  onboarding_data?: OnboardingData;
 }
 
 export interface GroceryItem {
@@ -480,5 +511,29 @@ export const healthAPI = {
   async check(): Promise<{ status: string }> {
     const response = await fetch(`${API_BASE_URL}/health`);
     return handleResponse<{ status: string }>(response);
+  },
+};
+
+// Onboarding API
+export const onboardingAPI = {
+  async getStatus(workspaceId: string): Promise<OnboardingStatus> {
+    const response = await fetch(`${API_BASE_URL}/household/onboarding-status?workspace_id=${encodeURIComponent(workspaceId)}`);
+    return handleResponse<OnboardingStatus>(response);
+  },
+
+  async submit(workspaceId: string, data: OnboardingSubmission): Promise<HouseholdProfile> {
+    const response = await fetch(`${API_BASE_URL}/household/onboarding?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<HouseholdProfile>(response);
+  },
+
+  async skip(workspaceId: string, permanent: boolean = false): Promise<OnboardingStatus> {
+    const response = await fetch(`${API_BASE_URL}/household/onboarding/skip?workspace_id=${encodeURIComponent(workspaceId)}&permanent=${permanent}`, {
+      method: 'POST',
+    });
+    return handleResponse<OnboardingStatus>(response);
   },
 };

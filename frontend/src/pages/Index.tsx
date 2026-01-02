@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { householdAPI } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { householdAPI, onboardingAPI } from '@/lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, UtensilsCrossed, Users, Carrot, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector';
 import { ReleaseNotesModal } from '@/components/ReleaseNotesModal';
+import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 
 const Index = () => {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [showWorkspaceSelector, setShowWorkspaceSelector] = useState(false);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const queryClient = useQueryClient();
 
   // Check for workspace on mount
   useEffect(() => {
@@ -37,6 +40,38 @@ const Index = () => {
     retry: false, // Don't retry on 404 - just means no profile yet
   });
 
+  // Fetch onboarding status (only when workspace is set)
+  const { data: onboardingStatus } = useQuery({
+    queryKey: ['onboardingStatus', workspaceId],
+    queryFn: () => onboardingAPI.getStatus(workspaceId!),
+    enabled: !!workspaceId,
+  });
+
+  // Determine if we should show onboarding
+  const shouldShowOnboarding = useMemo(() => {
+    if (!onboardingStatus) return false;
+    if (onboardingStatus.completed) return false;
+    if (onboardingStatus.permanently_dismissed) return false;
+    return true;
+  }, [onboardingStatus]);
+
+  // Show onboarding when appropriate (after workspace is selected, not already showing)
+  useEffect(() => {
+    if (shouldShowOnboarding && !showWorkspaceSelector) {
+      setShowOnboarding(true);
+    }
+  }, [shouldShowOnboarding, showWorkspaceSelector]);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    // Refresh household profile to show updated data
+    queryClient.invalidateQueries({ queryKey: ['householdProfile', workspaceId] });
+  };
+
+  const handleOnboardingSkip = () => {
+    setShowOnboarding(false);
+  };
+
   return (
     <>
       {/* Workspace Selector Modal (for first-time users) */}
@@ -44,6 +79,18 @@ const Index = () => {
         open={showWorkspaceSelector}
         onWorkspaceSelected={handleWorkspaceSelected}
       />
+
+      {/* Onboarding Wizard Modal (for new users after workspace selection) */}
+      {workspaceId && (
+        <OnboardingWizard
+          open={showOnboarding}
+          onOpenChange={setShowOnboarding}
+          workspaceId={workspaceId}
+          skippedCount={onboardingStatus?.skipped_count ?? 0}
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
 
       <div className="space-y-12">
         {/* Get Started */}

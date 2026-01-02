@@ -1,6 +1,6 @@
 """Household profile data models"""
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 
 
 class FamilyMember(BaseModel):
@@ -51,6 +51,46 @@ class Preferences(BaseModel):
     weekend_priority: str = Field(default="batch-cookable", description="Priority for weekends")
 
 
+class OnboardingStatus(BaseModel):
+    """Tracks onboarding wizard completion status"""
+    completed: bool = Field(default=False, description="Whether onboarding was completed")
+    skipped_count: int = Field(default=0, description="Number of times onboarding was skipped")
+    permanently_dismissed: bool = Field(default=False, description="User chose to never show onboarding again")
+    completed_at: Optional[str] = Field(default=None, description="ISO timestamp of completion")
+
+
+class OnboardingData(BaseModel):
+    """User responses from onboarding wizard"""
+    cooking_frequency: Optional[str] = Field(
+        default=None,
+        description="How often user cooks: daily, few_times_week, few_times_month, rarely"
+    )
+    kitchen_equipment_level: Optional[str] = Field(
+        default=None,
+        description="Kitchen setup level: minimal, basic, standard, well_equipped"
+    )
+    pantry_stock_level: Optional[str] = Field(
+        default=None,
+        description="Pantry stocking: minimal, moderate, well_stocked"
+    )
+    primary_goal: Optional[str] = Field(
+        default=None,
+        description="Primary goal: grocery_management, recipe_library, household_preferences, meal_planning"
+    )
+    cuisine_preferences: List[str] = Field(
+        default_factory=list,
+        description="Preferred cuisines: italian, mexican, chinese, korean, japanese, greek, healthy, or custom"
+    )
+    dietary_goals: Optional[str] = Field(
+        default=None,
+        description="Meal approach: meal_prep, cook_fresh, mixed"
+    )
+    dietary_patterns: List[str] = Field(
+        default_factory=list,
+        description="Dietary patterns: keto, high_protein, low_carb, vegetarian, etc."
+    )
+
+
 class HouseholdProfile(BaseModel):
     """
     Complete household profile including family members and preferences.
@@ -65,6 +105,14 @@ class HouseholdProfile(BaseModel):
         description="Cooking preferences and equipment"
     )
     preferences: Preferences = Field(default_factory=Preferences, description="General preferences")
+    onboarding_status: OnboardingStatus = Field(
+        default_factory=OnboardingStatus,
+        description="Onboarding wizard completion status"
+    )
+    onboarding_data: OnboardingData = Field(
+        default_factory=OnboardingData,
+        description="User responses from onboarding wizard"
+    )
 
     class Config:
         json_schema_extra = {
@@ -100,6 +148,21 @@ class HouseholdProfile(BaseModel):
                 "preferences": {
                     "weeknight_priority": "quick",
                     "weekend_priority": "batch-cookable"
+                },
+                "onboarding_status": {
+                    "completed": True,
+                    "skipped_count": 0,
+                    "permanently_dismissed": False,
+                    "completed_at": "2024-01-15T10:30:00Z"
+                },
+                "onboarding_data": {
+                    "cooking_frequency": "few_times_week",
+                    "kitchen_equipment_level": "standard",
+                    "pantry_stock_level": "moderate",
+                    "primary_goal": "meal_planning",
+                    "cuisine_preferences": ["italian", "mexican"],
+                    "dietary_goals": "mixed",
+                    "dietary_patterns": []
                 }
             }
         }
