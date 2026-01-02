@@ -1,104 +1,118 @@
-# Session Handoff - Meal Plan Customization Complete
+# Session Handoff - Onboarding Wizard (WIP)
 
-**Date:** 2025-12-30
-**Session Focus:** Phase 4 Frontend + Bug Fixes
-**Branch:** `feature/meal-plan-customization`
-**Status:** Ready for manual testing and merge
+**Date:** 2026-01-01/02
+**Session Focus:** New User Onboarding Wizard
+**Branch:** `main`
+**Status:** In Progress (~70% complete)
 
 ---
 
 ## Session Summary
 
-Completed the frontend UI for meal plan customization (Phase 4) and fixed three bugs discovered during testing:
-1. Type mismatch between frontend and backend for `AlternativeRecipeSuggestion`
-2. Empty results when no recipes have meal-type tags
-3. Empty results when the only matching recipe is excluded
+Built a multi-step onboarding wizard for new users. The wizard collects cooking preferences, kitchen equipment, dietary goals, and household composition to personalize the app experience.
 
-The swap/undo feature is now fully functional with robust fallback behavior.
+**What's Working:**
+- Backend models and 3 API endpoints
+- Frontend wizard UI with 10 steps
+- Dashboard integration (wizard shows for new users)
 
----
-
-## Completed Tasks (9/9 - 100%)
-
-### Phase 4 Frontend
-1. **API types and methods** - Added types and 7 new API methods to `api.ts`
-2. **Backend persistence** - Switched from localStorage to backend API
-3. **Swap button UI** - RefreshCw icon on all meal cards
-4. **SwapRecipeModal** - Modal showing alternatives with warnings
-5. **Undo functionality** - Amber undo button for swapped meals
-
-### Bug Fixes
-6. **Type mismatch fix** - Changed `recipe_id` → `recipe.id` (nested object)
-7. **First fallback** - Return all recipes if none have meal-type tag
-8. **Second fallback** - Return all recipes if exclusion removes all matches
+**What's Remaining:**
+- Backend tests for new endpoints
+- End-to-end testing of wizard flow
+- Error handling and edge cases
 
 ---
 
-## Key Bug Fixes This Session
+## Completed Tasks
 
-### Bug 1: Blank Screen on Swap (Frontend)
-**Symptom:** Screen went blank when clicking swap on breakfast
-**Cause:** Frontend type `AlternativeRecipeSuggestion` expected flat `recipe_id`, but API returns nested `recipe.id`
-**Fix:** Updated type to `{ recipe: Recipe, match_score, warnings }`
+### Backend (Complete)
+1. **OnboardingStatus model** - tracks completion, skip count, permanent dismissal
+2. **OnboardingData model** - stores all user responses
+3. **GET /household/onboarding-status** - check if user needs onboarding
+4. **POST /household/onboarding** - submit completed wizard
+5. **POST /household/onboarding/skip** - skip temporarily or permanently
+6. **Equipment mapping** - skill level maps to available appliances
 
-### Bug 2: No Dinner/Lunch Options (Backend)
-**Symptom:** Swap modal showed "no options" for dinner/lunch
-**Cause:** Only 1-2 recipes had meal-type tags; exclusion removed them
-**Fix:** Added two-level fallback:
-1. If no meal-type matches → return all recipes
-2. If exclusion empties results → return all (minus exclusions)
+### Frontend (Complete)
+1. **OnboardingWizard.tsx** - main wizard component with progress indicator
+2. **10 step components:**
+   - WelcomeStep - intro and value proposition
+   - SkillLevelStep - beginner/intermediate/advanced
+   - CookingFrequencyStep - daily to rarely
+   - KitchenEquipmentStep - minimal to well-equipped
+   - PantryStockStep - minimal/moderate/well-stocked
+   - PrimaryGoalStep - what user wants to do first
+   - CuisinePreferencesStep - multi-select cuisines
+   - DietaryGoalsStep - meal prep vs cook fresh
+   - HouseholdMembersStep - add family members with allergies
+
+3. **Dashboard Integration:**
+   - Wizard shows automatically for new users
+   - Skip button with "don't show again" after 2 skips
+   - Invalidates household query on completion
 
 ---
 
-## Commits This Session (6 commits)
+## In Progress Tasks
+
+- [ ] Write backend tests for 3 new endpoints
+- [ ] Test wizard flow end-to-end
+- [ ] Handle network errors gracefully
+- [ ] Validate data before submission
+- [ ] Test skip flow (temporary + permanent)
+
+---
+
+## Commits This Session
 
 ```
-6e2c8cd fix(filter): add second fallback after exclusion removes all matches
-2b43073 fix(frontend): correct AlternativeRecipeSuggestion type to match API
-093fc73 fix(filter): fall back to all recipes when none match meal type
-01d8397 docs: update handoff and changelog for Phase 4 frontend
-e5dce1d feat(frontend): add meal plan swap UI with backend persistence
+50c7231 feat: add onboarding wizard UI and backend endpoints (WIP)
 ```
 
 ---
 
 ## Files Modified/Created
 
-### Frontend (3 files)
+### Backend (2 files, +208 lines)
 | File | Changes |
 |------|---------|
-| `src/lib/api.ts` | +85 lines - Types and API methods |
-| `src/pages/MealPlans.tsx` | +180 lines - Swap/undo UI, backend persistence |
-| `src/components/SwapRecipeModal.tsx` | +178 lines (new) |
+| `app/models/household.py` | +65 lines - OnboardingStatus, OnboardingData models |
+| `app/routers/household.py` | +143 lines - 3 new endpoints |
 
-### Backend (2 files)
+### Frontend (12 files, +1200 lines)
 | File | Changes |
 |------|---------|
-| `app/services/recipe_filter_service.py` | +12 lines - Two-level fallback |
-| `tests/test_recipe_filter_service.py` | +4 lines - Updated test |
+| `src/lib/api.ts` | +55 lines - Types and onboardingAPI |
+| `src/pages/Index.tsx` | +53 lines - Wizard integration |
+| `src/components/onboarding/OnboardingWizard.tsx` | +380 lines (new) |
+| `src/components/onboarding/steps/WelcomeStep.tsx` | ~80 lines (new) |
+| `src/components/onboarding/steps/SkillLevelStep.tsx` | ~80 lines (new) |
+| `src/components/onboarding/steps/CookingFrequencyStep.tsx` | ~80 lines (new) |
+| `src/components/onboarding/steps/KitchenEquipmentStep.tsx` | ~80 lines (new) |
+| `src/components/onboarding/steps/PantryStockStep.tsx` | ~80 lines (new) |
+| `src/components/onboarding/steps/PrimaryGoalStep.tsx` | ~80 lines (new) |
+| `src/components/onboarding/steps/CuisinePreferencesStep.tsx` | ~120 lines (new) |
+| `src/components/onboarding/steps/DietaryGoalsStep.tsx` | ~120 lines (new) |
+| `src/components/onboarding/steps/HouseholdMembersStep.tsx` | ~180 lines (new) |
 
 ---
 
-## Feature Branch Status
+## Next Steps (Priority Order)
 
-```
-feature/meal-plan-customization
-
-Total commits ahead of main: 13
-- 7 backend commits (Phases 1-3)
-- 6 frontend + bugfix commits (Phase 4)
-
-All tests passing: 45 backend tests
-```
+1. **Write backend tests** - Test the 3 new endpoints in `/household/`
+2. **Manual testing** - Run through the wizard flow locally
+3. **Error handling** - Add try/catch and loading states
+4. **Deploy to staging** - Verify wizard works in production environment
+5. **Create Linear issue** - Track remaining work for onboarding
 
 ---
 
-## Next Steps
+## Key Decisions Made
 
-1. **Manual Testing** - Verify swap/undo flow works for all meal types
-2. **Merge to Main** - `git checkout main && git merge feature/meal-plan-customization`
-3. **Create Release Notes** - v0.8.0 for meal plan customization
-4. **Deploy** - Push to production
+1. **10 steps (not 5)** - Broke down into atomic choices for better UX
+2. **Equipment mapping** - Skill levels map to appliance arrays on backend
+3. **Skip with threshold** - "Don't show again" only appears after 2 skips
+4. **Backend persistence** - Wizard data stored in household profile, not localStorage
 
 ---
 
@@ -116,61 +130,28 @@ cd /Users/andreachan/Desktop/mealplanner/frontend
 npm run dev
 ```
 
-### Test the Feature
-1. Open http://localhost:5173 → Meal Plans
-2. Click swap icon (↺) on any meal
-3. Verify alternatives modal shows recipes
-4. Select a recipe → meal swaps
-5. Verify undo icon (↩) appears
-6. Click undo → original restored
+### Test the Wizard
+1. Open http://localhost:5173
+2. Clear localStorage (or use new workspace ID)
+3. Wizard should appear automatically
+4. Complete all steps or test skip functionality
 
 ### Run Tests
 ```bash
 cd backend && source venv/bin/activate
-pytest tests/test_api_meal_plans.py tests/test_recipe_filter_service.py -v
-# Expected: 45 passed
+pytest tests/ -v  # Run all tests
+pytest tests/test_household.py -v  # When tests are written
 ```
-
-### Merge and Deploy
-```bash
-git checkout main
-git merge feature/meal-plan-customization
-git push origin main
-```
-
----
-
-## Architecture Notes
-
-### Fallback Chain for Alternatives
-```
-get_alternative_recipes(meal_type="dinner", exclude_ids=[...])
-│
-├─ 1. Load all recipes (6 total)
-├─ 2. Filter by meal_type tag
-│     └─ Found 1 with "dinner" tag
-│     └─ If 0 found → FALLBACK: use all 6
-├─ 3. Exclude recipes in meal plan
-│     └─ That 1 was excluded → 0 left
-│     └─ If 0 left → FALLBACK: use all 6 (minus exclusions)
-├─ 4. Check allergen constraints
-└─ 5. Return sorted by match score
-```
-
-### Key Files
-- `backend/app/services/recipe_filter_service.py` - Filtering + fallback logic
-- `frontend/src/components/SwapRecipeModal.tsx` - Alternatives UI
-- `frontend/src/pages/MealPlans.tsx` - Swap/undo mutations
 
 ---
 
 ## Blockers / Questions
 
-None - feature complete and ready for testing.
+None currently - feature just needs testing and polish.
 
 ---
 
-**Session Status:** Complete
+**Session Status:** Handoff Complete
 
 Generated with [Claude Code](https://claude.com/claude-code)
 

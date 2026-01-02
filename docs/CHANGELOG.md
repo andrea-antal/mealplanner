@@ -1,6 +1,6 @@
 ---
 **Summary**: Chronological feature history with technical implementation details, test results, and file changes. Authoritative source for "what was built when and how".
-**Last Updated**: 2025-12-31
+**Last Updated**: 2026-01-02
 **Status**: Current
 **Read This If**: You need detailed implementation notes for any feature or sprint
 ---
@@ -8,6 +8,58 @@
 # Meal Planner - Development Changelog
 
 This document tracks key decisions, changes, and learnings during development.
+
+---
+
+## 2026-01-01 Feature: Onboarding Wizard (WIP)
+
+**Status**: In Progress (~70%) | **Branch**: main
+
+### Summary
+Multi-step onboarding wizard for new users that collects cooking preferences, household composition, and dietary goals. Helps personalize the app experience from first use.
+
+### Features Implemented
+
+1. **Backend Models & Endpoints**
+   - `OnboardingStatus` model - tracks completion, skip count, permanent dismissal
+   - `OnboardingData` model - stores user responses
+   - `GET /household/onboarding-status` - check if user needs onboarding
+   - `POST /household/onboarding` - submit completed wizard data
+   - `POST /household/onboarding/skip` - skip (temporarily or permanently)
+
+2. **Frontend Wizard UI (10 steps)**
+   - Welcome - introduction and value proposition
+   - SkillLevel - beginner/intermediate/advanced
+   - CookingFrequency - daily to rarely
+   - KitchenEquipment - minimal to well-equipped (maps to appliances)
+   - PantryStock - minimal/moderate/well-stocked
+   - PrimaryGoal - grocery management, recipes, household, meal planning
+   - CuisinePreferences - multi-select with custom option
+   - DietaryGoals - meal prep vs cook fresh vs mixed
+   - HouseholdMembers - add family members with allergies/dislikes
+
+3. **Dashboard Integration**
+   - Wizard shows automatically for new users
+   - Skip button with "don't show again" option after 2 skips
+   - Invalidates household profile query on completion
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `backend/app/models/household.py` | +65 lines - OnboardingStatus, OnboardingData models |
+| `backend/app/routers/household.py` | +143 lines - 3 new endpoints |
+| `frontend/src/lib/api.ts` | +55 lines - Types and onboardingAPI |
+| `frontend/src/pages/Index.tsx` | +53 lines - Wizard integration |
+| `frontend/src/components/onboarding/OnboardingWizard.tsx` | +380 lines (new) |
+| `frontend/src/components/onboarding/steps/*.tsx` | 10 step components |
+
+### Remaining Work
+
+- [ ] Write backend tests for new endpoints
+- [ ] Test wizard flow end-to-end
+- [ ] Handle edge cases (network errors, partial submissions)
+- [ ] Validate data before submission
 
 ---
 

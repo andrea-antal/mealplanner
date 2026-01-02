@@ -1,15 +1,15 @@
 ---
 **Summary**: Quick snapshot of what's working right now (Deployed to production). Updated after each sprint. Use this to quickly understand current capabilities.
-**Last Updated**: 2025-12-28
+**Last Updated**: 2026-01-02
 **Status**: Current
 **Read This If**: You need a quick feature inventory or tech stack summary
 ---
 
 # Current State - Meal Planner
 
-**As of**: Production Deployment (2025-12-28)
+**As of**: Production Deployment (2026-01-02)
 **Branch**: `main`
-**Version**: v0.5.1 (production)
+**Version**: v0.8.1 (production)
 **Status**: 🚀 **LIVE IN PRODUCTION**
 
 ## 🌐 Production URLs
@@ -53,18 +53,19 @@
    - Automatic browser info and workspace ID collection
    - Email delivery via Resend API
 
-### Latest Features (December 28, 2025)
-- **Recipe URL Import (v0.5.0)**: Import recipes from 50+ cooking websites with automatic parsing
-- **Recipe Source Display**: Visual badges on recipe cards with clickable source links
-- **Release Notes System**: Automatic "What's New" modal on version updates (workspace-scoped)
-- **Version Management**: Semantic versioning with automatic detection and tracking
+### In Development
+- **Onboarding Wizard** (~70% complete): Multi-step wizard for new users collecting cooking preferences, household composition, and dietary goals
 
-### Recent Features (December 27, 2025)
-- **Beta Testing Feedback System**: Floating bug button with email delivery via Resend API
-- **Email Infrastructure**: Replaced SMTP with Resend API for reliable feedback delivery
-- **Browser Detection**: Automatic user agent parsing for better debugging
-- **PST Timezone Formatting**: Human-readable timestamps in feedback emails
-- **Navigation Updates**: Streamlined UI focusing on core features
+### Latest Features (January 2026)
+- **Onboarding Wizard Backend**: API endpoints for status, submit, and skip
+- **Linear Integration**: Feedback now creates Linear issues automatically
+- **Receipt Import UI**: Improved item cards with excluded items recovery
+
+### Recent Features (December 30, 2025)
+- **Meal Plan Customization (v0.8.0)**: Swap meals with alternatives, undo functionality
+- **Recipe Editing**: Edit existing recipes in library
+- **Recipe URL Import (v0.5.0)**: Import recipes from 50+ cooking websites
+- **Release Notes System**: Automatic "What's New" modal on version updates
 
 ---
 
