@@ -15,7 +15,7 @@ from typing import Dict, Optional
 from anthropic import Anthropic
 from app.config import settings
 from app.models.meal_plan import MealPlan
-from app.models.recipe import Recipe
+from app.models.recipe import Recipe, VALID_MEAL_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -1419,3 +1419,193 @@ def _parse_recipe_response(response_text: str) -> Optional[dict]:
         logger.error(f"Failed to parse recipe response: {e}")
         logger.debug(f"Response text: {response_text}")
         raise
+
+
+# Recipe Text Parsing (Free-Form Text Feature)
+
+
+async def parse_recipe_from_text(
+    recipe_text: str,
+    model: str = None
+) -> tuple[Recipe, str, list[str], list[str]]:
+    """
+    Parse recipe from free-form text using Claude AI.
+
+    Args:
+        recipe_text: Raw recipe text (ingredients, instructions, etc.)
+        model: Optional Claude model name override (defaults to HIGH_ACCURACY_MODEL_NAME)
+
+    Returns:
+        Tuple of (recipe, confidence, missing_fields, warnings)
+        - recipe: Recipe object with extracted fields
+        - confidence: "high", "medium", or "low"
+        - missing_fields: List of optional fields that couldn't be extracted
+        - warnings: List of user-facing warnings
+
+    Raises:
+        ValueError: If text is too short, no recipe found, or parsing fails
+        ConnectionError: If Claude API is unavailable
+
+    Examples:
+        >>> recipe, conf, missing, warns = await parse_recipe_from_text(
+        ...     "Chocolate Chip Cookies\\n\\nIngredients:\\n- 2 cups flour..."
+        ... )
+        >>> recipe.title
+        'Chocolate Chip Cookies'
+    """
+    if not recipe_text or not recipe_text.strip():
+        raise ValueError("Recipe text cannot be empty")
+
+    text_length = len(recipe_text.strip())
+    if text_length < 50:
+        raise ValueError(f"Recipe text too short ({text_length} chars). Minimum 50 characters required.")
+
+    logger.info(f"Parsing recipe from text: {recipe_text[:100]}...")
+
+    # Use Opus 4.5 for better text understanding
+    if model is None:
+        model = settings.HIGH_ACCURACY_MODEL_NAME
+
+    # Build prompt for text parsing
+    prompt = _build_recipe_text_parse_prompt(recipe_text)
+
+    try:
+        # Call Claude API
+        response = client.messages.create(
+            model=model,
+            max_tokens=2048,
+            temperature=0.3,  # Lower temp for consistent parsing
+            system=_get_recipe_text_parse_system_prompt(),
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
+
+        # Extract response text - handle empty responses
+        if not response.content:
+            raise ValueError("No recipe found in text - Claude returned empty response")
+        response_text = response.content[0].text
+        logger.debug(f"Claude text parse response: {response_text[:200]}...")
+
+        # Parse JSON response (reuse existing parser)
+        parsed_data = _parse_recipe_response(response_text)
+
+        if parsed_data:
+            recipe_data = parsed_data.get("recipe")
+            confidence = parsed_data.get("confidence", "low")
+            missing_fields = parsed_data.get("missing_fields", [])
+            warnings = parsed_data.get("warnings", [])
+
+            # Generate recipe ID from title
+            recipe_id = recipe_data.get("title", "").lower().replace(" ", "-").replace("'", "")
+            recipe_id = ''.join(c for c in recipe_id if c.isalnum() or c == '-')
+            recipe_data["id"] = recipe_id
+
+            # Filter meal_types to only valid values (Claude might infer invalid ones like "dessert")
+            if recipe_data.get("meal_types"):
+                original_meal_types = recipe_data["meal_types"]
+                recipe_data["meal_types"] = [mt for mt in original_meal_types if mt in VALID_MEAL_TYPES]
+                invalid_types = set(original_meal_types) - VALID_MEAL_TYPES
+                if invalid_types:
+                    logger.warning(f"Filtered invalid meal_types from Claude response: {invalid_types}")
+
+            # Create Recipe object
+            try:
+                recipe = Recipe(**recipe_data)
+                logger.info(f"Successfully parsed recipe from text: '{recipe.title}' with {confidence} confidence")
+                return recipe, confidence, missing_fields, warnings
+            except Exception as e:
+                logger.error(f"Failed to create Recipe object: {e}")
+                raise ValueError(f"Invalid recipe data from Claude: {e}")
+        else:
+            raise ValueError("Failed to parse recipe from Claude response")
+
+    except Exception as e:
+        logger.error(f"Error calling Claude API for text parsing: {e}", exc_info=True)
+        if "connection" in str(e).lower() or "api" in str(e).lower():
+            raise ConnectionError(f"Claude API unavailable: {e}")
+        raise ValueError(f"Failed to parse recipe from text: {e}")
+
+
+def _get_recipe_text_parse_system_prompt() -> str:
+    """
+    Get the system prompt for free-form text recipe parsing.
+
+    Returns:
+        System prompt string
+    """
+    return """You are a recipe extraction specialist. Parse free-form recipe text into structured data.
+
+Your expertise:
+- Extracting recipe information from various text formats
+- Handling blog posts, handwritten notes, OCR text, copy-pasted content
+- Cleaning up formatting issues (extra spaces, inconsistent capitalization)
+- Inferring missing information from context when reasonable
+
+You always:
+- Extract all available recipe fields accurately
+- Clean up formatting (extra spaces, weird line breaks, inconsistent caps)
+- Infer tags from recipe type, cuisine, and characteristics
+- Infer required appliances from cooking instructions
+- Report confidence: high (clear structure, complete data), medium (some inference needed), low (significant guessing or missing data)
+
+IMPORTANT:
+- If the text doesn't contain a recipe (just a food blog intro, shopping list, etc.), return an error
+- If key information is missing, report it in missing_fields but still return what you can
+- meal_types should be inferred from the recipe (breakfast, lunch, dinner, snack, side_dish)"""
+
+
+def _build_recipe_text_parse_prompt(recipe_text: str) -> str:
+    """
+    Build the user prompt for recipe parsing from free-form text.
+
+    Args:
+        recipe_text: Raw recipe text
+
+    Returns:
+        Formatted prompt string
+    """
+    return f"""Extract recipe information from this text.
+
+RECIPE TEXT:
+{recipe_text}
+
+TASK:
+Parse the text and extract recipe fields. Return JSON with this exact schema:
+
+{{
+  "recipe": {{
+    "title": "string (required)",
+    "description": "string (optional)",
+    "ingredients": ["list of strings (required)"],
+    "instructions": "string (required, can be numbered or paragraphs)",
+    "tags": ["list of strings (optional, infer from content like 'dessert', 'italian', 'quick')"],
+    "meal_types": ["list of meal types: breakfast, lunch, dinner, snack, side_dish"],
+    "prep_time_minutes": number (optional, total prep time),
+    "active_cooking_time_minutes": number (optional, active cooking time),
+    "serves": number (optional, number of servings),
+    "required_appliances": ["list of strings (optional, infer from instructions like 'oven', 'blender')"]
+  }},
+  "confidence": "high" | "medium" | "low",
+  "missing_fields": ["list of field names that couldn't be extracted"],
+  "warnings": ["list of warnings like 'Times are estimates', 'Servings not specified'"]
+}}
+
+INSTRUCTIONS:
+1. **Required fields**: title, ingredients (list), instructions
+2. **Optional fields**: description, prep_time_minutes, active_cooking_time_minutes, serves, tags, meal_types, required_appliances
+3. **Error case**: If no recipe found (just a blog intro, shopping list, etc.), return {{"error": "No recipe found in text"}}
+4. **Confidence scoring**:
+   - "high": Clear recipe structure, all required fields present, most optional fields extractable
+   - "medium": Recipe identifiable but some fields require inference
+   - "low": Significant guessing required, missing key information
+5. **Infer when possible**: Estimate prep/cook times if not explicit, infer servings from ingredient quantities
+6. **Clean formatting**: Remove extra whitespace, normalize capitalization, fix common OCR errors
+7. **Tags**: Infer from recipe type (dessert, main dish), cuisine (Italian, Mexican), characteristics (quick, healthy, kid-friendly)
+8. **Appliances**: Infer from instructions (oven, stove, blender, microwave, instant pot, food processor)
+9. **Meal types**: Infer what meals this recipe is suitable for (breakfast, lunch, dinner, snack, side_dish)
+
+Return ONLY valid JSON, no other text."""

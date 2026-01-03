@@ -152,6 +152,28 @@ class ImportFromUrlRequest(BaseModel):
         }
 
 
+class ParseFromTextRequest(BaseModel):
+    """
+    Request model for parsing recipe from free-form text.
+
+    Attributes:
+        text: Free-form recipe text (ingredients, instructions, etc.)
+    """
+    text: str = Field(
+        ...,
+        min_length=50,
+        max_length=10000,
+        description="Recipe text to parse (50-10000 characters)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "text": "Chocolate Chip Cookies\n\nIngredients:\n- 2 cups flour\n- 1 cup butter\n\nInstructions:\n1. Mix ingredients\n2. Bake at 350F for 12 minutes"
+            }
+        }
+
+
 class ImportedRecipeResponse(BaseModel):
     """
     Response model for recipe import from URL.

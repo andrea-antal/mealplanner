@@ -7,14 +7,14 @@ import logging
 from typing import List, Dict, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from app.models.recipe import Recipe, DynamicRecipeRequest, ImportFromUrlRequest, ImportedRecipeResponse
+from app.models.recipe import Recipe, DynamicRecipeRequest, ImportFromUrlRequest, ParseFromTextRequest, ImportedRecipeResponse
 from app.models.recipe_rating import RecipeRating, RatingUpdate
 from app.data.data_manager import (
     load_recipe, save_recipe, list_all_recipes, delete_recipe,
     get_recipe_rating, save_recipe_rating, delete_recipe_rating,
     load_recipe_ratings, load_household_profile
 )
-from app.services.claude_service import generate_recipe_from_ingredients, generate_recipe_from_title, parse_recipe_from_url
+from app.services.claude_service import generate_recipe_from_ingredients, generate_recipe_from_title, parse_recipe_from_url, parse_recipe_from_text
 from app.services.url_fetcher import fetch_html_from_url
 
 logger = logging.getLogger(__name__)
@@ -578,6 +578,91 @@ async def import_recipe_from_url(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to import recipe: {str(e)}"
+        )
+
+
+@router.post("/parse-text", response_model=ImportedRecipeResponse, status_code=200)
+async def parse_recipe_from_text_endpoint(
+    request: ParseFromTextRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Parse recipe from free-form text using Claude AI.
+
+    This endpoint takes raw recipe text (ingredients, instructions, etc.) and uses
+    Claude to extract structured recipe data. The recipe is NOT automatically saved -
+    it's returned to the frontend for user review and editing before final submission.
+
+    Args:
+        request: ParseFromTextRequest containing the text to parse (50-10000 chars)
+        workspace_id: Workspace identifier for validation
+
+    Returns:
+        ImportedRecipeResponse with:
+        - recipe_data: Parsed Recipe object
+        - confidence: "high", "medium", or "low" based on parsing quality
+        - missing_fields: List of fields that couldn't be extracted
+        - warnings: Warnings about incomplete or inferred data
+
+    Raises:
+        HTTPException 400: Text too short, no recipe found, or parsing failed
+        HTTPException 422: Invalid request body
+
+    Example:
+        POST /recipes/parse-text?workspace_id=andrea
+        Body: {"text": "Chocolate Chip Cookies\\n\\nIngredients:\\n- 2 cups flour..."}
+
+        Response: {
+            "recipe_data": {...},
+            "confidence": "high",
+            "missing_fields": [],
+            "warnings": []
+        }
+    """
+    try:
+        # Validate workspace_id
+        if not workspace_id or not workspace_id.strip():
+            raise HTTPException(status_code=400, detail="workspace_id cannot be empty")
+
+        logger.info(f"Parsing recipe from text ({len(request.text)} chars)")
+
+        # Parse recipe using Claude
+        try:
+            recipe, confidence, missing_fields, warnings = await parse_recipe_from_text(
+                request.text
+            )
+            logger.info(f"Successfully parsed recipe '{recipe.title}' with {confidence} confidence")
+        except ValueError as e:
+            # Parsing failed (no recipe found, text too short, etc.)
+            logger.warning(f"Failed to parse recipe from text: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to parse recipe: {str(e)}"
+            )
+        except Exception as e:
+            # Unexpected errors
+            logger.error(f"Unexpected error parsing recipe: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to parse recipe: {str(e)}"
+            )
+
+        # Return parsed data for user review (DO NOT SAVE)
+        return ImportedRecipeResponse(
+            recipe_data=recipe,
+            confidence=confidence,
+            missing_fields=missing_fields,
+            warnings=warnings
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Failed to parse recipe from text: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse recipe: {str(e)}"
         )
 
 
