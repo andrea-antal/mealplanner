@@ -1,118 +1,120 @@
-# Session Handoff - Onboarding Wizard (WIP)
+# Session Handoff - Recipe Text Parsing Feature
 
-**Date:** 2026-01-01/02
-**Session Focus:** New User Onboarding Wizard
+**Date:** 2026-01-02
+**Session Focus:** Unified Recipe Text/URL Parser for Add Recipe Modal
 **Branch:** `main`
-**Status:** In Progress (~70% complete)
+**Status:** Phase 1 Complete (TDD tests written)
 
 ---
 
 ## Session Summary
 
-Built a multi-step onboarding wizard for new users. The wizard collects cooking preferences, kitchen equipment, dietary goals, and household composition to personalize the app experience.
+Started implementing a unified recipe input feature for the Add Recipe modal. Users can paste either a recipe URL OR free-form recipe text, and Claude Opus 4.5 will parse it into structured fields for review.
 
-**What's Working:**
-- Backend models and 3 API endpoints
-- Frontend wizard UI with 10 steps
-- Dashboard integration (wizard shows for new users)
+**Phase 1 Complete:**
+- TDD tests written (12 test cases)
+- Tests committed
+- Linear issues created
 
-**What's Remaining:**
-- Backend tests for new endpoints
-- End-to-end testing of wizard flow
-- Error handling and edge cases
+**Phases 2 & 3 Remaining:**
+- Backend implementation
+- Frontend implementation
+
+---
+
+## Linear Issues
+
+| Issue | Title | Status |
+|-------|-------|--------|
+| [AA-114](https://linear.app/andrea-antal/issue/AA-114) | Add tests for recipe text parsing | Todo (tests written, needs update to Done) |
+| [AA-115](https://linear.app/andrea-antal/issue/AA-115) | Add text parsing endpoint for recipes | Todo |
+| [AA-116](https://linear.app/andrea-antal/issue/AA-116) | Redesign Add Recipe modal with unified input | Todo |
 
 ---
 
 ## Completed Tasks
 
-### Backend (Complete)
-1. **OnboardingStatus model** - tracks completion, skip count, permanent dismissal
-2. **OnboardingData model** - stores all user responses
-3. **GET /household/onboarding-status** - check if user needs onboarding
-4. **POST /household/onboarding** - submit completed wizard
-5. **POST /household/onboarding/skip** - skip temporarily or permanently
-6. **Equipment mapping** - skill level maps to available appliances
-
-### Frontend (Complete)
-1. **OnboardingWizard.tsx** - main wizard component with progress indicator
-2. **10 step components:**
-   - WelcomeStep - intro and value proposition
-   - SkillLevelStep - beginner/intermediate/advanced
-   - CookingFrequencyStep - daily to rarely
-   - KitchenEquipmentStep - minimal to well-equipped
-   - PantryStockStep - minimal/moderate/well-stocked
-   - PrimaryGoalStep - what user wants to do first
-   - CuisinePreferencesStep - multi-select cuisines
-   - DietaryGoalsStep - meal prep vs cook fresh
-   - HouseholdMembersStep - add family members with allergies
-
-3. **Dashboard Integration:**
-   - Wizard shows automatically for new users
-   - Skip button with "don't show again" after 2 skips
-   - Invalidates household query on completion
+### Phase 1: TDD Tests (Complete)
+- Created `backend/tests/test_text_parsing.py` with 12 test cases
+- Test coverage: complete recipes, minimal recipes, messy formatting, error cases, edge cases
+- Committed: `a75bb31`
 
 ---
 
 ## In Progress Tasks
 
-- [ ] Write backend tests for 3 new endpoints
-- [ ] Test wizard flow end-to-end
-- [ ] Handle network errors gracefully
-- [ ] Validate data before submission
-- [ ] Test skip flow (temporary + permanent)
+### Phase 2: Backend Implementation (~0% complete)
+- [ ] Add `ParseFromTextRequest` model to `backend/app/models/recipe.py`
+- [ ] Add `parse_recipe_from_text()` function to `backend/app/services/claude_service.py`
+- [ ] Add `POST /recipes/parse-text` endpoint to `backend/app/routers/recipes.py`
+- [ ] Run tests, verify all passing
+- [ ] Commit: `feat: add POST /recipes/parse-text endpoint for AI parsing`
+
+### Phase 3: Frontend Implementation (~0% complete)
+- [ ] Add `parseFromText()` to `frontend/src/lib/api.ts`
+- [ ] Redesign `RecipeForm.tsx` with unified input + collapsible manual fields
+- [ ] Manual testing in browser
+- [ ] Commit: `feat: unified recipe input with AI text parsing in Add Recipe modal`
+
+### Post-Implementation
+- [ ] Update Linear issues (AA-114 Done, AA-115 Done, AA-116 Done)
+- [ ] Create release notes
+- [ ] Push to remote
 
 ---
 
-## Commits This Session
+## Files Modified/Created This Session
 
-```
-50c7231 feat: add onboarding wizard UI and backend endpoints (WIP)
-```
-
----
-
-## Files Modified/Created
-
-### Backend (2 files, +208 lines)
 | File | Changes |
 |------|---------|
-| `app/models/household.py` | +65 lines - OnboardingStatus, OnboardingData models |
-| `app/routers/household.py` | +143 lines - 3 new endpoints |
-
-### Frontend (12 files, +1200 lines)
-| File | Changes |
-|------|---------|
-| `src/lib/api.ts` | +55 lines - Types and onboardingAPI |
-| `src/pages/Index.tsx` | +53 lines - Wizard integration |
-| `src/components/onboarding/OnboardingWizard.tsx` | +380 lines (new) |
-| `src/components/onboarding/steps/WelcomeStep.tsx` | ~80 lines (new) |
-| `src/components/onboarding/steps/SkillLevelStep.tsx` | ~80 lines (new) |
-| `src/components/onboarding/steps/CookingFrequencyStep.tsx` | ~80 lines (new) |
-| `src/components/onboarding/steps/KitchenEquipmentStep.tsx` | ~80 lines (new) |
-| `src/components/onboarding/steps/PantryStockStep.tsx` | ~80 lines (new) |
-| `src/components/onboarding/steps/PrimaryGoalStep.tsx` | ~80 lines (new) |
-| `src/components/onboarding/steps/CuisinePreferencesStep.tsx` | ~120 lines (new) |
-| `src/components/onboarding/steps/DietaryGoalsStep.tsx` | ~120 lines (new) |
-| `src/components/onboarding/steps/HouseholdMembersStep.tsx` | ~180 lines (new) |
+| `backend/tests/test_text_parsing.py` | +249 lines (new) - 12 TDD test cases |
+| `.claude/plans/cryptic-inventing-lemur.md` | +247 lines (new) - Implementation plan |
 
 ---
 
 ## Next Steps (Priority Order)
 
-1. **Write backend tests** - Test the 3 new endpoints in `/household/`
-2. **Manual testing** - Run through the wizard flow locally
-3. **Error handling** - Add try/catch and loading states
-4. **Deploy to staging** - Verify wizard works in production environment
-5. **Create Linear issue** - Track remaining work for onboarding
+1. **Phase 2: Backend Implementation**
+   - Add `ParseFromTextRequest` model
+   - Add `parse_recipe_from_text()` to claude_service (follow `parse_recipe_from_url` pattern)
+   - Add `/recipes/parse-text` endpoint
+   - Run tests: `pytest backend/tests/test_text_parsing.py -v`
+
+2. **Phase 3: Frontend Implementation**
+   - Add API method to `api.ts`
+   - Redesign `RecipeForm.tsx` with unified input
+
+3. **Update Linear Issues**
+   - Mark AA-114, AA-115, AA-116 as Done
+
+4. **Create Release Notes**
+   - Feature: Unified recipe input with AI parsing
+
+5. **Push to Remote**
+   - `git push origin main`
 
 ---
 
 ## Key Decisions Made
 
-1. **10 steps (not 5)** - Broke down into atomic choices for better UX
-2. **Equipment mapping** - Skill levels map to appliance arrays on backend
-3. **Skip with threshold** - "Don't show again" only appears after 2 skips
-4. **Backend persistence** - Wizard data stored in household profile, not localStorage
+1. **Unified input** - Single text area accepts URL or recipe text (auto-detect with regex)
+2. **10,000 char limit** - Handles most recipes with room to spare
+3. **Claude Opus 4.5** - Using high-accuracy model for better text parsing
+4. **Inline review** - Parsed fields appear in same modal (not separate step)
+5. **Collapsible manual entry** - Power users can expand to enter fields directly
+
+---
+
+## Implementation Plan Reference
+
+Full plan at: `/Users/andreachan/.claude/plans/cryptic-inventing-lemur.md`
+
+Key files to modify:
+- `backend/app/models/recipe.py` - Add `ParseFromTextRequest`
+- `backend/app/services/claude_service.py` - Add `parse_recipe_from_text()`
+- `backend/app/routers/recipes.py` - Add `/recipes/parse-text` endpoint
+- `frontend/src/lib/api.ts` - Add `parseFromText()` method
+- `frontend/src/components/RecipeForm.tsx` - Redesign with unified input
 
 ---
 
@@ -130,24 +132,35 @@ cd /Users/andreachan/Desktop/mealplanner/frontend
 npm run dev
 ```
 
-### Test the Wizard
-1. Open http://localhost:5173
-2. Clear localStorage (or use new workspace ID)
-3. Wizard should appear automatically
-4. Complete all steps or test skip functionality
-
-### Run Tests
+### Run Tests (Will Fail Until Phase 2 Complete)
 ```bash
-cd backend && source venv/bin/activate
-pytest tests/ -v  # Run all tests
-pytest tests/test_household.py -v  # When tests are written
+cd /Users/andreachan/Desktop/mealplanner/backend
+source venv/bin/activate
+pytest tests/test_text_parsing.py -v
+```
+
+### Check Current State
+```bash
+git log --oneline -5
+git status
 ```
 
 ---
 
-## Blockers / Questions
+## Token Cost Estimates
 
-None currently - feature just needs testing and polish.
+**Per-use (production):** ~$0.12 per recipe parsed with Opus 4.5
+
+**Implementation remaining:**
+- Phase 2 (backend): ~$2-3
+- Phase 3 (frontend): ~$3-4
+- Total remaining: ~$5-7
+
+---
+
+## Note to Self
+
+> **NEXT SESSION:** Finish Phase 2 and Phase 3, update Linear issues (AA-114, AA-115, AA-116), create release notes, then push.
 
 ---
 
