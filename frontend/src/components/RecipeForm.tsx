@@ -11,7 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Loader2, AlertTriangle, ChevronDown, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Recipe } from '@/lib/api';
 import { recipesAPI } from '@/lib/api';
@@ -24,6 +29,9 @@ const MEAL_TYPES = [
   { value: 'snack', label: 'Snack' },
   { value: 'side_dish', label: 'Side Dish' },
 ] as const;
+
+const MAX_TEXT_LENGTH = 10000;
+const MIN_TEXT_LENGTH = 50;
 
 interface RecipeFormProps {
   open: boolean;
@@ -52,10 +60,12 @@ const emptyFormData = {
 export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = 'add', initialRecipe }: RecipeFormProps) {
   const [formData, setFormData] = useState(emptyFormData);
 
-  // URL Import state
-  const [importUrl, setImportUrl] = useState('');
-  const [isFetching, setIsFetching] = useState(false);
-  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  // Unified input state (replaces old URL-only state)
+  const [recipeInput, setRecipeInput] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
+  const [hasParsedData, setHasParsedData] = useState(false);
+  const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+  const [manualExpanded, setManualExpanded] = useState(false);
 
   // Populate form when opening in edit mode (useEffect watches the open prop)
   useEffect(() => {
@@ -74,25 +84,50 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
         source_url: initialRecipe.source_url || '',
         source_name: initialRecipe.source_name || '',
       });
+      setHasParsedData(true); // Show fields directly in edit mode
     } else if (!open) {
-      // Reset form when closing
+      // Reset all state when closing
       setFormData(emptyFormData);
-      setImportUrl('');
-      setImportWarnings([]);
+      setRecipeInput('');
+      setParseWarnings([]);
+      setHasParsedData(false);
+      setManualExpanded(false);
     }
   }, [open, mode, initialRecipe]);
 
-  const handleFetchRecipe = async () => {
-    if (!importUrl || !importUrl.trim()) {
-      toast.error('Please enter a URL');
+  // Detect if input is a URL
+  const isUrl = (text: string) => /^https?:\/\//i.test(text.trim());
+
+  // Handle parsing (URL or text)
+  const handleParse = async () => {
+    const input = recipeInput.trim();
+
+    if (!input) {
+      toast.error('Please enter a recipe URL or text');
       return;
     }
 
-    setIsFetching(true);
-    setImportWarnings([]);
+    const inputIsUrl = isUrl(input);
+
+    // Validate text length for non-URLs
+    if (!inputIsUrl) {
+      if (input.length < MIN_TEXT_LENGTH) {
+        toast.error(`Recipe text must be at least ${MIN_TEXT_LENGTH} characters`);
+        return;
+      }
+      if (input.length > MAX_TEXT_LENGTH) {
+        toast.error(`Recipe text must be less than ${MAX_TEXT_LENGTH} characters`);
+        return;
+      }
+    }
+
+    setIsParsing(true);
+    setParseWarnings([]);
 
     try {
-      const response = await recipesAPI.importFromUrl(workspaceId, importUrl);
+      const response = inputIsUrl
+        ? await recipesAPI.importFromUrl(workspaceId, input)
+        : await recipesAPI.parseFromText(workspaceId, input);
 
       // Auto-populate form fields
       setFormData({
@@ -101,6 +136,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
         ingredients: response.recipe_data.ingredients?.join('\n') || '',
         instructions: response.recipe_data.instructions || '',
         tags: response.recipe_data.tags?.join(', ') || '',
+        meal_types: response.recipe_data.meal_types || [],
         prep_time_minutes: response.recipe_data.prep_time_minutes?.toString() || '',
         active_cooking_time_minutes: response.recipe_data.active_cooking_time_minutes?.toString() || '',
         serves: response.recipe_data.serves?.toString() || '',
@@ -119,15 +155,24 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
       } else if (response.confidence === 'medium') {
         warnings.push('Some fields may need review.');
       }
-      setImportWarnings(warnings);
+      setParseWarnings(warnings);
+      setHasParsedData(true);
 
-      toast.success('Recipe imported! Please review and edit as needed.');
+      toast.success('Recipe parsed! Review and edit as needed.');
     } catch (error: any) {
-      console.error('Failed to import recipe:', error);
-      toast.error(`Failed to import recipe: ${error.message || 'Unknown error'}`);
+      console.error('Failed to parse recipe:', error);
+      toast.error(`Failed to parse recipe: ${error.message || 'Unknown error'}`);
     } finally {
-      setIsFetching(false);
+      setIsParsing(false);
     }
+  };
+
+  // Reset to input mode
+  const handleStartOver = () => {
+    setFormData(emptyFormData);
+    setHasParsedData(false);
+    setParseWarnings([]);
+    // Keep the original input so user can try again
   };
 
   const toggleMealType = (mealType: string) => {
@@ -181,6 +226,144 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
   };
 
   const isEditMode = mode === 'edit';
+  const inputLength = recipeInput.trim().length;
+  const canParse = inputLength >= MIN_TEXT_LENGTH || isUrl(recipeInput);
+
+  // Render form fields (reused in both parsed and manual modes)
+  const renderFormFields = () => (
+    <>
+      <div>
+        <Label htmlFor="title">Recipe Title *</Label>
+        <Input
+          id="title"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          required
+          placeholder="e.g., Chicken Stir Fry"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Brief description of the recipe"
+          rows={2}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="ingredients">Ingredients (one per line) *</Label>
+        <Textarea
+          id="ingredients"
+          value={formData.ingredients}
+          onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
+          required
+          placeholder="2 chicken breasts&#10;1 cup rice&#10;2 cups broccoli"
+          rows={6}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="instructions">Instructions *</Label>
+        <Textarea
+          id="instructions"
+          value={formData.instructions}
+          onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+          required
+          placeholder="1. Step one.&#10;2. Step two.&#10;3. Step three."
+          rows={6}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="prep_time">Prep Time (minutes) *</Label>
+          <Input
+            id="prep_time"
+            type="number"
+            value={formData.prep_time_minutes}
+            onChange={(e) => setFormData({ ...formData, prep_time_minutes: e.target.value })}
+            required
+            min="0"
+            placeholder="15"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="cook_time">Cook Time (minutes) *</Label>
+          <Input
+            id="cook_time"
+            type="number"
+            value={formData.active_cooking_time_minutes}
+            onChange={(e) => setFormData({ ...formData, active_cooking_time_minutes: e.target.value })}
+            required
+            min="0"
+            placeholder="30"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="serves">Serves (number of people) *</Label>
+        <Input
+          id="serves"
+          type="number"
+          value={formData.serves}
+          onChange={(e) => setFormData({ ...formData, serves: e.target.value })}
+          required
+          min="1"
+          placeholder="4"
+        />
+      </div>
+
+      <div>
+        <Label className="text-sm font-medium">Meal Types *</Label>
+        <p className="text-xs text-muted-foreground mb-2">
+          When is this recipe suitable? Select at least one.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {MEAL_TYPES.map((mealType) => (
+            <div key={mealType.value} className="flex items-center space-x-2">
+              <Checkbox
+                id={`meal-type-${mealType.value}`}
+                checked={formData.meal_types?.includes(mealType.value) ?? false}
+                onCheckedChange={() => toggleMealType(mealType.value)}
+              />
+              <Label
+                htmlFor={`meal-type-${mealType.value}`}
+                className="cursor-pointer font-normal"
+              >
+                {mealType.label}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="tags">Tags (comma-separated)</Label>
+        <Input
+          id="tags"
+          value={formData.tags}
+          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+          placeholder="quick, healthy, toddler-friendly"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="appliances">Required Appliances (comma-separated)</Label>
+        <Input
+          id="appliances"
+          value={formData.required_appliances}
+          onChange={(e) => setFormData({ ...formData, required_appliances: e.target.value })}
+          placeholder="stove, oven, blender"
+        />
+      </div>
+    </>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -192,194 +375,136 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* URL Import Section - only show in add mode */}
-          {!isEditMode && (
-          <div className="border-b border-border pb-4 mb-4">
-            <Label htmlFor="import-url" className="text-base font-semibold">
-              Import from URL (Optional)
-            </Label>
-            <p className="text-sm text-muted-foreground mb-2">
-              Paste a recipe URL to automatically extract recipe data
-            </p>
-            <div className="flex gap-2">
-              <Input
-                id="import-url"
-                value={importUrl}
-                onChange={(e) => setImportUrl(e.target.value)}
-                placeholder="https://www.allrecipes.com/recipe/..."
-                disabled={isFetching}
-                className="flex-1"
+          {/* Unified Input Section - only show in add mode when no parsed data */}
+          {!isEditMode && !hasParsedData && (
+            <div className="border-b border-border pb-4 mb-4">
+              <Label htmlFor="recipe-input" className="text-base font-semibold">
+                Paste Recipe
+              </Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Paste a recipe URL or recipe text to automatically extract recipe data
+              </p>
+              <Textarea
+                id="recipe-input"
+                value={recipeInput}
+                onChange={(e) => setRecipeInput(e.target.value)}
+                placeholder="Paste a recipe URL (https://...) or recipe text here...
+
+Example text:
+Chocolate Chip Cookies
+
+Ingredients:
+- 2 cups flour
+- 1 cup butter
+- 2 cups chocolate chips
+
+Instructions:
+1. Preheat oven to 350°F
+2. Mix ingredients
+3. Bake for 12 minutes"
+                disabled={isParsing}
+                rows={8}
+                className="font-mono text-sm"
               />
-              <Button
-                type="button"
-                onClick={handleFetchRecipe}
-                disabled={!importUrl || isFetching}
-                variant="secondary"
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-muted-foreground">
+                  {inputLength.toLocaleString()} / {MAX_TEXT_LENGTH.toLocaleString()} characters
+                  {!isUrl(recipeInput) && inputLength > 0 && inputLength < MIN_TEXT_LENGTH && (
+                    <span className="text-destructive ml-2">
+                      (minimum {MIN_TEXT_LENGTH})
+                    </span>
+                  )}
+                </span>
+                <Button
+                  type="button"
+                  onClick={handleParse}
+                  disabled={!canParse || isParsing}
+                  variant="secondary"
+                >
+                  {isParsing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Parsing...
+                    </>
+                  ) : (
+                    'Parse Recipe'
+                  )}
+                </Button>
+              </div>
+
+              {/* Collapsible manual entry */}
+              <Collapsible
+                open={manualExpanded}
+                onOpenChange={setManualExpanded}
+                className="mt-4"
               >
-                {isFetching ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Fetching...
-                  </>
-                ) : (
-                  'Fetch Recipe'
-                )}
-              </Button>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between">
+                    <span>Or enter manually</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${manualExpanded ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4 space-y-4">
+                  {renderFormFields()}
+                </CollapsibleContent>
+              </Collapsible>
             </div>
-            {importWarnings.length > 0 && (
-              <Alert variant="destructive" className="mt-3">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <ul className="text-sm space-y-1 mt-1">
-                    {importWarnings.map((warning, i) => (
-                      <li key={i}>• {warning}</li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
           )}
 
-          <div>
-            <Label htmlFor="title">Recipe Title *</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              required
-              placeholder="e.g., Chicken Stir Fry"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Brief description of the recipe"
-              rows={2}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="ingredients">Ingredients (one per line) *</Label>
-            <Textarea
-              id="ingredients"
-              value={formData.ingredients}
-              onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
-              required
-              placeholder="2 chicken breasts&#10;1 cup rice&#10;2 cups broccoli"
-              rows={6}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="instructions">Instructions *</Label>
-            <Textarea
-              id="instructions"
-              value={formData.instructions}
-              onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-              required
-              placeholder="1. Step one.&#10;2. Step two.&#10;3. Step three."
-              rows={6}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="prep_time">Prep Time (minutes) *</Label>
-              <Input
-                id="prep_time"
-                type="number"
-                value={formData.prep_time_minutes}
-                onChange={(e) => setFormData({ ...formData, prep_time_minutes: e.target.value })}
-                required
-                min="0"
-                placeholder="15"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="cook_time">Cook Time (minutes) *</Label>
-              <Input
-                id="cook_time"
-                type="number"
-                value={formData.active_cooking_time_minutes}
-                onChange={(e) => setFormData({ ...formData, active_cooking_time_minutes: e.target.value })}
-                required
-                min="0"
-                placeholder="30"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="serves">Serves (number of people) *</Label>
-            <Input
-              id="serves"
-              type="number"
-              value={formData.serves}
-              onChange={(e) => setFormData({ ...formData, serves: e.target.value })}
-              required
-              min="1"
-              placeholder="4"
-            />
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium">Meal Types *</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              When is this recipe suitable? Select at least one.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {MEAL_TYPES.map((mealType) => (
-                <div key={mealType.value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`meal-type-${mealType.value}`}
-                    checked={formData.meal_types?.includes(mealType.value) ?? false}
-                    onCheckedChange={() => toggleMealType(mealType.value)}
-                  />
-                  <Label
-                    htmlFor={`meal-type-${mealType.value}`}
-                    className="cursor-pointer font-normal"
+          {/* Parsed Data Section - show after parsing or in edit mode */}
+          {(hasParsedData || isEditMode) && (
+            <>
+              {/* Start Over button (only in add mode after parsing) */}
+              {!isEditMode && hasParsedData && (
+                <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                  <div>
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Review the parsed recipe below
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleStartOver}
+                    className="text-muted-foreground hover:text-foreground"
                   >
-                    {mealType.label}
-                  </Label>
+                    <RotateCcw className="mr-1 h-3 w-3" />
+                    Start Over
+                  </Button>
                 </div>
-              ))}
+              )}
+
+              {/* Warnings */}
+              {parseWarnings.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <ul className="text-sm space-y-1 mt-1">
+                      {parseWarnings.map((warning, i) => (
+                        <li key={i}>• {warning}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Form fields */}
+              {renderFormFields()}
+            </>
+          )}
+
+          {/* Submit buttons - always show when we have form data to submit */}
+          {(hasParsedData || isEditMode || manualExpanded) && (
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" className="flex-1">
+                {isEditMode ? 'Save Changes' : 'Add Recipe'}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="tags">Tags (comma-separated)</Label>
-            <Input
-              id="tags"
-              value={formData.tags}
-              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-              placeholder="quick, healthy, toddler-friendly"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="appliances">Required Appliances (comma-separated)</Label>
-            <Input
-              id="appliances"
-              value={formData.required_appliances}
-              onChange={(e) => setFormData({ ...formData, required_appliances: e.target.value })}
-              placeholder="stove, oven, blender"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button type="submit" className="flex-1">
-              {isEditMode ? 'Save Changes' : 'Add Recipe'}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-          </div>
+          )}
         </form>
       </DialogContent>
     </Dialog>

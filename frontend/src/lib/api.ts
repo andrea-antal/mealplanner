@@ -402,6 +402,15 @@ export const recipesAPI = {
     return handleResponse<ImportedRecipeResponse>(response);
   },
 
+  async parseFromText(workspaceId: string, text: string): Promise<ImportedRecipeResponse> {
+    const response = await fetch(`${API_BASE_URL}/recipes/parse-text?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    return handleResponse<ImportedRecipeResponse>(response);
+  },
+
   async getRatings(workspaceId: string, recipeId: string): Promise<Record<string, string | null>> {
     const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/ratings?workspace_id=${encodeURIComponent(workspaceId)}`);
     return handleResponse<Record<string, string | null>>(response);
