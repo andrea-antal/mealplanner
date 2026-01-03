@@ -231,7 +231,13 @@ async def submit_onboarding(
 
     # Create or update profile
     if existing_profile:
-        existing_profile.family_members = submission.household_members
+        # SAFETY: Preserve existing family members if user already has them
+        # Only update if submission has real members (not just placeholder)
+        if existing_profile.family_members and len(existing_profile.family_members) > 0:
+            # Keep existing family members - don't overwrite with onboarding data
+            logger.info(f"Preserving {len(existing_profile.family_members)} existing family members for workspace '{workspace_id}'")
+        else:
+            existing_profile.family_members = submission.household_members
         existing_profile.cooking_preferences = cooking_preferences
         existing_profile.onboarding_data = onboarding_data
         existing_profile.onboarding_status = onboarding_status

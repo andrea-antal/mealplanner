@@ -48,12 +48,17 @@ const Index = () => {
   });
 
   // Determine if we should show onboarding
+  // Never show if user already has household data (prevents data wipe)
   const shouldShowOnboarding = useMemo(() => {
+    // Don't show if still loading or if user has existing family members
+    if (isLoadingProfile) return false;
+    if (householdProfile?.family_members?.length > 0) return false;
+    // Standard onboarding status checks
     if (!onboardingStatus) return false;
     if (onboardingStatus.completed) return false;
     if (onboardingStatus.permanently_dismissed) return false;
     return true;
-  }, [onboardingStatus]);
+  }, [onboardingStatus, householdProfile, isLoadingProfile]);
 
   // Show onboarding when appropriate (after workspace is selected, not already showing)
   useEffect(() => {
