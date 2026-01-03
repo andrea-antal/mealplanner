@@ -1,11 +1,27 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2026-01-02
+**Last Updated**: 2026-01-03
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.9.0 - January 3, 2026
+
+### New Features
+
+- **Paste Any Recipe** - The "Add Recipe" modal now accepts both URLs and recipe text! Paste a recipe from a website, a blog post, handwritten notes, or even OCR'd text - Claude will parse it into structured fields for you to review and edit
+
+- **Recipe Notes** - Add personal notes to any recipe for tips, modifications, substitutions, or reference links. Notes appear in the recipe detail view, and any URLs you include are automatically clickable
+
+### Improvements
+
+- **Unified Input** - No more separate URL field! The new large text area auto-detects whether you're pasting a URL or recipe text and routes to the right parser
+
+- **Manual Entry Option** - Prefer to type everything yourself? Expand the "Enter manually" section to access all form fields directly
+
+---
 
 ## Version 0.8.2 - January 2, 2026
 
