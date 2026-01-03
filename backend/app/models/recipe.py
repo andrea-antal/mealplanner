@@ -66,6 +66,10 @@ class Recipe(BaseModel):
         default=None,
         description="Display name of source (e.g., 'AllRecipes', 'FoodNetwork')"
     )
+    notes: Optional[str] = Field(
+        default=None,
+        description="Personal notes about the recipe (tips, modifications, URLs, etc.)"
+    )
 
     class Config:
         json_schema_extra = {

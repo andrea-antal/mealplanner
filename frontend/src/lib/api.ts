@@ -129,6 +129,7 @@ export interface Recipe {
   is_generated?: boolean;
   source_url?: string;
   source_name?: string;
+  notes?: string;
 }
 
 export interface RecipeRating {

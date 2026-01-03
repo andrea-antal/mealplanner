@@ -55,6 +55,7 @@ const emptyFormData = {
   required_appliances: '',
   source_url: '',
   source_name: '',
+  notes: '',
 };
 
 export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = 'add', initialRecipe }: RecipeFormProps) {
@@ -83,6 +84,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
         required_appliances: initialRecipe.required_appliances?.join(', ') || '',
         source_url: initialRecipe.source_url || '',
         source_name: initialRecipe.source_name || '',
+        notes: initialRecipe.notes || '',
       });
       setHasParsedData(true); // Show fields directly in edit mode
     } else if (!open) {
@@ -215,6 +217,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
       required_appliances: formData.required_appliances.split(',').map(a => a.trim()).filter(a => a),
       source_url: formData.source_url || undefined,
       source_name: formData.source_name || undefined,
+      notes: formData.notes || undefined,
       // Preserve these fields in edit mode
       ...(mode === 'edit' && initialRecipe && {
         is_generated: initialRecipe.is_generated,
@@ -361,6 +364,20 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
           onChange={(e) => setFormData({ ...formData, required_appliances: e.target.value })}
           placeholder="stove, oven, blender"
         />
+      </div>
+
+      <div>
+        <Label htmlFor="notes">Notes</Label>
+        <Textarea
+          id="notes"
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          placeholder="Personal notes, tips, modifications, reference URLs..."
+          rows={3}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Add any personal notes or links. URLs will be preserved as-is.
+        </p>
       </div>
     </>
   );
