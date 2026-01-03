@@ -1,11 +1,21 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2025-12-31
+**Last Updated**: 2026-01-02
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.8.2 - January 2, 2026
+
+### Improvements
+
+- **Meal Type Checkboxes** - The "Add Recipe" form now uses checkboxes instead of free text for meal types. Select from Breakfast, Lunch, Dinner, Snack, or the new Side Dish option. No more typos or case-sensitivity issues!
+
+- **Better Error Feedback** - When adding a recipe fails, you'll now see a clear error message instead of the form silently closing. The form stays open so you can fix any issues
+
+---
 
 ## Version 0.8.1 - December 31, 2025
 

@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict
 
 # Valid meal types for recipes
-VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
+VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack", "side_dish"}
 
 
 class Recipe(BaseModel):

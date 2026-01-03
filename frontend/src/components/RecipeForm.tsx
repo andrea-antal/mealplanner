@@ -9,11 +9,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Recipe } from '@/lib/api';
 import { recipesAPI } from '@/lib/api';
+
+// Valid meal types matching backend validation
+const MEAL_TYPES = [
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'dinner', label: 'Dinner' },
+  { value: 'snack', label: 'Snack' },
+  { value: 'side_dish', label: 'Side Dish' },
+] as const;
 
 interface RecipeFormProps {
   open: boolean;
@@ -30,7 +40,7 @@ const emptyFormData = {
   ingredients: '',
   instructions: '',
   tags: '',
-  meal_types: '',
+  meal_types: [] as string[],
   prep_time_minutes: '',
   active_cooking_time_minutes: '',
   serves: '',
@@ -56,7 +66,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
         ingredients: initialRecipe.ingredients?.join('\n') || '',
         instructions: initialRecipe.instructions || '',
         tags: initialRecipe.tags?.join(', ') || '',
-        meal_types: initialRecipe.meal_types?.join(', ') || '',
+        meal_types: initialRecipe.meal_types || [],
         prep_time_minutes: initialRecipe.prep_time_minutes?.toString() || '',
         active_cooking_time_minutes: initialRecipe.active_cooking_time_minutes?.toString() || '',
         serves: initialRecipe.serves?.toString() || '',
@@ -120,8 +130,26 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
     }
   };
 
+  const toggleMealType = (mealType: string) => {
+    setFormData(prev => {
+      const currentTypes = prev.meal_types || [];
+      return {
+        ...prev,
+        meal_types: currentTypes.includes(mealType)
+          ? currentTypes.filter(t => t !== mealType)
+          : [...currentTypes, mealType],
+      };
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate at least one meal type selected
+    if (!formData.meal_types || formData.meal_types.length === 0) {
+      toast.error('Please select at least one meal type');
+      return;
+    }
 
     // In edit mode, preserve the original ID; in add mode, generate from title
     const id = mode === 'edit' && initialRecipe
@@ -135,7 +163,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
       ingredients: formData.ingredients.split('\n').filter(i => i.trim()),
       instructions: formData.instructions,
       tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-      meal_types: formData.meal_types.split(',').map(t => t.trim()).filter(t => t),
+      meal_types: formData.meal_types,
       prep_time_minutes: parseInt(formData.prep_time_minutes) || 0,
       active_cooking_time_minutes: parseInt(formData.active_cooking_time_minutes) || 0,
       serves: parseInt(formData.serves) || 1,
@@ -149,7 +177,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
     };
 
     onSubmit(recipe);
-    onOpenChange(false);
+    // Dialog close is handled by parent via mutation onSuccess
   };
 
   const isEditMode = mode === 'edit';
@@ -301,17 +329,27 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
           </div>
 
           <div>
-            <Label htmlFor="meal_types">Meal Types (comma-separated) *</Label>
-            <Input
-              id="meal_types"
-              value={formData.meal_types}
-              onChange={(e) => setFormData({ ...formData, meal_types: e.target.value })}
-              required
-              placeholder="breakfast, lunch, dinner, snack"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              When is this recipe suitable? (breakfast, lunch, dinner, snack)
+            <Label className="text-sm font-medium">Meal Types *</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              When is this recipe suitable? Select at least one.
             </p>
+            <div className="grid grid-cols-2 gap-3">
+              {MEAL_TYPES.map((mealType) => (
+                <div key={mealType.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`meal-type-${mealType.value}`}
+                    checked={formData.meal_types?.includes(mealType.value) ?? false}
+                    onCheckedChange={() => toggleMealType(mealType.value)}
+                  />
+                  <Label
+                    htmlFor={`meal-type-${mealType.value}`}
+                    className="cursor-pointer font-normal"
+                  >
+                    {mealType.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div>

@@ -10,6 +10,7 @@ import { RecipeForm } from '@/components/RecipeForm';
 import { recipesAPI, householdAPI, type Recipe } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import { Plus, Search, Filter, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const Recipes = () => {
   const location = useLocation();
@@ -95,6 +96,11 @@ const Recipes = () => {
     mutationFn: (recipe: Omit<Recipe, 'recipe_id'>) => recipesAPI.create(workspaceId, recipe),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+      toast.success('Recipe added successfully!');
+      setFormOpen(false);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to add recipe: ${error.message}`);
     },
   });
 
