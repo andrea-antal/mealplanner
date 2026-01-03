@@ -253,7 +253,7 @@ const Household = () => {
   // Render unsaved changes banner into the slot in AppLayout
   const bannerSlot = document.getElementById('unsaved-banner-slot');
   const unsavedBanner = hasUnsavedChanges && bannerSlot ? createPortal(
-    <div className="sticky top-0 z-40 bg-orange-50 dark:bg-orange-950/95 border-b border-orange-200 dark:border-orange-800 p-3 flex items-center justify-center gap-3 shadow-md backdrop-blur-sm">
+    <div className="fixed top-16 left-0 right-0 z-40 bg-orange-50 dark:bg-orange-950/95 border-b border-orange-200 dark:border-orange-800 p-3 flex items-center justify-center gap-3 shadow-md backdrop-blur-sm">
       <div className="flex items-center gap-3 max-w-4xl w-full px-8">
         <div className="flex-shrink-0">
           <svg className="h-5 w-5 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
