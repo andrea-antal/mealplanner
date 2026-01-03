@@ -23,7 +23,7 @@ import { RecipeRating } from './RecipeRating';
 import type { Recipe } from '@/lib/api';
 import { householdAPI, recipesAPI } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Clock, Users, Trash2, RefreshCw, ExternalLink, Pencil } from 'lucide-react';
+import { Clock, Users, Trash2, RefreshCw, ExternalLink, Pencil, StickyNote } from 'lucide-react';
 import { RecipeForm } from './RecipeForm';
 import { toast } from 'sonner';
 
@@ -51,6 +51,34 @@ function isValidUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+// Render text with clickable URLs
+function renderTextWithLinks(text: string): React.ReactNode {
+  // Match URLs in text
+  const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, index) => {
+    if (urlRegex.test(part)) {
+      // Reset regex state after test
+      urlRegex.lastIndex = 0;
+      if (isValidUrl(part)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline break-all"
+          >
+            {part}
+          </a>
+        );
+      }
+    }
+    return part;
+  });
 }
 
 export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModalProps) {
@@ -198,6 +226,19 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
               ))}
             </div>
           </div>
+
+          {/* Notes Section */}
+          {recipe.notes && (
+            <div className="pb-4">
+              <h4 className="font-display font-semibold text-lg mb-3 flex items-center gap-2">
+                <StickyNote className="h-5 w-5" />
+                Notes
+              </h4>
+              <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {renderTextWithLinks(recipe.notes)}
+              </div>
+            </div>
+          )}
 
           {/* Recipe Source Section */}
           {recipe.source_url && (
