@@ -7,6 +7,14 @@
 
 # What's New in Meal Planner
 
+## Version 0.9.1 - January 3, 2026
+
+### Improvements
+
+- **Better New User Guidance** - Trying to generate a meal plan without enough recipes? Instead of a confusing error, you'll now see a helpful message explaining exactly what's needed. The app checks that you have at least one breakfast, one lunch, and one dinner recipe before generating, and guides you to the Recipes page to add what's missing
+
+---
+
 ## Version 0.9.0 - January 3, 2026
 
 ### New Features
