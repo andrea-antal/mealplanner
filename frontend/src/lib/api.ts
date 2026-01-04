@@ -137,6 +137,14 @@ export interface RecipeRating {
   ratings: Record<string, string | null>;
 }
 
+// Recipe readiness check for meal plan generation (V1 empty state handling)
+export interface RecipeReadiness {
+  total_count: number;
+  counts_by_meal_type: Record<string, number>;
+  is_ready: boolean;
+  missing_meal_types: string[];
+}
+
 export interface DynamicRecipeRequest {
   ingredients: string[];
   portions?: Record<string, string>;
@@ -513,6 +521,11 @@ export const mealPlansAPI = {
       body: JSON.stringify(request),
     });
     return handleResponse<MealPlan>(response);
+  },
+
+  async checkReadiness(workspaceId: string): Promise<RecipeReadiness> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/readiness?workspace_id=${encodeURIComponent(workspaceId)}`);
+    return handleResponse<RecipeReadiness>(response);
   },
 };
 

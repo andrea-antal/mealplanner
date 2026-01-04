@@ -20,6 +20,8 @@ from app.services.recipe_filter_service import (
     get_alternative_recipes,
     AlternativeRecipeSuggestion
 )
+from app.models.recipe_readiness import RecipeReadiness
+from app.data.data_manager import list_all_recipes
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +147,61 @@ async def get_alternatives_endpoint(
 
     logger.info(f"Found {len(suggestions)} alternative recipes")
     return suggestions
+
+
+# ===== Readiness Check Endpoint =====
+
+@router.get("/readiness", response_model=RecipeReadiness)
+async def check_readiness_endpoint(
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Check if workspace has sufficient recipes for meal plan generation.
+
+    Returns recipe counts by meal_type and whether generation is possible.
+    Requires at least 1 recipe for each of: breakfast, lunch, dinner.
+
+    Args:
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        RecipeReadiness object with counts and readiness status
+    """
+    logger.info(f"Checking recipe readiness for workspace '{workspace_id}'")
+
+    # Load all recipes for the workspace
+    recipes = list_all_recipes(workspace_id)
+
+    # Count recipes by meal type
+    counts = {
+        "breakfast": 0,
+        "lunch": 0,
+        "dinner": 0,
+        "snack": 0,
+        "side_dish": 0
+    }
+
+    for recipe in recipes:
+        for meal_type in recipe.meal_types:
+            if meal_type in counts:
+                counts[meal_type] += 1
+
+    # Check required types (breakfast, lunch, dinner)
+    required_types = ["breakfast", "lunch", "dinner"]
+    missing = [mt for mt in required_types if counts[mt] == 0]
+
+    readiness = RecipeReadiness(
+        total_count=len(recipes),
+        counts_by_meal_type=counts,
+        is_ready=len(missing) == 0,
+        missing_meal_types=missing
+    )
+
+    logger.info(
+        f"Readiness check: {readiness.total_count} recipes, "
+        f"is_ready={readiness.is_ready}, missing={readiness.missing_meal_types}"
+    )
+    return readiness
 
 
 # ===== Swap & Undo Endpoints =====

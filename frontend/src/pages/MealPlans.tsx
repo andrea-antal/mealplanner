@@ -11,6 +11,7 @@ import { RecipeModal } from '@/components/RecipeModal';
 import { GenerateFromTitleModal } from '@/components/GenerateFromTitleModal';
 import { MealPlanGenerationModal } from '@/components/MealPlanGenerationModal';
 import { SwapRecipeModal } from '@/components/SwapRecipeModal';
+import { InsufficientRecipesModal } from '@/components/InsufficientRecipesModal';
 
 // Meal type emoji mapping (lowercase to match API data)
 const mealTypeIcons: Record<string, string> = {
@@ -136,6 +137,13 @@ const MealPlans = () => {
     currentRecipeTitle: string;
   } | null>(null);
 
+  // Insufficient recipes modal state (V1 empty state handling)
+  const [insufficientModalOpen, setInsufficientModalOpen] = useState(false);
+  const [insufficientData, setInsufficientData] = useState<{
+    totalCount: number;
+    missingMealTypes: string[];
+  } | null>(null);
+
   // Mutation to generate meal plan
   const generateMutation = useMutation({
     mutationFn: async (week_start_date: string) => {
@@ -234,7 +242,30 @@ const MealPlans = () => {
     },
   });
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    // Check recipe readiness before generating
+    try {
+      const readiness = await mealPlansAPI.checkReadiness(workspaceId);
+
+      if (!readiness.is_ready) {
+        // Show insufficient recipes modal
+        setInsufficientData({
+          totalCount: readiness.total_count,
+          missingMealTypes: readiness.missing_meal_types,
+        });
+        setInsufficientModalOpen(true);
+        return; // Don't proceed with generation
+      }
+    } catch (error) {
+      console.error('Failed to check readiness:', error);
+      // On error, proceed with generation (let backend handle it)
+    }
+
+    // Proceed with generation
+    proceedWithGeneration();
+  };
+
+  const proceedWithGeneration = () => {
     // Get next Monday's date for the meal plan
     const today = new Date();
     const dayOfWeek = today.getDay();
@@ -668,6 +699,14 @@ const MealPlans = () => {
         excludeRecipeIds={getExcludedRecipeIds()}
         onSelect={handleSwapSelect}
         isSwapping={swapMutation.isPending}
+      />
+
+      {/* Insufficient Recipes Modal (V1 empty state handling) */}
+      <InsufficientRecipesModal
+        open={insufficientModalOpen}
+        onOpenChange={setInsufficientModalOpen}
+        totalCount={insufficientData?.totalCount ?? 0}
+        missingMealTypes={insufficientData?.missingMealTypes ?? []}
       />
     </div>
   );

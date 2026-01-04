@@ -525,5 +525,291 @@ class TestAlternativesEndpoint:
         assert response.status_code == 422
 
 
+class TestReadinessEndpoint:
+    """Test GET /meal-plans/readiness endpoint for V1 empty state handling"""
+
+    def test_readiness_no_recipes(self, client, temp_data_dir):
+        """Test readiness returns is_ready=false when no recipes exist"""
+        response = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": "test-workspace"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 0
+        assert data["is_ready"] is False
+        assert set(data["missing_meal_types"]) == {"breakfast", "lunch", "dinner"}
+
+    def test_readiness_missing_breakfast(self, client, temp_data_dir):
+        """Test readiness detects missing breakfast recipes"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # Save lunch and dinner recipes only
+        save_recipe(workspace_id, Recipe(
+            id="lunch_1", title="Lunch Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["lunch"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+        save_recipe(workspace_id, Recipe(
+            id="dinner_1", title="Dinner Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["dinner"],
+            prep_time_minutes=5, active_cooking_time_minutes=20, serves=4
+        ))
+
+        response = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 2
+        assert data["is_ready"] is False
+        assert data["missing_meal_types"] == ["breakfast"]
+
+    def test_readiness_missing_lunch(self, client, temp_data_dir):
+        """Test readiness detects missing lunch recipes"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # Save breakfast and dinner recipes only
+        save_recipe(workspace_id, Recipe(
+            id="breakfast_1", title="Breakfast Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["breakfast"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+        save_recipe(workspace_id, Recipe(
+            id="dinner_1", title="Dinner Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["dinner"],
+            prep_time_minutes=5, active_cooking_time_minutes=20, serves=4
+        ))
+
+        response = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 2
+        assert data["is_ready"] is False
+        assert data["missing_meal_types"] == ["lunch"]
+
+    def test_readiness_missing_dinner(self, client, temp_data_dir):
+        """Test readiness detects missing dinner recipes"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # Save breakfast and lunch recipes only
+        save_recipe(workspace_id, Recipe(
+            id="breakfast_1", title="Breakfast Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["breakfast"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+        save_recipe(workspace_id, Recipe(
+            id="lunch_1", title="Lunch Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["lunch"],
+            prep_time_minutes=5, active_cooking_time_minutes=20, serves=4
+        ))
+
+        response = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 2
+        assert data["is_ready"] is False
+        assert data["missing_meal_types"] == ["dinner"]
+
+    def test_readiness_all_meal_types_present(self, client, temp_data_dir):
+        """Test readiness returns is_ready=true when all required meal types exist"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # Save one of each required meal type
+        save_recipe(workspace_id, Recipe(
+            id="breakfast_1", title="Breakfast Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["breakfast"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+        save_recipe(workspace_id, Recipe(
+            id="lunch_1", title="Lunch Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["lunch"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+        save_recipe(workspace_id, Recipe(
+            id="dinner_1", title="Dinner Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["dinner"],
+            prep_time_minutes=5, active_cooking_time_minutes=20, serves=4
+        ))
+
+        response = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 3
+        assert data["is_ready"] is True
+        assert data["missing_meal_types"] == []
+
+    def test_readiness_recipe_with_multiple_meal_types(self, client, temp_data_dir):
+        """Test readiness handles recipes with multiple meal_types correctly"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # One recipe that covers breakfast and lunch
+        save_recipe(workspace_id, Recipe(
+            id="brunch_1", title="Brunch Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["breakfast", "lunch"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+        # One recipe for dinner
+        save_recipe(workspace_id, Recipe(
+            id="dinner_1", title="Dinner Recipe", ingredients=["item"],
+            instructions="Cook", meal_types=["dinner"],
+            prep_time_minutes=5, active_cooking_time_minutes=20, serves=4
+        ))
+
+        response = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 2
+        assert data["is_ready"] is True
+        assert data["counts_by_meal_type"]["breakfast"] == 1
+        assert data["counts_by_meal_type"]["lunch"] == 1
+        assert data["counts_by_meal_type"]["dinner"] == 1
+
+    def test_readiness_only_side_dishes(self, client, temp_data_dir):
+        """Test readiness returns is_ready=false when only side_dish recipes exist"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # Save only side dishes
+        for i in range(5):
+            save_recipe(workspace_id, Recipe(
+                id=f"side_{i}", title=f"Side Dish {i}", ingredients=["item"],
+                instructions="Cook", meal_types=["side_dish"],
+                prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+            ))
+
+        response = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 5
+        assert data["is_ready"] is False
+        assert set(data["missing_meal_types"]) == {"breakfast", "lunch", "dinner"}
+        assert data["counts_by_meal_type"]["side_dish"] == 5
+
+    def test_readiness_workspace_isolation(self, client, temp_data_dir):
+        """Test that readiness respects workspace isolation"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        # Save recipes to workspace-a
+        save_recipe("workspace-a", Recipe(
+            id="breakfast_1", title="Breakfast", ingredients=["item"],
+            instructions="Cook", meal_types=["breakfast"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+        save_recipe("workspace-a", Recipe(
+            id="lunch_1", title="Lunch", ingredients=["item"],
+            instructions="Cook", meal_types=["lunch"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+        save_recipe("workspace-a", Recipe(
+            id="dinner_1", title="Dinner", ingredients=["item"],
+            instructions="Cook", meal_types=["dinner"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+
+        # workspace-a should be ready
+        response_a = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": "workspace-a"}
+        )
+        assert response_a.status_code == 200
+        assert response_a.json()["is_ready"] is True
+
+        # workspace-b should NOT be ready (no recipes)
+        response_b = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": "workspace-b"}
+        )
+        assert response_b.status_code == 200
+        assert response_b.json()["is_ready"] is False
+        assert response_b.json()["total_count"] == 0
+
+    def test_readiness_requires_workspace_id(self, client, temp_data_dir):
+        """Test that workspace_id is required"""
+        response = client.get("/meal-plans/readiness")
+        assert response.status_code == 422
+
+    def test_readiness_counts_by_meal_type(self, client, temp_data_dir):
+        """Test that counts_by_meal_type returns accurate counts"""
+        from app.data.data_manager import save_recipe
+        from app.models.recipe import Recipe
+
+        workspace_id = "test-workspace"
+
+        # Save multiple recipes of various types
+        for i in range(3):
+            save_recipe(workspace_id, Recipe(
+                id=f"breakfast_{i}", title=f"Breakfast {i}", ingredients=["item"],
+                instructions="Cook", meal_types=["breakfast"],
+                prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+            ))
+        for i in range(2):
+            save_recipe(workspace_id, Recipe(
+                id=f"lunch_{i}", title=f"Lunch {i}", ingredients=["item"],
+                instructions="Cook", meal_types=["lunch"],
+                prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+            ))
+        save_recipe(workspace_id, Recipe(
+            id="dinner_1", title="Dinner", ingredients=["item"],
+            instructions="Cook", meal_types=["dinner"],
+            prep_time_minutes=5, active_cooking_time_minutes=10, serves=2
+        ))
+
+        response = client.get(
+            "/meal-plans/readiness",
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 6
+        assert data["counts_by_meal_type"]["breakfast"] == 3
+        assert data["counts_by_meal_type"]["lunch"] == 2
+        assert data["counts_by_meal_type"]["dinner"] == 1
+        assert data["counts_by_meal_type"]["snack"] == 0
+        assert data["counts_by_meal_type"]["side_dish"] == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
