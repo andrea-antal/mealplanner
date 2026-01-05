@@ -171,6 +171,37 @@ export interface ImportedRecipeResponse {
   warnings: string[];
 }
 
+// Photo OCR types (for parsing recipes from photos)
+export interface BoundingBox {
+  x: number;       // Left edge (0-1 normalized)
+  y: number;       // Top edge (0-1 normalized)
+  width: number;   // Width (0-1 normalized)
+  height: number;  // Height (0-1 normalized)
+}
+
+export interface TextRegion {
+  text: string;
+  region_type: 'title' | 'ingredients' | 'instructions' | 'unknown';
+  confidence: 'high' | 'medium' | 'low';
+  bounding_box?: BoundingBox;
+}
+
+export interface OCRFromPhotoResponse {
+  raw_text: string;
+  text_regions: TextRegion[];
+  ocr_confidence: 'high' | 'medium' | 'low';
+  is_handwritten: boolean;
+  warnings: string[];
+}
+
+export interface FieldConfidence {
+  field_name: string;
+  confidence: 'high' | 'medium' | 'low';
+  bounding_box?: BoundingBox;
+  extracted_value?: string;
+  notes?: string;
+}
+
 export interface MealPlanRequest {
   week_start_date: string; // ISO format: YYYY-MM-DD
   num_recipes?: number;
@@ -418,6 +449,15 @@ export const recipesAPI = {
       body: JSON.stringify({ text }),
     });
     return handleResponse<ImportedRecipeResponse>(response);
+  },
+
+  async ocrFromPhoto(workspaceId: string, imageBase64: string): Promise<OCRFromPhotoResponse> {
+    const response = await fetch(`${API_BASE_URL}/recipes/ocr-from-photo?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_base64: imageBase64 }),
+    });
+    return handleResponse<OCRFromPhotoResponse>(response);
   },
 
   async getRatings(workspaceId: string, recipeId: string): Promise<Record<string, string | null>> {
