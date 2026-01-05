@@ -1151,6 +1151,212 @@ def _parse_receipt_response(response_text: str) -> dict:
         raise ValueError(f"Failed to parse Claude Vision response: {e}")
 
 
+# Recipe Photo OCR (Photo Recipe Parsing Feature)
+
+
+async def extract_text_from_recipe_photo(
+    image_base64: str,
+    model: str = None
+) -> tuple[str, list[dict], str, bool, list[str]]:
+    """
+    Extract raw text from a recipe photo using Claude Vision API.
+
+    This is Stage 1 of the photo parsing flow. It extracts text for user review
+    before parsing into a structured recipe.
+
+    Uses multimodal Claude Vision to:
+    - Extract all visible text from the recipe photo
+    - Identify text regions (title, ingredients, instructions)
+    - Provide bounding box coordinates for each region
+    - Detect if text is handwritten vs printed
+    - Assess OCR confidence based on image clarity
+
+    Args:
+        image_base64: Base64 encoded recipe photo (PNG/JPG)
+        model: Optional Claude model name override (defaults to HIGH_ACCURACY_MODEL_NAME)
+
+    Returns:
+        Tuple of (raw_text, text_regions, ocr_confidence, is_handwritten, warnings)
+        - raw_text: All extracted text as a single string
+        - text_regions: List of dicts with text, region_type, confidence, bounding_box
+        - ocr_confidence: Overall confidence ("high", "medium", "low")
+        - is_handwritten: Whether text appears handwritten
+        - warnings: List of warnings (image quality, unclear regions, etc.)
+
+    Raises:
+        ValueError: If image is empty or response cannot be parsed
+        ConnectionError: If Claude API call fails
+    """
+    if not image_base64 or image_base64.strip() == "":
+        raise ValueError("Image data cannot be empty")
+
+    logger.info("Extracting text from recipe photo with Claude Vision API")
+
+    # Use Opus 4.5 for OCR accuracy by default
+    if model is None:
+        model = settings.HIGH_ACCURACY_MODEL_NAME
+
+    try:
+        system_prompt = _get_recipe_photo_ocr_system_prompt()
+        user_prompt = _get_recipe_photo_ocr_user_prompt()
+
+        # Call Claude Vision API (multimodal)
+        response = client.messages.create(
+            model=model,
+            max_tokens=4000,
+            temperature=0.1,  # Very low for OCR accuracy
+            system=system_prompt,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": image_base64,
+                            },
+                        },
+                        {"type": "text", "text": user_prompt}
+                    ],
+                }
+            ],
+        )
+
+        # Parse response
+        response_text = response.content[0].text
+        parsed_data = _parse_recipe_photo_ocr_response(response_text)
+
+        return (
+            parsed_data["raw_text"],
+            parsed_data["text_regions"],
+            parsed_data["ocr_confidence"],
+            parsed_data["is_handwritten"],
+            parsed_data["warnings"]
+        )
+
+    except Exception as e:
+        if "connection" in str(e).lower() or "timeout" in str(e).lower():
+            logger.error(f"Connection error calling Claude Vision API: {e}")
+            raise ConnectionError(f"Failed to connect to Claude Vision API: {e}")
+        else:
+            logger.error(f"Error extracting text from recipe photo: {e}")
+            raise
+
+
+def _get_recipe_photo_ocr_system_prompt() -> str:
+    """System prompt for recipe photo OCR extraction."""
+    return """You are an expert at reading recipes from photos - both printed text from cookbooks/cards and handwritten recipes.
+
+Your task:
+1. Extract ALL visible text from the recipe photo, preserving the original structure
+2. Identify distinct regions: title, ingredients, instructions, and any other text
+3. For each region, provide approximate bounding box coordinates as normalized percentages (0-1)
+4. Detect whether the text is handwritten or printed
+5. Assess your confidence in the OCR accuracy
+
+Important guidelines:
+- Preserve the original text exactly, including any typos or abbreviations
+- For handwritten text, do your best but note uncertainty
+- Common handwriting issues: "1" vs "l", "0" vs "O", cursive letters
+- If text is unclear, use "???" to mark unreadable portions
+- Bounding boxes should be normalized (0-1 scale) where (0,0) is top-left
+
+Return your response as JSON with this structure:
+{
+  "raw_text": "full extracted text with newlines preserved",
+  "text_regions": [
+    {
+      "text": "region text",
+      "region_type": "title|ingredients|instructions|unknown",
+      "confidence": "high|medium|low",
+      "bounding_box": {"x": 0.1, "y": 0.05, "width": 0.8, "height": 0.1}
+    }
+  ],
+  "ocr_confidence": "high|medium|low",
+  "is_handwritten": true|false,
+  "warnings": ["any issues with image quality, unclear text, etc."]
+}
+
+Confidence levels:
+- "high": Clear text, confident in accuracy
+- "medium": Some unclear characters, mostly readable
+- "low": Significant portions unclear or guessed"""
+
+
+def _get_recipe_photo_ocr_user_prompt() -> str:
+    """User prompt for recipe photo OCR."""
+    return """Please extract all text from this recipe photo.
+
+Focus on:
+1. Recipe title (usually at the top)
+2. Ingredients list (look for measurements, dashes, or bullet points)
+3. Instructions/directions (numbered steps or paragraphs)
+4. Any other relevant text (prep time, servings, notes)
+
+Provide bounding boxes for each region to help the user locate text in the image."""
+
+
+def _parse_recipe_photo_ocr_response(response_text: str) -> dict:
+    """Parse Claude's response for recipe photo OCR."""
+    # Strip markdown code blocks if present
+    text = response_text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+
+    try:
+        data = json.loads(text)
+
+        # Validate required fields
+        raw_text = data.get("raw_text", "")
+        text_regions = data.get("text_regions", [])
+        ocr_confidence = data.get("ocr_confidence", "medium")
+        is_handwritten = data.get("is_handwritten", False)
+        warnings = data.get("warnings", [])
+
+        # Normalize confidence values
+        if ocr_confidence not in ("high", "medium", "low"):
+            ocr_confidence = "medium"
+
+        # Validate text_regions structure
+        validated_regions = []
+        for region in text_regions:
+            validated_region = {
+                "text": region.get("text", ""),
+                "region_type": region.get("region_type", "unknown"),
+                "confidence": region.get("confidence", "medium")
+            }
+            # Include bounding box if present
+            if "bounding_box" in region and region["bounding_box"]:
+                bbox = region["bounding_box"]
+                validated_region["bounding_box"] = {
+                    "x": float(bbox.get("x", 0)),
+                    "y": float(bbox.get("y", 0)),
+                    "width": float(bbox.get("width", 1)),
+                    "height": float(bbox.get("height", 1))
+                }
+            validated_regions.append(validated_region)
+
+        return {
+            "raw_text": raw_text,
+            "text_regions": validated_regions,
+            "ocr_confidence": ocr_confidence,
+            "is_handwritten": bool(is_handwritten),
+            "warnings": warnings if isinstance(warnings, list) else []
+        }
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse recipe photo OCR response as JSON: {e}")
+        logger.error(f"Response text: {response_text}")
+        raise ValueError(f"Failed to parse recipe photo OCR response: {e}")
+
+
 # Recipe URL Parsing (URL Import Feature)
 
 
