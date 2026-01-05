@@ -7,14 +7,20 @@ import logging
 from typing import List, Dict, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from app.models.recipe import Recipe, DynamicRecipeRequest, ImportFromUrlRequest, ParseFromTextRequest, ImportedRecipeResponse
+from app.models.recipe import (
+    Recipe, DynamicRecipeRequest, ImportFromUrlRequest, ParseFromTextRequest,
+    ImportedRecipeResponse, OCRFromPhotoRequest, OCRFromPhotoResponse, TextRegion, BoundingBox
+)
 from app.models.recipe_rating import RecipeRating, RatingUpdate
 from app.data.data_manager import (
     load_recipe, save_recipe, list_all_recipes, delete_recipe,
     get_recipe_rating, save_recipe_rating, delete_recipe_rating,
     load_recipe_ratings, load_household_profile
 )
-from app.services.claude_service import generate_recipe_from_ingredients, generate_recipe_from_title, parse_recipe_from_url, parse_recipe_from_text
+from app.services.claude_service import (
+    generate_recipe_from_ingredients, generate_recipe_from_title,
+    parse_recipe_from_url, parse_recipe_from_text, extract_text_from_recipe_photo
+)
 from app.services.url_fetcher import fetch_html_from_url
 
 logger = logging.getLogger(__name__)
@@ -663,6 +669,127 @@ async def parse_recipe_from_text_endpoint(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to parse recipe: {str(e)}"
+        )
+
+
+@router.post("/ocr-from-photo", response_model=OCRFromPhotoResponse, status_code=200)
+async def ocr_recipe_from_photo_endpoint(
+    request: OCRFromPhotoRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Extract text from a recipe photo using OCR (Stage 1).
+
+    This is the first step of photo-based recipe parsing. It extracts raw text
+    from the photo for user review and correction before parsing into a structured
+    recipe using the /parse-text endpoint.
+
+    Supports both printed recipes (cookbooks, recipe cards) and handwritten recipes.
+
+    Args:
+        request: OCRFromPhotoRequest containing base64-encoded image
+        workspace_id: Workspace identifier for validation
+
+    Returns:
+        OCRFromPhotoResponse with:
+        - raw_text: All extracted text from the image
+        - text_regions: Identified regions (title, ingredients, instructions) with bounding boxes
+        - ocr_confidence: Overall confidence level ("high", "medium", "low")
+        - is_handwritten: Whether the text appears to be handwritten
+        - warnings: Any issues with image quality or unclear text
+
+    Raises:
+        HTTPException 400: Empty image or OCR failed
+        HTTPException 422: Invalid request body
+
+    Example:
+        POST /recipes/ocr-from-photo?workspace_id=andrea
+        Body: {"image_base64": "iVBORw0KGgoAAAANSUhEUg..."}
+
+        Response: {
+            "raw_text": "Chocolate Chip Cookies\\n\\nIngredients:\\n- 2 cups flour...",
+            "text_regions": [...],
+            "ocr_confidence": "high",
+            "is_handwritten": false,
+            "warnings": []
+        }
+
+    Notes:
+        - Use the /parse-text endpoint to parse the corrected text into a structured recipe
+        - For handwritten recipes, carefully review the extracted text for OCR errors
+    """
+    try:
+        # Validate workspace_id
+        if not workspace_id or not workspace_id.strip():
+            raise HTTPException(status_code=400, detail="workspace_id cannot be empty")
+
+        logger.info("Extracting text from recipe photo via OCR")
+
+        # Extract text using Claude Vision
+        try:
+            raw_text, text_regions, ocr_confidence, is_handwritten, warnings = \
+                await extract_text_from_recipe_photo(request.image_base64)
+
+            logger.info(
+                f"Successfully extracted text from photo "
+                f"(confidence: {ocr_confidence}, handwritten: {is_handwritten})"
+            )
+        except ValueError as e:
+            # OCR failed (empty image, etc.)
+            logger.warning(f"Failed to extract text from photo: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=str(e)
+            )
+        except ConnectionError as e:
+            # Claude API unavailable
+            logger.error(f"Claude Vision API unavailable: {e}")
+            raise HTTPException(
+                status_code=503,
+                detail="OCR service temporarily unavailable. Please try again."
+            )
+        except Exception as e:
+            # Unexpected errors
+            logger.error(f"Unexpected error during OCR: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to extract text from photo: {str(e)}"
+            )
+
+        # Convert text_regions to TextRegion models
+        validated_regions = []
+        for region in text_regions:
+            bbox = None
+            if "bounding_box" in region and region["bounding_box"]:
+                bbox = BoundingBox(
+                    x=region["bounding_box"]["x"],
+                    y=region["bounding_box"]["y"],
+                    width=region["bounding_box"]["width"],
+                    height=region["bounding_box"]["height"]
+                )
+            validated_regions.append(TextRegion(
+                text=region["text"],
+                region_type=region["region_type"],
+                confidence=region["confidence"],
+                bounding_box=bbox
+            ))
+
+        return OCRFromPhotoResponse(
+            raw_text=raw_text,
+            text_regions=validated_regions,
+            ocr_confidence=ocr_confidence,
+            is_handwritten=is_handwritten,
+            warnings=warnings
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Failed to extract text from photo: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to extract text from photo: {str(e)}"
         )
 
 

@@ -335,3 +335,106 @@ Bake at 350 for 45 min""",
             mock_claude.assert_called_once()
             call_kwargs = mock_claude.call_args.kwargs
             assert call_kwargs.get('temperature', 1.0) <= 0.1
+
+
+class TestPhotoOCREndpoint:
+    """API endpoint tests for /recipes/ocr-from-photo"""
+
+    def test_ocr_endpoint_success(self, client, temp_data_dir):
+        """Test successful OCR endpoint response"""
+        mock_response = {
+            "raw_text": "Chocolate Chip Cookies\n\nIngredients:\n- 2 cups flour",
+            "text_regions": [
+                {
+                    "text": "Chocolate Chip Cookies",
+                    "region_type": "title",
+                    "confidence": "high",
+                    "bounding_box": {"x": 0.1, "y": 0.05, "width": 0.8, "height": 0.1}
+                }
+            ],
+            "ocr_confidence": "high",
+            "is_handwritten": False,
+            "warnings": []
+        }
+
+        with patch('app.routers.recipes.extract_text_from_recipe_photo') as mock_ocr:
+            mock_ocr.return_value = (
+                mock_response["raw_text"],
+                mock_response["text_regions"],
+                mock_response["ocr_confidence"],
+                mock_response["is_handwritten"],
+                mock_response["warnings"]
+            )
+
+            response = client.post(
+                "/recipes/ocr-from-photo?workspace_id=test",
+                json={"image_base64": MINIMAL_TEST_IMAGE}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["raw_text"] == mock_response["raw_text"]
+            assert data["ocr_confidence"] == "high"
+            assert data["is_handwritten"] is False
+            assert len(data["text_regions"]) == 1
+            assert data["text_regions"][0]["region_type"] == "title"
+
+    def test_ocr_endpoint_requires_image(self, client, temp_data_dir):
+        """Test that endpoint requires image_base64 field"""
+        response = client.post(
+            "/recipes/ocr-from-photo?workspace_id=test",
+            json={}
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    def test_ocr_endpoint_handles_handwritten(self, client, temp_data_dir):
+        """Test endpoint correctly returns handwritten detection"""
+        mock_response = {
+            "raw_text": "Grandmas Pie Recipe",
+            "text_regions": [],
+            "ocr_confidence": "medium",
+            "is_handwritten": True,
+            "warnings": ["Handwritten text detected"]
+        }
+
+        with patch('app.routers.recipes.extract_text_from_recipe_photo') as mock_ocr:
+            mock_ocr.return_value = (
+                mock_response["raw_text"],
+                mock_response["text_regions"],
+                mock_response["ocr_confidence"],
+                mock_response["is_handwritten"],
+                mock_response["warnings"]
+            )
+
+            response = client.post(
+                "/recipes/ocr-from-photo?workspace_id=test",
+                json={"image_base64": MINIMAL_TEST_IMAGE}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["is_handwritten"] is True
+            assert "Handwritten" in data["warnings"][0]
+
+    def test_ocr_endpoint_handles_empty_image_error(self, client, temp_data_dir):
+        """Test endpoint returns 400 for empty image"""
+        with patch('app.routers.recipes.extract_text_from_recipe_photo') as mock_ocr:
+            mock_ocr.side_effect = ValueError("Image data cannot be empty")
+
+            response = client.post(
+                "/recipes/ocr-from-photo?workspace_id=test",
+                json={"image_base64": ""}
+            )
+
+            assert response.status_code == 400
+            assert "empty" in response.json()["detail"].lower()
+
+    def test_ocr_endpoint_requires_workspace_id(self, client, temp_data_dir):
+        """Test endpoint requires workspace_id parameter"""
+        response = client.post(
+            "/recipes/ocr-from-photo",
+            json={"image_base64": MINIMAL_TEST_IMAGE}
+        )
+
+        assert response.status_code == 422  # Missing required query param
