@@ -271,6 +271,12 @@ async def create_recipe(
     try:
         save_recipe(workspace_id, recipe)
         logger.info(f"Created new recipe: {recipe.id} - {recipe.title} in workspace '{workspace_id}'")
+
+        # Embed recipe in Chroma for RAG retrieval
+        from app.data.chroma_manager import embed_recipes
+        embed_recipes(workspace_id, [recipe])
+        logger.info(f"Embedded recipe in Chroma: {recipe.id} for workspace '{workspace_id}'")
+
         return recipe
     except Exception as e:
         logger.error(f"Failed to save recipe for workspace '{workspace_id}': {e}")
@@ -319,6 +325,12 @@ async def update_recipe(
     try:
         save_recipe(workspace_id, recipe)
         logger.info(f"Updated recipe: {recipe.id} - {recipe.title} in workspace '{workspace_id}'")
+
+        # Re-embed recipe in Chroma to update the index
+        from app.data.chroma_manager import embed_recipes
+        embed_recipes(workspace_id, [recipe])
+        logger.info(f"Re-embedded recipe in Chroma: {recipe.id} for workspace '{workspace_id}'")
+
         return recipe
     except Exception as e:
         logger.error(f"Failed to update recipe for workspace '{workspace_id}': {e}")
@@ -971,6 +983,60 @@ async def sync_chroma_db(workspace_id: str = Query(..., description="Workspace i
         raise HTTPException(
             status_code=500,
             detail=f"Chroma sync failed: {str(e)}"
+        )
+
+
+@router.post("/admin/sync-all-workspaces", tags=["admin"])
+async def sync_all_workspaces():
+    """
+    Admin endpoint to sync Chroma DB with recipe storage for ALL workspaces.
+
+    Iterates through all workspace directories and syncs each one.
+    Useful for fixing global inconsistencies after deployment or data migration.
+
+    Returns:
+        dict: Sync results for each workspace
+            - {workspace_id}: {stats} for successful syncs
+            - {workspace_id}: {error} for failed syncs
+    """
+    from pathlib import Path
+    from app.data.chroma_manager import sync_chroma_with_storage
+
+    # Get data directory (backend/data)
+    data_dir = Path(__file__).parent.parent.parent / "data"
+    results = {}
+
+    # Skip these directories (not workspaces)
+    skip_dirs = {'chroma_db', 'null', 'recipes', '.DS_Store'}
+
+    try:
+        for workspace_dir in sorted(data_dir.iterdir()):
+            if not workspace_dir.is_dir():
+                continue
+            if workspace_dir.name.startswith('.'):
+                continue
+            if workspace_dir.name in skip_dirs:
+                continue
+
+            workspace_id = workspace_dir.name
+            try:
+                stats = sync_chroma_with_storage(workspace_id)
+                results[workspace_id] = stats
+                logger.info(f"Synced workspace '{workspace_id}': {stats}")
+            except Exception as e:
+                results[workspace_id] = {"error": str(e)}
+                logger.error(f"Failed to sync workspace '{workspace_id}': {e}")
+
+        logger.info(f"Sync-all-workspaces completed: {len(results)} workspaces processed")
+        return {
+            "message": f"Synced {len(results)} workspaces",
+            "results": results
+        }
+    except Exception as e:
+        logger.error(f"Failed to sync all workspaces: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Sync-all-workspaces failed: {str(e)}"
         )
 
 
