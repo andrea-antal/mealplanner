@@ -29,7 +29,7 @@ const MEAL_TYPES = [
   { value: 'breakfast', label: 'Breakfast' },
   { value: 'lunch', label: 'Lunch' },
   { value: 'dinner', label: 'Dinner' },
-  { value: 'snack', label: 'Snack' },
+  { value: 'snack', label: 'Snack/Dessert' },
   { value: 'side_dish', label: 'Side Dish' },
 ] as const;
 

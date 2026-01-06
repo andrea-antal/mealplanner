@@ -129,6 +129,8 @@ def filter_recipes_by_meal_type(
     If no recipes have the meal_type in their meal_types list, returns ALL recipes
     to allow users to swap to any available option.
 
+    Side dishes are included for lunch and dinner meal types.
+
     Args:
         recipes: List of recipes to filter
         meal_type: Meal type to filter by (breakfast, lunch, dinner, snack)
@@ -139,11 +141,16 @@ def filter_recipes_by_meal_type(
     """
     meal_type_lower = meal_type.lower()
 
+    # Side dishes can be used for lunch or dinner
+    types_to_match = {meal_type_lower}
+    if meal_type_lower in ('lunch', 'dinner'):
+        types_to_match.add('side_dish')
+
     # Filter by meal_types field (new), falling back to tags for backwards compatibility
     filtered = [
         r for r in recipes
-        if meal_type_lower in [mt.lower() for mt in getattr(r, 'meal_types', [])]
-        or (not getattr(r, 'meal_types', []) and meal_type_lower in [t.lower() for t in r.tags])
+        if any(mt.lower() in types_to_match for mt in getattr(r, 'meal_types', []))
+        or (not getattr(r, 'meal_types', []) and any(t.lower() in types_to_match for t in r.tags))
     ]
 
     # Fallback: if no recipes match meal type, return all recipes

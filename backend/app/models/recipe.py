@@ -31,7 +31,7 @@ class Recipe(BaseModel):
     )
     meal_types: List[str] = Field(
         default_factory=list,
-        description="What meals this recipe is suitable for: breakfast, lunch, dinner, snack. At least one required."
+        description="What meals this recipe is suitable for: breakfast, lunch, dinner, snack/dessert. At least one required."
     )
     prep_time_minutes: int = Field(..., ge=0, description="Total preparation time")
 

@@ -18,7 +18,7 @@ const mealTypeIcons: Record<string, string> = {
   breakfast: '🍳',
   lunch: '🥗',
   dinner: '🍽️',
-  snack: '🍎',
+  snack: '🍪',
 };
 
 const MealPlans = () => {

@@ -7,7 +7,7 @@ from datetime import date as Date, datetime
 
 class Meal(BaseModel):
     """Represents a single meal in the plan"""
-    meal_type: str = Field(..., description="Meal type: breakfast, lunch, dinner, snack")
+    meal_type: str = Field(..., description="Meal type: breakfast, lunch, dinner, snack/dessert")
     for_who: str = Field(..., description="Who this meal is for (family member name or 'everyone')")
     recipe_id: Optional[str] = Field(None, description="Reference to recipe ID (optional for simple snacks)")
     recipe_title: str = Field(..., description="Recipe title for quick reference")

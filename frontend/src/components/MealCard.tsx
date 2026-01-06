@@ -22,7 +22,7 @@ const mealTypeLabels: Record<string, string> = {
   breakfast: '🍳 Breakfast',
   lunch: '🥗 Lunch',
   dinner: '🍽️ Dinner',
-  snack: '🍎 Snack',
+  snack: '🍪 Snack/Dessert',
 };
 
 export function MealCard({ meal }: MealCardProps) {
