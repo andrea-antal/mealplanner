@@ -74,6 +74,96 @@ def list_workspaces() -> List[str]:
     return sorted(workspaces)
 
 
+def get_workspace_stats(workspace_id: str) -> Dict:
+    """
+    Get summary statistics for a workspace.
+
+    Returns:
+        Dict with recipe_count, meal_plan_count, grocery_count, member_count,
+        last_meal_plan_date, and last_activity timestamp.
+    """
+    from datetime import datetime
+
+    workspace_dir = DATA_DIR / workspace_id
+    if not workspace_dir.exists():
+        return {"error": f"Workspace '{workspace_id}' not found"}
+
+    stats = {
+        "workspace_id": workspace_id,
+        "recipe_count": 0,
+        "meal_plan_count": 0,
+        "grocery_count": 0,
+        "member_count": 0,
+        "last_meal_plan_date": None,
+        "last_activity": None,
+    }
+
+    # Track most recent file modification
+    latest_mtime = 0
+
+    # Recipe count
+    recipes_dir = workspace_dir / "recipes"
+    if recipes_dir.exists():
+        recipe_files = list(recipes_dir.glob("*.json"))
+        stats["recipe_count"] = len(recipe_files)
+        for f in recipe_files:
+            mtime = f.stat().st_mtime
+            if mtime > latest_mtime:
+                latest_mtime = mtime
+
+    # Meal plan count + most recent
+    meal_plans_dir = workspace_dir / "meal_plans"
+    if meal_plans_dir.exists():
+        meal_plan_files = list(meal_plans_dir.glob("*.json"))
+        stats["meal_plan_count"] = len(meal_plan_files)
+        for f in meal_plan_files:
+            mtime = f.stat().st_mtime
+            if mtime > latest_mtime:
+                latest_mtime = mtime
+            # Try to extract created_at from meal plan
+            try:
+                with open(f, 'r') as fp:
+                    data = json.load(fp)
+                    created = data.get("created_at")
+                    if created:
+                        if stats["last_meal_plan_date"] is None or created > stats["last_meal_plan_date"]:
+                            stats["last_meal_plan_date"] = created
+            except Exception:
+                pass
+
+    # Grocery count
+    groceries_file = workspace_dir / "groceries.json"
+    if groceries_file.exists():
+        mtime = groceries_file.stat().st_mtime
+        if mtime > latest_mtime:
+            latest_mtime = mtime
+        try:
+            with open(groceries_file, 'r') as f:
+                data = json.load(f)
+                stats["grocery_count"] = len(data.get("items", []))
+        except Exception:
+            pass
+
+    # Household member count
+    profile_file = workspace_dir / "household_profile.json"
+    if profile_file.exists():
+        mtime = profile_file.stat().st_mtime
+        if mtime > latest_mtime:
+            latest_mtime = mtime
+        try:
+            with open(profile_file, 'r') as f:
+                data = json.load(f)
+                stats["member_count"] = len(data.get("family_members", []))
+        except Exception:
+            pass
+
+    # Convert latest mtime to ISO string
+    if latest_mtime > 0:
+        stats["last_activity"] = datetime.fromtimestamp(latest_mtime).isoformat()
+
+    return stats
+
+
 # ===== Household Profile =====
 
 def load_household_profile(workspace_id: str) -> Optional[HouseholdProfile]:

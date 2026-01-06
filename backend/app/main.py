@@ -37,6 +37,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add request logging middleware
+from app.middleware import RequestLoggerMiddleware
+app.add_middleware(RequestLoggerMiddleware)
+
 logger.info(f"CORS enabled for origins: {settings.cors_origins_list}")
 
 
@@ -78,6 +82,75 @@ async def list_workspaces():
     return {
         "count": len(workspaces),
         "workspaces": workspaces
+    }
+
+
+@app.get("/workspaces/summary")
+async def workspaces_summary():
+    """
+    Get summary statistics for all workspaces.
+
+    Returns:
+        List of workspace stats including recipe count, meal plan count,
+        grocery count, member count, and last activity.
+    """
+    from app.data.data_manager import list_workspaces as get_workspaces, get_workspace_stats
+    from app.middleware.request_logger import get_workspace_request_stats
+    workspaces = get_workspaces()
+
+    summaries = []
+    for ws in workspaces:
+        stats = get_workspace_stats(ws)
+        request_stats = get_workspace_request_stats(ws)
+        stats["api_requests"] = request_stats["total_requests"]
+        stats["api_errors"] = request_stats["error_count"]
+        stats["last_api_call"] = request_stats["last_request"]
+        summaries.append(stats)
+
+    return {
+        "count": len(summaries),
+        "workspaces": summaries
+    }
+
+
+@app.get("/logs/requests")
+async def get_request_logs(
+    limit: int = 100,
+    workspace_id: str = None,
+    errors_only: bool = False
+):
+    """
+    Get recent API request logs.
+
+    Args:
+        limit: Maximum entries to return (default 100)
+        workspace_id: Filter by workspace (optional)
+        errors_only: Only show requests with errors
+
+    Returns:
+        List of request log entries (most recent first)
+    """
+    from app.middleware.request_logger import get_recent_requests
+    entries = get_recent_requests(limit=limit, workspace_id=workspace_id, errors_only=errors_only)
+    return {
+        "count": len(entries),
+        "requests": entries
+    }
+
+
+@app.get("/logs/errors")
+async def get_error_logs(limit: int = 50, workspace_id: str = None):
+    """
+    Get recent API errors (convenience endpoint).
+
+    Returns:
+        List of request log entries with errors (most recent first)
+    """
+    from app.middleware.request_logger import get_recent_requests
+    entries = get_recent_requests(limit=limit, workspace_id=workspace_id, errors_only=True)
+    return {
+        "count": len(entries),
+        "errors": entries
     }
 
 
