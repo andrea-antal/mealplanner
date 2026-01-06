@@ -65,6 +65,22 @@ async def health_check():
     }
 
 
+@app.get("/workspaces")
+async def list_workspaces():
+    """
+    List all workspace IDs.
+
+    Returns:
+        Count and sorted list of workspace IDs
+    """
+    from app.data.data_manager import list_workspaces as get_workspaces
+    workspaces = get_workspaces()
+    return {
+        "count": len(workspaces),
+        "workspaces": workspaces
+    }
+
+
 # Include routers
 from app.routers import meal_plans_router, household_router, recipes_router, groceries_router, feedback_router
 

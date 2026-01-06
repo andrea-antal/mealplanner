@@ -57,6 +57,23 @@ def _ensure_data_dir(workspace_id: str):
     logger.info(f"Data directory ensured for workspace '{workspace_id}' at: {workspace_dir}")
 
 
+def list_workspaces() -> List[str]:
+    """
+    List all valid workspace directories.
+
+    Returns:
+        Sorted list of workspace IDs (directories matching the validation pattern)
+    """
+    if not DATA_DIR.exists():
+        return []
+
+    workspaces = [
+        d.name for d in DATA_DIR.iterdir()
+        if d.is_dir() and WORKSPACE_ID_PATTERN.match(d.name)
+    ]
+    return sorted(workspaces)
+
+
 # ===== Household Profile =====
 
 def load_household_profile(workspace_id: str) -> Optional[HouseholdProfile]:
