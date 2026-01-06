@@ -89,3 +89,7 @@ htmlcov/
 # backend/data/household_profile.json
 # backend/data/groceries.json
 # backend/data/recipes/*.json
+
+# Claude Code project instructions (may contain sensitive info)
+CLAUDE.md
+.claude/
