@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { mealPlansAPI, recipesAPI, type MealPlan, type Recipe, type AlternativeRecipeSuggestion } from '@/lib/api';
+import { mealPlansAPI, recipesAPI, onboardingAPI, type MealPlan, type Recipe, type AlternativeRecipeSuggestion } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import { Sparkles, Loader2, Plus, RefreshCw, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -41,6 +41,13 @@ const MealPlans = () => {
   const { data: mealPlans, isLoading: isLoadingMealPlans } = useQuery({
     queryKey: ['meal-plans', workspaceId],
     queryFn: () => mealPlansAPI.getAll(workspaceId),
+    enabled: !!workspaceId,
+  });
+
+  // Fetch onboarding status for smart routing in insufficient recipes modal
+  const { data: onboardingStatus } = useQuery({
+    queryKey: ['onboardingStatus', workspaceId],
+    queryFn: () => onboardingAPI.getStatus(workspaceId),
     enabled: !!workspaceId,
   });
 
@@ -89,7 +96,7 @@ const MealPlans = () => {
   useEffect(() => {
     const updateVisibleDayCount = () => {
       const width = window.innerWidth;
-      if (width >= 1500) {
+      if (width >= 1200) {
         setVisibleDayCount(3);
       } else if (width >= 1000) {
         setVisibleDayCount(2);
@@ -707,6 +714,8 @@ const MealPlans = () => {
         onOpenChange={setInsufficientModalOpen}
         totalCount={insufficientData?.totalCount ?? 0}
         missingMealTypes={insufficientData?.missingMealTypes ?? []}
+        onGenerateAnyway={proceedWithGeneration}
+        householdSetUp={onboardingStatus?.completed ?? false}
       />
     </div>
   );
