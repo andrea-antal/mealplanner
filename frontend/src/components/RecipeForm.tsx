@@ -16,10 +16,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Separator } from '@/components/ui/separator';
 import { Loader2, AlertTriangle, ChevronDown, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Recipe } from '@/lib/api';
+import type { Recipe, OCRFromPhotoResponse } from '@/lib/api';
 import { recipesAPI } from '@/lib/api';
+import { PhotoUploadInput } from './recipe/PhotoUploadInput';
+import { OCRReviewStep } from './recipe/OCRReviewStep';
 
 // Valid meal types matching backend validation
 const MEAL_TYPES = [
@@ -68,6 +71,14 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const [manualExpanded, setManualExpanded] = useState(false);
 
+  // Photo OCR state
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<OCRFromPhotoResponse | null>(null);
+  const [correctedText, setCorrectedText] = useState('');
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+  const [showOcrReview, setShowOcrReview] = useState(false);
+
   // Populate form when opening in edit mode (useEffect watches the open prop)
   useEffect(() => {
     if (open && mode === 'edit' && initialRecipe) {
@@ -94,6 +105,13 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
       setParseWarnings([]);
       setHasParsedData(false);
       setManualExpanded(false);
+      // Reset photo state
+      setPhotoBase64(null);
+      setPhotoPreviewUrl(null);
+      setOcrResult(null);
+      setCorrectedText('');
+      setIsOcrProcessing(false);
+      setShowOcrReview(false);
     }
   }, [open, mode, initialRecipe]);
 
@@ -174,7 +192,104 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
     setFormData(emptyFormData);
     setHasParsedData(false);
     setParseWarnings([]);
-    // Keep the original input so user can try again
+    // Reset photo state too
+    setPhotoBase64(null);
+    setPhotoPreviewUrl(null);
+    setOcrResult(null);
+    setCorrectedText('');
+    setShowOcrReview(false);
+    // Keep the original text input so user can try again
+  };
+
+  // Photo upload handler
+  const handlePhotoSelected = async (base64: string, previewUrl: string) => {
+    setPhotoBase64(base64);
+    setPhotoPreviewUrl(previewUrl);
+    setIsOcrProcessing(true);
+
+    try {
+      const result = await recipesAPI.ocrFromPhoto(workspaceId, base64);
+      setOcrResult(result);
+      setCorrectedText(result.raw_text);
+      setShowOcrReview(true);
+
+      if (result.is_handwritten) {
+        toast.info('Handwritten recipe detected. Please review the text carefully.');
+      } else if (result.ocr_confidence === 'low') {
+        toast.warning('Low confidence OCR. Please review and correct the text.');
+      } else {
+        toast.success('Text extracted! Review and edit before parsing.');
+      }
+    } catch (error: any) {
+      console.error('OCR failed:', error);
+      toast.error(`Failed to extract text: ${error.message || 'Unknown error'}`);
+      // Reset photo state on error
+      setPhotoBase64(null);
+      setPhotoPreviewUrl(null);
+    } finally {
+      setIsOcrProcessing(false);
+    }
+  };
+
+  // Handle parsing OCR text (Stage 2)
+  const handleParseOcrText = async () => {
+    if (correctedText.trim().length < MIN_TEXT_LENGTH) {
+      toast.error(`Text must be at least ${MIN_TEXT_LENGTH} characters`);
+      return;
+    }
+
+    setIsParsing(true);
+    setParseWarnings([]);
+
+    try {
+      const response = await recipesAPI.parseFromText(workspaceId, correctedText);
+
+      // Auto-populate form fields
+      setFormData({
+        title: response.recipe_data.title || '',
+        description: response.recipe_data.description || '',
+        ingredients: response.recipe_data.ingredients?.join('\n') || '',
+        instructions: response.recipe_data.instructions || '',
+        tags: response.recipe_data.tags?.join(', ') || '',
+        meal_types: response.recipe_data.meal_types || [],
+        prep_time_minutes: response.recipe_data.prep_time_minutes?.toString() || '',
+        active_cooking_time_minutes: response.recipe_data.active_cooking_time_minutes?.toString() || '',
+        serves: response.recipe_data.serves?.toString() || '',
+        required_appliances: response.recipe_data.required_appliances?.join(', ') || '',
+        source_url: response.recipe_data.source_url || '',
+        source_name: response.recipe_data.source_name || '',
+      });
+
+      // Show warnings
+      const warnings = [...response.warnings];
+      if (response.missing_fields.length > 0) {
+        warnings.push(`Missing fields: ${response.missing_fields.join(', ')}. Please fill them in.`);
+      }
+      if (response.confidence === 'low') {
+        warnings.push('Low confidence parsing. Please review all fields carefully.');
+      } else if (response.confidence === 'medium') {
+        warnings.push('Some fields may need review.');
+      }
+      setParseWarnings(warnings);
+      setHasParsedData(true);
+      setShowOcrReview(false);
+
+      toast.success('Recipe parsed from photo! Review and edit as needed.');
+    } catch (error: any) {
+      console.error('Failed to parse OCR text:', error);
+      toast.error(`Failed to parse recipe: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  // Back from OCR review to input
+  const handleBackFromOcr = () => {
+    setShowOcrReview(false);
+    setOcrResult(null);
+    setPhotoBase64(null);
+    setPhotoPreviewUrl(null);
+    setCorrectedText('');
   };
 
   const toggleMealType = (mealType: string) => {
@@ -393,7 +508,7 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Unified Input Section - only show in add mode when no parsed data */}
-          {!isEditMode && !hasParsedData && (
+          {!isEditMode && !hasParsedData && !showOcrReview && (
             <div className="border-b border-border pb-4 mb-4">
               <Label htmlFor="recipe-input" className="text-base font-semibold">
                 Paste Recipe
@@ -419,7 +534,7 @@ Instructions:
 1. Preheat oven to 350°F
 2. Mix ingredients
 3. Bake for 12 minutes"
-                disabled={isParsing}
+                disabled={isParsing || isOcrProcessing}
                 rows={8}
                 className="font-mono text-sm"
               />
@@ -435,7 +550,7 @@ Instructions:
                 <Button
                   type="button"
                   onClick={handleParse}
-                  disabled={!canParse || isParsing}
+                  disabled={!canParse || isParsing || isOcrProcessing}
                   variant="secondary"
                 >
                   {isParsing ? (
@@ -448,6 +563,24 @@ Instructions:
                   )}
                 </Button>
               </div>
+
+              {/* Photo upload option */}
+              <div className="relative my-4">
+                <Separator />
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-2 text-xs text-muted-foreground">
+                  or upload a photo
+                </span>
+              </div>
+              <PhotoUploadInput
+                onPhotoSelected={handlePhotoSelected}
+                disabled={isParsing || isOcrProcessing}
+              />
+              {isOcrProcessing && (
+                <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Extracting text from photo...
+                </div>
+              )}
 
               {/* Collapsible manual entry */}
               <Collapsible
@@ -465,6 +598,21 @@ Instructions:
                   {renderFormFields()}
                 </CollapsibleContent>
               </Collapsible>
+            </div>
+          )}
+
+          {/* OCR Review Step - show after photo upload, before final parsing */}
+          {!isEditMode && !hasParsedData && showOcrReview && ocrResult && photoPreviewUrl && (
+            <div className="border-b border-border pb-4 mb-4">
+              <OCRReviewStep
+                photoPreviewUrl={photoPreviewUrl}
+                ocrResult={ocrResult}
+                correctedText={correctedText}
+                onTextChange={setCorrectedText}
+                onProceed={handleParseOcrText}
+                onBack={handleBackFromOcr}
+                isParsing={isParsing}
+              />
             </div>
           )}
 

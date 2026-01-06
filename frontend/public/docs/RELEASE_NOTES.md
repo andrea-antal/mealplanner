@@ -1,11 +1,30 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2026-01-03
+**Last Updated**: 2026-01-05
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.10.0 - January 5, 2026
+
+### New Features
+
+- **Photo Recipe Capture** - Take a photo of a printed cookbook page or handwritten recipe card and let Claude extract the text! The app uses a two-stage process:
+  1. Upload a photo (supports JPEG, PNG, WebP, and iPhone HEIF/HEIC formats)
+  2. Review and correct the extracted text - especially useful for handwritten recipes where OCR may need help
+  3. Parse into structured recipe fields for final review
+
+- **Handwriting Support** - The OCR engine automatically detects handwritten text and shows appropriate warnings so you know to review more carefully. Works with both neat printing and cursive!
+
+- **Confidence Indicators** - See at a glance how confident the AI is in its text extraction. Low confidence results are highlighted so you know exactly what to double-check
+
+### How It Works
+
+In the "Add Recipe" modal, scroll down to see the new "or upload a photo" section. Drag and drop an image or click to select one. After extraction, you'll see the photo alongside an editable text box - fix any OCR errors, then click "Parse Recipe" to convert it to structured fields.
+
+---
 
 ## Version 0.9.1 - January 3, 2026
 
