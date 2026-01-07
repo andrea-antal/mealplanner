@@ -896,6 +896,7 @@ Your expertise:
 
 You always:
 - Parse items into their simplest form (e.g., "2 lbs chicken breast" → name: "chicken breast", portion: "2 lbs")
+- PRESERVE THE ORIGINAL LANGUAGE - if input is in Chinese, Hungarian, or any other language, keep item names in that language
 - Infer purchase_date from phrases like "bought yesterday", "purchased today"
 - Infer expiry_date from phrases like "expires tomorrow", "use by Friday", "goes bad soon"
 - Flag low confidence when the input is ambiguous
@@ -945,7 +946,7 @@ CONTEXT:
 
 TASK:
 Extract all grocery items mentioned and structure them with:
-1. Item name (standardized, lowercase)
+1. Item name (in the SAME LANGUAGE as the input, lowercase)
 2. Purchase date (if mentioned or inferred)
 3. Expiry date (if mentioned or inferred)
 4. Portion/quantity (if mentioned)
@@ -978,7 +979,7 @@ Return your response as valid JSON matching this exact schema:
 RULES:
 1. Return ONLY valid JSON, no other text
 2. Use ISO date format (YYYY-MM-DD) for all dates
-3. Standardize item names (lowercase, singular form preferred)
+3. Keep item names in the ORIGINAL LANGUAGE of the input (lowercase, singular form preferred)
 4. If you're unsure about something, mark confidence as "medium" or "low"
 5. Add warnings for potential duplicates or ambiguities
 6. If no items can be extracted, return empty proposed_items array with a warning

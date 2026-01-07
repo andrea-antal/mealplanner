@@ -14,6 +14,101 @@ npm run dev
 ```
 The frontend will start on http://localhost:5173 (or the next available port)
 
+# Sync all workspaces
+
+curl -X POST "https://mealplanner-backend-production-3e88.up.railway.app/recipes/admin/sync-all-workspaces"
+
+# Workspace Analytics
+
+⏺ How to Use the Workspace Analytics Endpoints
+
+  1. /workspaces - List all workspace IDs
+
+  curl https://mealplanner-backend-production-3e88.up.railway.app/workspaces
+
+  Returns: Simple list of workspace IDs
+  {
+    "count": 7,
+    "workspaces": ["aimee", "aimeemao", "amy", "andrea", "ibolya", "ryan", "uncle-sam"]
+  }
+
+  ---
+  2. /workspaces/summary - Full stats for all workspaces
+
+  curl https://mealplanner-backend-production-3e88.up.railway.app/workspaces/summary
+
+  Returns: Per-workspace breakdown with:
+  - recipe_count - Number of saved recipes
+  - meal_plan_count - Number of generated meal plans
+  - grocery_count - Items in grocery list
+  - member_count - Household members
+  - last_activity - Most recent file modification
+  - api_requests - Total API calls (since logging started)
+  - api_errors - Total errors encountered
+
+  ---
+  3. /logs/requests - View recent API calls
+
+  ## Get last 100 requests (default)
+  curl https://mealplanner-backend-production-3e88.up.railway.app/logs/requests
+
+  ## Get last 20 requests
+  curl "https://mealplanner-backend-production-3e88.up.railway.app/logs/requests?limit=20"
+
+  ## Filter by workspace
+  curl "https://mealplanner-backend-production-3e88.up.railway.app/logs/requests?workspace_id=andrea"
+
+  ## Only show errors
+  curl "https://mealplanner-backend-production-3e88.up.railway.app/logs/requests?errors_only=true"
+
+  ## Combine filters
+  curl "https://mealplanner-backend-production-3e88.up.railway.app/logs/requests?workspace_id=andrea&limit=50&errors_only=true"
+
+  Returns:
+  {
+    "count": 3,
+    "requests": [
+      {
+        "timestamp": "2026-01-06T08:24:31.279162Z",
+        "method": "GET",
+        "path": "/workspaces/summary",
+        "workspace_id": null,
+        "status_code": 200,
+        "duration_ms": 27.69,
+        "error": null
+      }
+    ]
+  }
+
+  ---
+  4. /logs/errors - Quick error view (convenience endpoint)
+
+  ## Get last 50 errors
+  curl https://mealplanner-backend-production-3e88.up.railway.app/logs/errors
+
+  ## Get last 10 errors for a specific workspace
+  curl "https://mealplanner-backend-production-3e88.up.railway.app/logs/errors?limit=10&workspace_id=andrea"
+
+  ---
+  Quick Reference Table
+
+  | What you want            | Command                                      |
+  |--------------------------|----------------------------------------------|
+  | All workspace IDs        | curl .../workspaces                          |
+  | Full stats per workspace | curl .../workspaces/summary                  |
+  | Recent API activity      | curl .../logs/requests                       |
+  | Andrea's recent calls    | curl "https://mealplanner-backend-production-3e88.up.railway.app/logs/requests?workspace_id=andrea" |
+  | All recent errors        | curl .../logs/errors                         |
+  | Slow requests (>1s)      | Check duration_ms field in logs              |
+
+  ---
+  ★ Insight ─────────────────────────────────────
+  Practical tips:
+  - Pipe to jq for formatted output: curl ... | jq .
+  - The workspace_id in logs is null for admin endpoints (like /workspaces/summary) since they don't operate on a single workspace
+  - Logs are stored in request_log.jsonl on Railway's ephemeral storage - they reset on redeploy. For persistent logs, consider adding a database later.
+  ─────────────────────────────────────────────────
+
 # Quick Tips
 - The `--reload` flag on the backend automatically restarts when you change Python files
 - Keep both terminals running while you're working on the app

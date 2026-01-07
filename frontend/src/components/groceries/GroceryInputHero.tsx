@@ -15,8 +15,27 @@ import {
   AlertCircle,
   ChevronDown,
   Plus,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Language options for voice input
+const LANGUAGE_OPTIONS = [
+  { code: 'en-US', label: 'EN', name: 'English' },
+  { code: 'hu-HU', label: 'HU', name: 'Magyar' },
+  { code: 'yue-Hant-HK', label: '粵', name: '廣東話' },
+];
+
+// Get display label for a language code (supports partial matches like "en" -> "EN")
+function getLanguageLabel(code: string): string {
+  const exact = LANGUAGE_OPTIONS.find(opt => opt.code === code);
+  if (exact) return exact.label;
+
+  // Try matching just the language part (e.g., "en" matches "en-US")
+  const langPart = code.split('-')[0].toLowerCase();
+  const partial = LANGUAGE_OPTIONS.find(opt => opt.code.toLowerCase().startsWith(langPart));
+  return partial?.label || code.substring(0, 2).toUpperCase();
+}
 
 interface GroceryInputHeroProps {
   // Voice input props
@@ -26,6 +45,8 @@ interface GroceryInputHeroProps {
   isVoiceSupported: boolean;
   handleVoiceToggle: () => void;
   parseVoiceMutationPending: boolean;
+  voiceLanguage: string;
+  onLanguageChange: (lang: string) => void;
 
   // Receipt upload props
   fileInputRef: React.RefObject<HTMLInputElement>;
@@ -52,6 +73,8 @@ export function GroceryInputHero({
   isVoiceSupported,
   handleVoiceToggle,
   parseVoiceMutationPending,
+  voiceLanguage,
+  onLanguageChange,
   fileInputRef,
   handleReceiptUpload,
   isUploadingReceipt,
@@ -71,6 +94,28 @@ export function GroceryInputHero({
 
   return (
     <div className="rounded-3xl bg-gradient-to-br from-primary/5 to-secondary/5 p-6 space-y-4">
+      {/* Voice Language Selector - only show if voice is supported */}
+      {isVoiceSupported && (
+        <div className="flex items-center justify-center gap-1">
+          <Globe className="h-3.5 w-3.5 text-muted-foreground mr-1" />
+          {LANGUAGE_OPTIONS.map((opt) => (
+            <button
+              key={opt.code}
+              type="button"
+              onClick={() => onLanguageChange(opt.code)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
+                voiceLanguage === opt.code
+                  ? "bg-amber-100 text-amber-900 border border-amber-300"
+                  : "bg-background text-muted-foreground border border-border hover:bg-amber-50 hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Primary Actions - Large Touch Targets */}
       <div className="grid grid-cols-2 gap-3">
         {isVoiceSupported && (

@@ -50,11 +50,14 @@ export interface UseVoiceInputReturn {
  * );
  * ```
  */
-export function useVoiceInput(): UseVoiceInputReturn {
+export function useVoiceInput(lang?: string): UseVoiceInputReturn {
   const [state, setState] = useState<VoiceInputState>('idle');
   const [transcription, setTranscription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // Resolve language: explicit param > browser default > fallback
+  const resolvedLang = lang || (typeof navigator !== 'undefined' ? navigator.language : 'en-US');
 
   // Check if browser supports Web Speech API
   const isSupported = typeof window !== 'undefined' &&
@@ -77,7 +80,7 @@ export function useVoiceInput(): UseVoiceInputReturn {
 
     recognition.continuous = true;  // Keep listening until manually stopped
     recognition.interimResults = true;  // Show results in real-time as user speaks
-    recognition.lang = 'en-US';
+    recognition.lang = resolvedLang;
 
     recognition.onstart = () => {
       setState('listening');
@@ -135,7 +138,7 @@ export function useVoiceInput(): UseVoiceInputReturn {
       setError('Failed to start voice input. Please try again.');
       setState('error');
     }
-  }, [isSupported]);
+  }, [isSupported, resolvedLang]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {

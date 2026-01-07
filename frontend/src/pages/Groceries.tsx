@@ -91,6 +91,16 @@ const Groceries = () => {
     localStorage.setItem('mealplanner_grocery_accordion_state', JSON.stringify(accordionState));
   }, [accordionState]);
 
+  // Voice language preference with localStorage persistence
+  const [voiceLanguage, setVoiceLanguage] = useState(() => {
+    return localStorage.getItem('mealplanner_voice_language') || navigator.language || 'en-US';
+  });
+
+  // Persist voice language to localStorage
+  useEffect(() => {
+    localStorage.setItem('mealplanner_voice_language', voiceLanguage);
+  }, [voiceLanguage]);
+
   // Form state for adding new grocery
   const [newItemName, setNewItemName] = useState('');
   const [newItemPurchaseDate, setNewItemPurchaseDate] = useState('');
@@ -106,7 +116,7 @@ const Groceries = () => {
     stopListening,
     reset: resetVoice,
     isSupported: isVoiceSupported,
-  } = useVoiceInput();
+  } = useVoiceInput(voiceLanguage);
 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [proposedItems, setProposedItems] = useState<ProposedGroceryItem[]>([]);
@@ -567,6 +577,8 @@ const Groceries = () => {
         isVoiceSupported={isVoiceSupported}
         handleVoiceToggle={handleVoiceToggle}
         parseVoiceMutationPending={parseVoiceMutation.isPending}
+        voiceLanguage={voiceLanguage}
+        onLanguageChange={setVoiceLanguage}
         fileInputRef={fileInputRef}
         handleReceiptUpload={handleReceiptUpload}
         isUploadingReceipt={isUploadingReceipt}
