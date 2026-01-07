@@ -11,13 +11,18 @@ export interface FamilyMember {
   age_group: 'toddler' | 'child' | 'adult';
   allergies: string[];
   dislikes: string[];
-  preferences: string[];
+  likes: string[];
+  diet: string[];
 }
 
 export interface DaycareRules {
   no_nuts: boolean;
+  no_peanuts_only: boolean;
+  no_chocolate: boolean;
   no_honey: boolean;
   must_be_cold: boolean;
+  custom_rules: string[]; // Custom rules like 'no spicy food'
+  daycare_days: string[]; // 'monday', 'tuesday', etc.
 }
 
 export interface CookingPreferences {
@@ -205,6 +210,7 @@ export interface FieldConfidence {
 export interface MealPlanRequest {
   week_start_date: string; // ISO format: YYYY-MM-DD
   num_recipes?: number;
+  week_context?: string; // Optional user description of their week (schedule, preferences, etc.)
 }
 
 export interface Meal {

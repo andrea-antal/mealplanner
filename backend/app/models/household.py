@@ -16,10 +16,20 @@ class FamilyMember(BaseModel):
 
 
 class DaycareRules(BaseModel):
-    """Daycare lunch/snack rules and restrictions"""
-    no_nuts: bool = Field(default=True, description="Nut-free requirement")
-    no_honey: bool = Field(default=True, description="No honey for toddlers")
-    must_be_cold: bool = Field(default=False, description="Must be served cold")
+    """Daycare/school lunch/snack rules and restrictions"""
+    no_nuts: bool = Field(default=False, description="No nuts (all tree nuts and peanuts)")
+    no_peanuts_only: bool = Field(default=False, description="No peanuts only (tree nuts allowed)")
+    no_chocolate: bool = Field(default=False, description="No chocolate or cocoa products")
+    no_honey: bool = Field(default=False, description="No honey (for infants/toddlers)")
+    must_be_cold: bool = Field(default=False, description="Must be served cold (no heating available)")
+    custom_rules: List[str] = Field(
+        default_factory=list,
+        description="Custom food rules (e.g., 'no spicy food', 'vegetarian only')"
+    )
+    daycare_days: List[str] = Field(
+        default_factory=list,
+        description="Days child attends daycare/school: monday, tuesday, wednesday, thursday, friday"
+    )
 
 
 class CookingPreferences(BaseModel):

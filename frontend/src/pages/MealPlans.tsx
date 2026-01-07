@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { mealPlansAPI, recipesAPI, onboardingAPI, type MealPlan, type Recipe, type AlternativeRecipeSuggestion } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Sparkles, Loader2, Plus, RefreshCw, Undo2 } from 'lucide-react';
+import { Sparkles, Loader2, Plus, RefreshCw, Undo2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeModal } from '@/components/RecipeModal';
@@ -12,6 +12,8 @@ import { GenerateFromTitleModal } from '@/components/GenerateFromTitleModal';
 import { MealPlanGenerationModal } from '@/components/MealPlanGenerationModal';
 import { SwapRecipeModal } from '@/components/SwapRecipeModal';
 import { InsufficientRecipesModal } from '@/components/InsufficientRecipesModal';
+import { SaveAllRecipesModal, type SaveAllResult } from '@/components/SaveAllRecipesModal';
+import { WeekContextModal } from '@/components/WeekContextModal';
 
 // Meal type emoji mapping (lowercase to match API data)
 const mealTypeIcons: Record<string, string> = {
@@ -23,6 +25,7 @@ const mealTypeIcons: Record<string, string> = {
 
 const MealPlans = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const workspaceId = getCurrentWorkspace();
 
   // Redirect to home if no workspace is set (defense in depth)
@@ -51,6 +54,13 @@ const MealPlans = () => {
     enabled: !!workspaceId,
   });
 
+  // Fetch existing recipes for duplicate checking in save all
+  const { data: existingRecipes } = useQuery({
+    queryKey: ['recipes', workspaceId],
+    queryFn: () => recipesAPI.getAll(workspaceId),
+    enabled: !!workspaceId,
+  });
+
   // Use most recent meal plan (first in list, sorted by date desc)
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
 
@@ -64,31 +74,9 @@ const MealPlans = () => {
   // Selected day index (0 = Monday, 6 = Sunday)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
 
-  // Day picker scroll state for position indicator dots
-  const dayPickerRef = useRef<HTMLDivElement>(null);
-  const [scrollProgress, setScrollProgress] = useState(0); // 0, 1, or 2 for dot position
-  const [isScrollable, setIsScrollable] = useState(true); // Whether content overflows (hides dots when false)
-
-  const handleDayPickerScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollLeft, scrollWidth, clientWidth } = e.currentTarget;
-    const maxScroll = scrollWidth - clientWidth;
-    setIsScrollable(maxScroll > 1); // 1px tolerance for rounding
-    const progress = maxScroll > 0 ? Math.round((scrollLeft / maxScroll) * 2) : 0;
-    setScrollProgress(progress);
-  };
-
-  // Check scrollability on mount and resize (handles orientation changes)
-  useEffect(() => {
-    const checkScrollable = () => {
-      if (dayPickerRef.current) {
-        const { scrollWidth, clientWidth } = dayPickerRef.current;
-        setIsScrollable(scrollWidth - clientWidth > 1);
-      }
-    };
-    checkScrollable();
-    window.addEventListener('resize', checkScrollable);
-    return () => window.removeEventListener('resize', checkScrollable);
-  }, [mealPlan]);
+  // Navigation helpers
+  const canGoPrev = selectedDayIndex > 0;
+  const canGoNext = selectedDayIndex < 6;
 
   // Track viewport width for multi-day desktop view
   const [visibleDayCount, setVisibleDayCount] = useState(1);
@@ -151,16 +139,25 @@ const MealPlans = () => {
     missingMealTypes: string[];
   } | null>(null);
 
+  // Save all recipes modal state
+  const [saveAllModalOpen, setSaveAllModalOpen] = useState(false);
+  const [recipeTitlesToSave, setRecipeTitlesToSave] = useState<string[]>([]);
+  const [isSavingRecipes, setIsSavingRecipes] = useState(false);
+
+  // Week context modal state (for describing user's week before generation)
+  const [weekContextModalOpen, setWeekContextModalOpen] = useState(false);
+  const [pendingWeekStartDate, setPendingWeekStartDate] = useState<string | null>(null);
+
   // Mutation to generate meal plan
   const generateMutation = useMutation({
-    mutationFn: async (week_start_date: string) => {
+    mutationFn: async ({ week_start_date, week_context }: { week_start_date: string; week_context?: string }) => {
       // Create new AbortController for this request
       abortControllerRef.current = new AbortController();
 
       try {
         const result = await mealPlansAPI.generate(
           workspaceId,
-          { week_start_date, num_recipes: 7 },
+          { week_start_date, num_recipes: 7, week_context },
           { signal: abortControllerRef.current.signal }
         );
         // Save to backend for persistence
@@ -249,6 +246,25 @@ const MealPlans = () => {
     },
   });
 
+  // Calculate and store next Monday's date, then show week context modal
+  const showWeekContextModal = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek; // 0 = Sunday
+
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + daysUntilMonday);
+
+    // Format date in local time (avoid timezone issues with toISOString)
+    const year = nextMonday.getFullYear();
+    const month = String(nextMonday.getMonth() + 1).padStart(2, '0');
+    const day = String(nextMonday.getDate()).padStart(2, '0');
+    const weekStartDate = `${year}-${month}-${day}`;
+
+    setPendingWeekStartDate(weekStartDate);
+    setWeekContextModalOpen(true);
+  };
+
   const handleGenerate = async () => {
     // Check recipe readiness before generating
     try {
@@ -268,34 +284,139 @@ const MealPlans = () => {
       // On error, proceed with generation (let backend handle it)
     }
 
-    // Proceed with generation
-    proceedWithGeneration();
+    // Show week context modal before generation
+    showWeekContextModal();
   };
 
-  const proceedWithGeneration = () => {
-    // Get next Monday's date for the meal plan
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek; // 0 = Sunday
+  // Called from InsufficientRecipesModal "Generate Anyway" button
+  const handleGenerateAnyway = () => {
+    setInsufficientModalOpen(false);
+    showWeekContextModal();
+  };
 
-    console.log('🔍 DEBUG:');
-    console.log('  Today:', today.toDateString(), '- day of week:', dayOfWeek, ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek]);
-    console.log('  Days until Monday:', daysUntilMonday);
+  // Called when user submits or skips the week context modal
+  const proceedWithGeneration = (weekContext?: string) => {
+    if (!pendingWeekStartDate) return;
 
-    const nextMonday = new Date(today);
-    nextMonday.setDate(today.getDate() + daysUntilMonday);
+    setWeekContextModalOpen(false);
 
-    console.log('  Next Monday:', nextMonday.toDateString(), '- day of week:', nextMonday.getDay());
+    console.log('✅ Generating meal plan for week starting:', pendingWeekStartDate);
+    if (weekContext) {
+      console.log('   With week context:', weekContext.slice(0, 50) + '...');
+    }
 
-    // Format date in local time (avoid timezone issues with toISOString)
-    const year = nextMonday.getFullYear();
-    const month = String(nextMonday.getMonth() + 1).padStart(2, '0');
-    const day = String(nextMonday.getDate()).padStart(2, '0');
-    const weekStartDate = `${year}-${month}-${day}`;
+    generateMutation.mutate({
+      week_start_date: pendingWeekStartDate,
+      week_context: weekContext || undefined,
+    });
 
-    console.log('  Formatted date:', weekStartDate);
-    console.log('✅ Generating meal plan for week starting:', weekStartDate);
-    generateMutation.mutate(weekStartDate);
+    setPendingWeekStartDate(null);
+  };
+
+  // Helper to collect unique recipe titles from visible days (without recipe_id)
+  const getVisibleRecipeTitlesToSave = (): string[] => {
+    if (!mealPlan) return [];
+
+    const titles = new Set<string>();
+
+    visibleDayIndices.forEach((dayIndex) => {
+      const day = mealPlan.days[dayIndex];
+      day.meals.forEach((meal) => {
+        // Only include meals without recipe_id (title-only suggestions)
+        // Exclude "Eating out" meals since there's no recipe to save
+        if (!meal.recipe_id && meal.recipe_title && !meal.recipe_title.toLowerCase().includes('eating out')) {
+          titles.add(meal.recipe_title);
+        }
+      });
+    });
+
+    return Array.from(titles);
+  };
+
+  // Handle save all visible recipes click
+  const handleSaveAllClick = () => {
+    const titles = getVisibleRecipeTitlesToSave();
+
+    if (titles.length === 0) {
+      toast.info('All visible recipes are already saved to your library.');
+      return;
+    }
+
+    // Filter out recipes that already exist in library (case-insensitive)
+    const existingTitles = new Set(
+      (existingRecipes || []).map(r => r.title.toLowerCase())
+    );
+
+    const newTitles = titles.filter(
+      title => !existingTitles.has(title.toLowerCase())
+    );
+
+    if (newTitles.length === 0) {
+      toast.info('All visible recipes already exist in your library.');
+      return;
+    }
+
+    setRecipeTitlesToSave(newTitles);
+    setSaveAllModalOpen(true);
+  };
+
+  // Handle save all complete - link recipes to meal plan by matching titles
+  const handleSaveAllComplete = async (results: SaveAllResult) => {
+    setSaveAllModalOpen(false);
+
+    // Invalidate recipes query to refresh
+    queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+
+    if (results.saved > 0 && mealPlan) {
+      try {
+        // Fetch the latest recipes to get their IDs
+        const recipes = await recipesAPI.getAll(workspaceId);
+
+        // Build a map of lowercase title -> recipe for matching
+        const recipeByTitle = new Map(
+          recipes.map(r => [r.title.toLowerCase(), r])
+        );
+
+        // Update meal plan to link recipes by matching titles
+        let updated = false;
+        const updatedMealPlan = {
+          ...mealPlan,
+          days: mealPlan.days.map(day => ({
+            ...day,
+            meals: day.meals.map(meal => {
+              // Only update meals without recipe_id
+              if (!meal.recipe_id && meal.recipe_title) {
+                const matchedRecipe = recipeByTitle.get(meal.recipe_title.toLowerCase());
+                if (matchedRecipe) {
+                  updated = true;
+                  return { ...meal, recipe_id: matchedRecipe.id };
+                }
+              }
+              return meal;
+            }),
+          })),
+        };
+
+        // Save the updated meal plan if any recipes were linked
+        if (updated) {
+          const savedPlan = await mealPlansAPI.save(workspaceId, updatedMealPlan);
+          setMealPlan(savedPlan);
+          queryClient.invalidateQueries({ queryKey: ['meal-plans', workspaceId] });
+        }
+      } catch (error) {
+        console.error('Failed to link recipes to meal plan:', error);
+        // Non-fatal - recipes are still saved, just not linked
+      }
+    }
+
+    if (results.failed === 0) {
+      toast.success(`Saved ${results.saved} recipes to your library!`);
+    } else {
+      toast.warning(
+        `Saved ${results.saved} of ${results.saved + results.failed} recipes`,
+        { description: `${results.failed} failed` }
+      );
+    }
   };
 
   // Check if today is within the meal plan week
@@ -419,120 +540,123 @@ const MealPlans = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">
-            Weekly Meal Plan
-          </h1>
-          {mealPlan && (
-            <p className="text-muted-foreground mt-1">
-              Week of {new Date(mealPlan.week_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </p>
-          )}
-        </div>
-
-        <Button
-          variant="hero"
-          onClick={handleGenerate}
-          disabled={generateMutation.isPending}
-        >
-          {generateMutation.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" />
-              Generate New Plan
-            </>
-          )}
-        </Button>
+      <div>
+        <h1 className="font-display text-3xl font-bold text-foreground">
+          Weekly Meal Plan
+        </h1>
+        {mealPlan && (
+          <p className="text-muted-foreground mt-1">
+            Week of {new Date(mealPlan.week_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
+        )}
       </div>
 
       {/* Meal Plan Content */}
       {mealPlan ? (
         <>
-          {/* Week Selector - Pill-Style Day Picker */}
-          <div className="rounded-2xl bg-card shadow-soft p-4">
-            <div className="relative">
-              {/* Scrollable day pills container */}
-              <div
-                ref={dayPickerRef}
-                onScroll={handleDayPickerScroll}
-                className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide scroll-smooth md:grid md:grid-cols-7 md:overflow-visible"
+          {/* Day Navigator - Minimal sticky header */}
+          <div className="sticky top-16 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border/50">
+            {/* Mobile: Compact nav with arrows */}
+            <div className="flex items-center justify-between md:hidden">
+              <button
+                onClick={() => canGoPrev && setSelectedDayIndex(selectedDayIndex - 1)}
+                disabled={!canGoPrev}
+                className={cn(
+                  "p-2 -ml-2 rounded-lg transition-colors",
+                  canGoPrev ? "text-foreground hover:bg-muted" : "text-muted-foreground/30"
+                )}
+                aria-label="Previous day"
               >
-                {mealPlan.days.map((day, index) => {
-                  const { dayOfWeek, shortDate } = formatDate(day.date);
-                  const isSelected = index === selectedDayIndex;
-                  const isInVisibleRange = visibleDayIndices.includes(index) && !isSelected;
+                <ChevronLeft className="h-5 w-5" />
+              </button>
 
-                  return (
-                    <button
-                      key={day.date}
-                      onClick={() => setSelectedDayIndex(index)}
-                      className={cn(
-                        'flex flex-col items-center px-4 py-2 rounded-full transition-all duration-200',
-                        'min-w-[72px] border-2 cursor-pointer md:min-w-0 md:rounded-lg md:py-3',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground border-primary hover:bg-primary'
-                          : isInVisibleRange
-                            ? 'bg-primary/15 border-primary/40 hover:bg-primary/25'
-                            : 'bg-transparent border-muted-foreground/30 hover:border-primary/50'
-                      )}
-                    >
-                      <span className={cn(
-                        'text-xs font-medium uppercase tracking-wide',
-                        isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
-                      )}>
-                        {dayOfWeek}
-                      </span>
-                      <span className={cn(
-                        'text-sm font-semibold',
-                        isSelected
-                          ? 'text-primary-foreground'
-                          : isInVisibleRange
-                            ? 'text-primary'
-                            : 'text-foreground'
-                      )}>
-                        {shortDate.split(' ')[1]}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <button
+                onClick={() => {
+                  // Cycle through days on tap
+                  setSelectedDayIndex((selectedDayIndex + 1) % 7);
+                }}
+                className="flex-1 text-center py-1"
+              >
+                <p className="font-display text-lg font-semibold text-foreground">
+                  {formatDate(mealPlan.days[selectedDayIndex].date).dayName}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {formatDate(mealPlan.days[selectedDayIndex].date).shortDate}
+                </p>
+              </button>
 
-              {/* Left gradient fade indicator - visible when scrolled right (mobile only) */}
-              <div
+              <button
+                onClick={() => canGoNext && setSelectedDayIndex(selectedDayIndex + 1)}
+                disabled={!canGoNext}
                 className={cn(
-                  "absolute left-0 top-0 bottom-3 w-12 bg-gradient-to-r from-card to-transparent pointer-events-none md:hidden transition-opacity duration-200",
-                  isScrollable && scrollProgress > 0 ? "opacity-100" : "opacity-0"
+                  "p-2 -mr-2 rounded-lg transition-colors",
+                  canGoNext ? "text-foreground hover:bg-muted" : "text-muted-foreground/30"
                 )}
-              />
-
-              {/* Right gradient fade indicator - visible when more content to the right (mobile only) */}
-              <div
-                className={cn(
-                  "absolute right-0 top-0 bottom-3 w-12 bg-gradient-to-l from-card to-transparent pointer-events-none md:hidden transition-opacity duration-200",
-                  isScrollable && scrollProgress < 2 ? "opacity-100" : "opacity-0"
-                )}
-              />
+                aria-label="Next day"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
             </div>
 
-            {/* Scroll position dots (mobile only, hidden when all days fit) */}
-            {isScrollable && (
-              <div className="flex justify-center gap-1.5 mt-1 md:hidden">
-                {[0, 1, 2].map((dotIndex) => (
-                  <div
-                    key={dotIndex}
+            {/* Mobile: Week dots indicator */}
+            <div className="flex justify-center gap-1.5 mt-2 md:hidden">
+              {mealPlan.days.map((day, index) => {
+                const isSelected = index === selectedDayIndex;
+                const isVisible = visibleDayIndices.includes(index);
+                return (
+                  <button
+                    key={day.date}
+                    onClick={() => setSelectedDayIndex(index)}
                     className={cn(
-                      'w-1.5 h-1.5 rounded-full transition-colors duration-200',
-                      scrollProgress === dotIndex ? 'bg-primary' : 'bg-muted-foreground/30'
+                      "w-2 h-2 rounded-full transition-all duration-200",
+                      isSelected
+                        ? "bg-primary scale-125"
+                        : isVisible
+                          ? "bg-primary/40"
+                          : "bg-muted-foreground/20 hover:bg-muted-foreground/40"
                     )}
+                    aria-label={formatDate(day.date).dayName}
                   />
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
+
+            {/* Desktop: Full week strip */}
+            <div className="hidden md:flex items-center justify-between gap-1">
+              {mealPlan.days.map((day, index) => {
+                const { dayOfWeek, shortDate } = formatDate(day.date);
+                const isSelected = index === selectedDayIndex;
+                const isVisible = visibleDayIndices.includes(index) && !isSelected;
+
+                return (
+                  <button
+                    key={day.date}
+                    onClick={() => setSelectedDayIndex(index)}
+                    className={cn(
+                      "flex-1 py-2 px-1 rounded-lg transition-all duration-200 text-center",
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : isVisible
+                          ? "bg-primary/10 text-primary hover:bg-primary/20"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <p className={cn(
+                      "text-xs font-medium uppercase tracking-wide",
+                      isSelected ? "text-primary-foreground/80" : ""
+                    )}>
+                      {dayOfWeek}
+                    </p>
+                    <p className={cn(
+                      "text-sm font-semibold",
+                      isSelected ? "text-primary-foreground" : ""
+                    )}>
+                      {shortDate.split(' ')[1]}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Day View - Responsive Grid (1-3 days) */}
@@ -555,22 +679,22 @@ const MealPlans = () => {
                     !isFirstDay && "opacity-95"
                   )}
                 >
-                  {/* Day Header */}
+                  {/* Day Header - Hidden on mobile (navigator sufficient), compact on desktop */}
                   <div className={cn(
-                    "px-6 py-4",
+                    "hidden md:flex items-center justify-between px-4 py-2.5",
                     isFirstDay
                       ? "bg-primary text-primary-foreground"
                       : "bg-primary/80 text-primary-foreground"
                   )}>
-                    <p className="font-display text-2xl font-semibold">
+                    <span className="font-display text-base font-semibold">
                       {dayName}
-                    </p>
-                    <p className={cn(
-                      "text-sm mt-1",
+                    </span>
+                    <span className={cn(
+                      "text-sm",
                       isFirstDay ? "text-primary-foreground/80" : "text-primary-foreground/70"
                     )}>
                       {shortDate}
-                    </p>
+                    </span>
                   </div>
 
                   {/* Meals */}
@@ -635,7 +759,8 @@ const MealPlans = () => {
                           </button>
 
                           {/* Generate button - show if no recipe (creates new recipe) */}
-                          {!meal.recipe_id && (
+                          {/* Hide for "Eating out" meals since there's no recipe to generate */}
+                          {!meal.recipe_id && !meal.recipe_title.toLowerCase().includes('eating out') && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -664,14 +789,70 @@ const MealPlans = () => {
               );
             })}
           </div>
+
+          {/* Action Buttons - Below the meal plan */}
+          <div className="flex flex-wrap gap-3 pt-4 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={isSavingRecipes ? () => setSaveAllModalOpen(true) : handleSaveAllClick}
+              className="flex-1 sm:flex-none"
+            >
+              {isSavingRecipes ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  View Progress
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Save Recipes
+                </>
+              )}
+            </Button>
+            <Button
+              variant="hero"
+              onClick={handleGenerate}
+              disabled={generateMutation.isPending}
+              className="flex-1 sm:flex-none"
+            >
+              {generateMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Generate New Plan
+                </>
+              )}
+            </Button>
+          </div>
         </>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
           <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-muted-foreground mb-2">No meal plan yet</p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Click "Generate New Plan" to create your personalized weekly meal plan
+          <p className="text-sm text-muted-foreground mb-6">
+            Generate a personalized weekly meal plan based on your recipes and preferences
           </p>
+          <Button
+            variant="hero"
+            onClick={handleGenerate}
+            disabled={generateMutation.isPending}
+          >
+            {generateMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Generate New Plan
+              </>
+            )}
+          </Button>
         </div>
       )}
 
@@ -714,8 +895,25 @@ const MealPlans = () => {
         onOpenChange={setInsufficientModalOpen}
         totalCount={insufficientData?.totalCount ?? 0}
         missingMealTypes={insufficientData?.missingMealTypes ?? []}
-        onGenerateAnyway={proceedWithGeneration}
+        onGenerateAnyway={handleGenerateAnyway}
         householdSetUp={onboardingStatus?.completed ?? false}
+      />
+
+      {/* Week Context Modal (optional input before generation) */}
+      <WeekContextModal
+        open={weekContextModalOpen}
+        onOpenChange={setWeekContextModalOpen}
+        onSubmit={(context) => proceedWithGeneration(context)}
+        onSkip={() => proceedWithGeneration()}
+      />
+
+      {/* Save All Recipes Modal */}
+      <SaveAllRecipesModal
+        open={saveAllModalOpen}
+        onOpenChange={setSaveAllModalOpen}
+        recipeTitles={recipeTitlesToSave}
+        onComplete={handleSaveAllComplete}
+        onProcessingChange={setIsSavingRecipes}
       />
     </div>
   );

@@ -23,7 +23,8 @@ def generate_meal_plan(
     workspace_id: str,
     week_start_date: Date,
     household: Optional[HouseholdProfile] = None,
-    num_recipes: int = 15
+    num_recipes: int = 15,
+    week_context: Optional[str] = None
 ) -> Optional[MealPlan]:
     """
     Generate a weekly meal plan.
@@ -40,6 +41,7 @@ def generate_meal_plan(
         week_start_date: Start date for the meal plan
         household: Optional HouseholdProfile (loads from storage if not provided)
         num_recipes: Number of candidate recipes to retrieve (default: 15)
+        week_context: Optional user description of their week (schedule, preferences, etc.)
 
     Returns:
         MealPlan object if successful, None if generation fails
@@ -77,8 +79,7 @@ def generate_meal_plan(
     )
 
     if not recipes:
-        logger.error("No recipes retrieved from RAG service")
-        return None
+        logger.warning("No recipes retrieved from RAG service - will generate suggestions based on household preferences")
 
     logger.info(f"Retrieved {len(recipes)} candidate recipes")
 
@@ -90,6 +91,11 @@ def generate_meal_plan(
         available_groceries=groceries,
         recipe_ratings=recipe_ratings
     )
+
+    # Add week context if provided by user
+    if week_context:
+        context['week_context'] = week_context
+        logger.info(f"User provided week context ({len(week_context)} chars)")
 
     # Step 3: Generate meal plan with Claude
     logger.info("Calling Claude API to generate meal plan...")

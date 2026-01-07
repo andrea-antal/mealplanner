@@ -137,6 +137,7 @@ def _build_meal_plan_prompt(context: Dict, week_start_date: str) -> str:
     household = context['household']
     groceries = context['available_groceries']
     recipes = context['candidate_recipes']
+    week_context = context.get('week_context')  # Optional user context about their week
 
     # Format family members
     family_info = []
@@ -159,20 +160,41 @@ def _build_meal_plan_prompt(context: Dict, week_start_date: str) -> str:
     children = [m for m in household['family_members'] if m.get('age_group', '').lower() in children_ages]
     child_names = [c['name'] for c in children]
 
-    # Format daycare rules (only if there are children AND daycare rules are active)
+    # Format daycare rules (only if there are children AND daycare days are selected AND rules are active)
     daycare = household['daycare_rules']
-    has_daycare_rules = daycare.get('no_nuts') or daycare.get('no_honey') or daycare.get('must_be_cold')
+    daycare_days = daycare.get('daycare_days', [])
+    custom_rules = daycare.get('custom_rules', [])
+    has_daycare_rules = (
+        daycare.get('no_nuts') or
+        daycare.get('no_peanuts_only') or
+        daycare.get('no_chocolate') or
+        daycare.get('no_honey') or
+        daycare.get('must_be_cold') or
+        custom_rules
+    )
+    has_daycare_setup = children and daycare_days and has_daycare_rules
 
-    if children and has_daycare_rules:
-        daycare_text = "Daycare Lunch Rules:\n"
-        if daycare['no_nuts']:
-            daycare_text += "- NO NUTS (strict allergy policy)\n"
-        if daycare['no_honey']:
+    if has_daycare_setup:
+        daycare_text = "Daycare/School Lunch Rules:\n"
+        if daycare.get('no_nuts'):
+            daycare_text += "- NO NUTS (all tree nuts and peanuts prohibited)\n"
+        elif daycare.get('no_peanuts_only'):
+            daycare_text += "- NO PEANUTS (peanuts prohibited, tree nuts allowed)\n"
+        if daycare.get('no_chocolate'):
+            daycare_text += "- NO CHOCOLATE (no chocolate or cocoa products)\n"
+        if daycare.get('no_honey'):
             daycare_text += "- NO HONEY (infant safety)\n"
-        if daycare['must_be_cold']:
+        if daycare.get('must_be_cold'):
             daycare_text += "- Must be served cold (no heating available)\n"
+        # Add custom rules
+        for rule in custom_rules:
+            daycare_text += f"- {rule.upper()}\n"
+
+        # Format the days
+        day_names = [d.capitalize() for d in daycare_days]
+        daycare_text += f"- Attendance days: {', '.join(day_names)}\n"
     else:
-        daycare_text = ""  # No daycare rules for adult-only households
+        daycare_text = ""  # No daycare setup for adult-only households or no days selected
 
     # Format cooking preferences
     prefs = household['cooking_preferences']
@@ -226,25 +248,57 @@ def _build_meal_plan_prompt(context: Dict, week_start_date: str) -> str:
         recipes_section = f"""CANDIDATE RECIPES (use these recipes when possible):
 {recipes_json}"""
         recipes_instruction = "8. Uses recipes from the candidate list when available - use recipe_id: null for meals without a matching recipe"
+        meal_type_guidance = ""
+        meal_type_matching = "2. **Match recipes to meal types** - use each recipe's \"meal_types\" field to assign it to appropriate meals"
     else:
         recipes_section = """CANDIDATE RECIPES:
 No saved recipes available. Generate meal suggestions based on household preferences and available groceries."""
         recipes_instruction = "8. Use recipe_id: null for all meals since no saved recipes are available"
+        meal_type_guidance = """
+MEAL TYPE GUIDELINES (CRITICAL - follow strictly):
+- **Breakfast**: Morning meals like eggs, pancakes, oatmeal, cereal, toast, smoothies, yogurt parfaits
+- **Lunch**: Midday meals like sandwiches, salads, soups, wraps, pasta dishes, rice bowls
+- **Dinner**: Evening main meals like grilled proteins, pasta, stir-fries, roasts, casseroles, tacos - must be substantial
+- **Snack**: Small bites ONLY like fruit, crackers, cheese, nuts, yogurt, vegetables with dip
 
-    # Build daycare requirements section dynamically based on actual children
-    if children and has_daycare_rules:
+NEVER assign snack-type foods (apple slices, cheese sticks, crackers) as dinner or lunch.
+NEVER assign heavy meals as snacks.
+Dinner MUST be a complete, substantial meal appropriate for the evening."""
+        meal_type_matching = "2. **Generate appropriate meals for each meal type** - breakfast, lunch, dinner must be proper meals (see guidelines above)"
+
+    # Build daycare requirements section dynamically based on actual children and selected days
+    if has_daycare_setup:
         children_text = ", ".join(child_names)
-        daycare_requirements = f"""6. **DAYCARE REQUIREMENTS** (Monday-Friday only):
-   - {children_text} need(s) a daycare lunch AND daycare snack each weekday (Mon-Fri)
+        day_abbrevs = [d[:3].capitalize() for d in daycare_days]  # Mon, Tue, Wed, etc.
+        days_text = ", ".join(day_abbrevs)
+        daycare_requirements = f"""6. **DAYCARE/SCHOOL REQUIREMENTS** ({days_text} only):
+   - {children_text} need(s) a daycare lunch AND daycare snack on: {days_text}
    - Daycare meals must explicitly note "for daycare" and meet all daycare rules
-   - Weekend meals (Sat-Sun) are family meals - no separate daycare meals"""
-        important_weekday = f"- Each weekday (Mon-Fri) must have: breakfast (family), lunch ({children_text}'s daycare + family if needed), dinner (family), {children_text}'s daycare snack"
-        important_weekend = "- Each weekend day (Sat-Sun) must have: breakfast (family), lunch (family), dinner (family), optional family snacks"
+   - Other days are family meals - no separate daycare meals"""
+        important_weekday = f"- On daycare days ({days_text}): breakfast (family), lunch ({children_text}'s daycare + family if needed), dinner (family), {children_text}'s daycare snack"
+        important_weekend = "- On non-daycare days: breakfast (family), lunch (family), dinner (family), optional family snacks"
     else:
         # No children or no daycare rules - skip daycare requirements entirely
         daycare_requirements = "6. (No daycare requirements for this household)"
         important_weekday = "- Each weekday (Mon-Fri) must have: breakfast, lunch, dinner, optional snacks"
         important_weekend = "- Each weekend day (Sat-Sun) must have: breakfast, lunch, dinner, optional snacks"
+
+    # Format week context section if user provided it
+    if week_context:
+        week_context_section = f"""
+USER'S WEEK CONTEXT:
+The user has shared the following about their upcoming week:
+"{week_context}"
+
+Take this into account when planning:
+- If they mention busy days, suggest quicker/simpler meals for those days
+- If they mention eating out on certain days, still include those meals but mark them as "Eating out" in the recipe_title with recipe_id: null
+- If they request specific cuisines or variety, incorporate that throughout the week
+- If they mention events, activities, or time constraints, adapt the plan accordingly
+
+"""
+    else:
+        week_context_section = ""
 
     prompt = f"""Generate a 7-day meal plan starting {week_start_date}.
 
@@ -261,13 +315,13 @@ Available Groceries:
 {groceries_text}
 
 {recipes_section}
-
-TASK:
+{meal_type_guidance}
+{week_context_section}TASK:
 
 Create a 7-day meal plan (breakfast, lunch, dinner, snacks) that:
 
 1. **MUST respect all allergies and daycare rules** (non-negotiable)
-2. **Match recipes to meal types** - use each recipe's "meal_types" field to assign it to appropriate meals
+{meal_type_matching}
 3. Prioritizes using available groceries
 4. Respects cooking time constraints:
    - Weeknight dinners: ≤ {prefs['max_active_cooking_time_weeknight']} min active cooking
