@@ -1,7 +1,7 @@
-# Session Handoff - Recipe Text Parsing Feature
+# Session Handoff - Multi-language Voice Input
 
-**Date:** 2026-01-03
-**Session Focus:** Unified Recipe Text/URL Parser for Add Recipe Modal
+**Date:** 2026-01-06
+**Session Focus:** Multi-language voice input for groceries
 **Branch:** `main`
 **Status:** Complete
 
@@ -9,74 +9,38 @@
 
 ## Session Summary
 
-Completed implementation of a unified recipe input feature for the Add Recipe modal. Users can paste either a recipe URL OR free-form recipe text, and Claude Opus 4.5 parses it into structured fields for review.
-
-**All Phases Complete:**
-- Phase 1: TDD tests written (12 test cases) - Commit: `a75bb31`
-- Phase 2: Backend implementation - Commit: `ab9092d`
-- Phase 3: Frontend implementation - Commit: `2bd6fda`
-- Linear issues closed, pushed to remote
+Added multi-language voice input support for the grocery list. Users can now select English, Hungarian, or Cantonese for voice input, and Claude preserves item names in the original language.
 
 ---
 
-## Linear Issues (All Done)
+## Completed This Session
 
-| Issue | Title | Status |
-|-------|-------|--------|
-| [AA-114](https://linear.app/andrea-antal/issue/AA-114) | Add tests for recipe text parsing | Done |
-| [AA-115](https://linear.app/andrea-antal/issue/AA-115) | Add text parsing endpoint for recipes | Done |
-| [AA-116](https://linear.app/andrea-antal/issue/AA-116) | Redesign Add Recipe modal with unified input | Done |
-
----
-
-## Implementation Summary
-
-### Backend Changes
-- **`backend/app/models/recipe.py`**: Added `ParseFromTextRequest` model (50-10000 char limit)
-- **`backend/app/services/claude_service.py`**: Added `parse_recipe_from_text()` function with Opus 4.5, custom prompts, meal_type validation
-- **`backend/app/routers/recipes.py`**: Added `POST /recipes/parse-text` endpoint
-
-### Frontend Changes
-- **`frontend/src/lib/api.ts`**: Added `parseFromText()` method
-- **`frontend/src/components/RecipeForm.tsx`**: Complete redesign with:
-  - Unified textarea accepting URLs or text
-  - Auto-detection via regex (`^https?:\/\/`)
-  - Character counter (50-10000 chars)
-  - Collapsible "Enter manually" section
-  - "Start Over" button after parsing
+| Task | Files Modified |
+|------|----------------|
+| Language selector UI | `frontend/src/components/groceries/GroceryInputHero.tsx` |
+| Voice hook language param | `frontend/src/hooks/useVoiceInput.ts` |
+| State management | `frontend/src/pages/Groceries.tsx` |
+| Claude prompt updates | `backend/app/services/claude_service.py` |
+| Documentation | `how-to.md`, `README.md` |
+| Data cleanup | Deleted 14 legacy recipe files |
 
 ---
 
 ## Key Implementation Details
 
-### URL vs Text Detection
+### Language Options
 ```typescript
-const isUrl = (text: string) => /^https?:\/\//i.test(text.trim());
+const LANGUAGE_OPTIONS = [
+  { code: 'en-US', label: 'EN', name: 'English' },
+  { code: 'hu-HU', label: 'HU', name: 'Magyar' },
+  { code: 'yue-Hant-HK', label: '粵', name: '廣東話' },
+];
 ```
 
-### Meal Type Validation
-Claude sometimes returns invalid meal_types (e.g., "dessert"). The service filters these:
-```python
-if recipe_data.get("meal_types"):
-    recipe_data["meal_types"] = [mt for mt in original_meal_types if mt in VALID_MEAL_TYPES]
-```
-
-### Empty Response Handling
-Gibberish input can cause Claude to return empty responses. Added guard:
-```python
-if not response.content:
-    raise ValueError("No recipe found in text - Claude returned empty response")
-```
-
----
-
-## Test Results
-
-All 12 tests passing:
-```
-pytest backend/tests/test_text_parsing.py -v
-======================= 12 passed in 59.04s =======================
-```
+### Claude Prompt Changes
+Added to grocery parsing prompt:
+- "PRESERVE THE ORIGINAL LANGUAGE - if input is in Chinese, Hungarian, or any other language, keep item names in that language"
+- Item names now use "SAME LANGUAGE as the input" instead of "standardized"
 
 ---
 
@@ -84,15 +48,30 @@ pytest backend/tests/test_text_parsing.py -v
 
 | Commit | Message |
 |--------|---------|
-| `a75bb31` | test: add tests for recipe text parsing endpoint |
-| `ab9092d` | feat: add POST /recipes/parse-text endpoint for AI parsing |
-| `2bd6fda` | feat: unified recipe input with AI text parsing in Add Recipe modal |
+| `5d1be99` | feat: add multi-language voice input for groceries |
 
 ---
 
-## Token Cost
+## To Resume
 
-**Per-use (production):** ~$0.12 per recipe parsed with Opus 4.5
+```bash
+cd ~/Desktop/mealplanner
+git pull origin main
+```
+
+### If deploying:
+```bash
+git push origin main
+# CI/CD auto-deploys to Vercel (frontend) and Railway (backend)
+```
+
+---
+
+## Next Steps (Priority Ordered)
+
+1. Test voice input with actual Hungarian and Cantonese phrases
+2. Consider adding more languages based on user feedback
+3. Check if Cantonese speech recognition works reliably in browsers
 
 ---
 
