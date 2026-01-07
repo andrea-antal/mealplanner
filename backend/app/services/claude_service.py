@@ -16,6 +16,7 @@ from anthropic import Anthropic
 from app.config import settings
 from app.models.meal_plan import MealPlan
 from app.models.recipe import Recipe, VALID_MEAL_TYPES
+from app.services.storage_categories import suggest_storage_location
 
 logger = logging.getLogger(__name__)
 
@@ -858,6 +859,12 @@ async def parse_voice_to_groceries(
         if parsed_data:
             proposed_items = parsed_data.get("proposed_items", [])
             warnings = parsed_data.get("warnings", [])
+
+            # Apply storage_location fallback using heuristic lookup
+            for item in proposed_items:
+                if not item.get("storage_location"):
+                    item["storage_location"] = suggest_storage_location(item.get("name", ""))
+
             logger.info(f"Successfully parsed {len(proposed_items)} items from voice")
             return proposed_items, warnings
         else:
@@ -902,7 +909,13 @@ IMPORTANT DATE HANDLING:
 - "tomorrow" = today + 1 day
 - "expires soon" = today + 2 days (use as expiry_date)
 - "bought last week" = today - 7 days (use as purchase_date)
-- When expiry is mentioned, always set expiry_type to "expiry_date" unless "best before" is explicitly stated"""
+- When expiry is mentioned, always set expiry_type to "expiry_date" unless "best before" is explicitly stated
+
+STORAGE LOCATION:
+- Categorize each item as "fridge" or "pantry" based on typical storage
+- Fridge/freezer: dairy, eggs, meat, seafood, fresh produce (lettuce, berries, etc.), tofu
+- Pantry: dried goods (rice, pasta, flour), canned goods, oils, spices, shelf-stable produce (potatoes, onions, bananas)
+- Default to "fridge" if uncertain (safer for perishables)"""
 
 
 def _build_voice_parse_prompt(transcription: str, existing_groceries: list[str]) -> str:
@@ -951,6 +964,7 @@ Return your response as valid JSON matching this exact schema:
       "purchase_date": "{yesterday}",  // Optional, ISO format
       "expiry_type": "expiry_date",    // Optional, "expiry_date" or "best_before_date"
       "expiry_date": "{tomorrow}",     // Optional, ISO format
+      "storage_location": "fridge",    // Required: "fridge" or "pantry"
       "portion": "2 lbs",              // Optional
       "confidence": "high",            // Required: "high", "medium", or "low"
       "notes": "Inferred purchase date from 'yesterday'"  // Optional explanation
@@ -970,15 +984,16 @@ RULES:
 6. If no items can be extracted, return empty proposed_items array with a warning
 7. date_added should always be today's date ({today})
 8. Only include purchase_date, expiry_date, expiry_type if you can infer them from the transcription
+9. storage_location is required for each item: "fridge" for perishables, "pantry" for shelf-stable items
 
 EXAMPLES:
 
 Input: "Chicken breast, milk, and eggs"
 Output: {{
   "proposed_items": [
-    {{"name": "chicken breast", "date_added": "{today}", "confidence": "high"}},
-    {{"name": "milk", "date_added": "{today}", "confidence": "high"}},
-    {{"name": "eggs", "date_added": "{today}", "confidence": "high"}}
+    {{"name": "chicken breast", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}},
+    {{"name": "milk", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}},
+    {{"name": "eggs", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}}
   ],
   "warnings": []
 }}
@@ -992,9 +1007,20 @@ Output: {{
       "purchase_date": "{yesterday}",
       "expiry_date": "{tomorrow}",
       "expiry_type": "expiry_date",
+      "storage_location": "fridge",
       "confidence": "high",
       "notes": "Inferred purchase date from 'yesterday' and expiry from 'tomorrow'"
     }}
+  ],
+  "warnings": []
+}}
+
+Input: "Rice, pasta, and olive oil"
+Output: {{
+  "proposed_items": [
+    {{"name": "rice", "date_added": "{today}", "storage_location": "pantry", "confidence": "high"}},
+    {{"name": "pasta", "date_added": "{today}", "storage_location": "pantry", "confidence": "high"}},
+    {{"name": "olive oil", "date_added": "{today}", "storage_location": "pantry", "confidence": "high"}}
   ],
   "warnings": []
 }}"""
@@ -1138,13 +1164,15 @@ Your task:
 3. Detect the store name from the receipt header
 4. Standardize item names (remove brand names, generic descriptions)
 5. Assign confidence: "high" (clear text), "medium" (some blur), "low" (very unclear)
-6. Separately list non-food items (bags, cleaning supplies, etc.) as excluded items
+6. Categorize each item: "fridge" for perishables, "pantry" for shelf-stable items
+7. Separately list non-food items (bags, cleaning supplies, etc.) as excluded items
 
 Return JSON format:
 {
   "proposed_items": [
     {
       "name": "standardized item name",
+      "storage_location": "fridge|pantry",
       "confidence": "high|medium|low",
       "notes": "optional notes about the item"
     }
@@ -1160,7 +1188,12 @@ Return JSON format:
   "warnings": ["warnings about OCR quality or unreadable items"]
 }
 
-Example: "CHKN BRST" → "chicken breast", "2% MILK GAL" → "milk", "ORG BANANAS" → "bananas"
+Storage location guidelines:
+- "fridge": dairy, eggs, meat, seafood, fresh produce (lettuce, berries), deli items
+- "pantry": canned goods, dried goods (rice, pasta), oils, spices, shelf-stable items (potatoes, onions)
+- Default to "fridge" if uncertain
+
+Example: "CHKN BRST" → "chicken breast" (fridge), "2% MILK GAL" → "milk" (fridge), "ORG BANANAS" → "bananas" (pantry)
 Exclude: taxes, totals, bag fees, store info, non-food items (cleaning supplies, paper goods, etc.)
 
 Be concise. Focus on food items in proposed_items, list excluded items separately."""
@@ -1213,11 +1246,13 @@ def _parse_receipt_response(response_text: str) -> dict:
         detected_store = data.get("detected_store")
         warnings = data.get("warnings", [])
 
-        # Propagate purchase date to all items
-        if detected_purchase_date:
-            for item in proposed_items:
-                if "purchase_date" not in item or not item["purchase_date"]:
-                    item["purchase_date"] = detected_purchase_date
+        # Propagate purchase date and apply storage_location fallback
+        for item in proposed_items:
+            if detected_purchase_date and ("purchase_date" not in item or not item["purchase_date"]):
+                item["purchase_date"] = detected_purchase_date
+            # Apply storage_location fallback using heuristic lookup
+            if not item.get("storage_location"):
+                item["storage_location"] = suggest_storage_location(item.get("name", ""))
 
         return {
             "proposed_items": proposed_items,

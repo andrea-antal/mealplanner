@@ -16,6 +16,10 @@ class GroceryItem(BaseModel):
     purchase_date: Optional[Date] = Field(None, description="When item was purchased (defaults to today)")
     expiry_type: Optional[Literal["expiry_date", "best_before_date"]] = Field(None, description="Type of expiry")
     expiry_date: Optional[Date] = Field(None, description="Expiry or best before date")
+    storage_location: Literal["fridge", "pantry"] = Field(
+        default="fridge",
+        description="Storage location: fridge/freezer or pantry"
+    )
 
     @model_validator(mode='after')
     def validate_expiry_type(self):
@@ -71,6 +75,10 @@ class ProposedGroceryItem(BaseModel):
     purchase_date: Optional[Date] = Field(None, description="When item was purchased")
     expiry_type: Optional[Literal["expiry_date", "best_before_date"]] = Field(None, description="Type of expiry")
     expiry_date: Optional[Date] = Field(None, description="Expiry or best before date")
+    storage_location: Literal["fridge", "pantry"] = Field(
+        default="fridge",
+        description="Storage location: fridge/freezer or pantry"
+    )
     portion: Optional[str] = Field(None, description="Quantity/portion (e.g., '2 lbs', '1 gallon')")
     confidence: Literal["high", "medium", "low"] = Field("high", description="AI parsing confidence level")
     notes: Optional[str] = Field(None, description="AI reasoning or explanation")
@@ -109,6 +117,12 @@ class BatchAddRequest(BaseModel):
 class BatchDeleteRequest(BaseModel):
     """Request to delete multiple grocery items at once"""
     item_names: list[str] = Field(..., min_length=1, description="Names of items to delete (must have at least one)")
+
+
+class UpdateStorageLocationRequest(BaseModel):
+    """Request to update storage location for multiple grocery items"""
+    item_names: list[str] = Field(..., min_length=1, description="Names of items to update")
+    storage_location: Literal["fridge", "pantry"] = Field(..., description="New storage location")
 
 
 # Receipt OCR models for Sprint 4 Phase 2

@@ -26,6 +26,7 @@ import { DynamicRecipeModal } from '@/components/DynamicRecipeModal';
 import { GroceryConfirmationDialog, type ProposedGroceryItem } from '@/components/GroceryConfirmationDialog';
 import { GroceryInputHero } from '@/components/groceries/GroceryInputHero';
 import { GroceryChip } from '@/components/groceries/GroceryChip';
+import { GrocerySection } from '@/components/groceries/GrocerySection';
 import { GroceryItemModal } from '@/components/groceries/GroceryItemModal';
 import { StickyActionBar } from '@/components/groceries/StickyActionBar';
 import { groceriesAPI, type GroceryItem, type Recipe, type ExcludedReceiptItem } from '@/lib/api';
@@ -46,6 +47,8 @@ import {
   MicOff,
   Camera,
   CheckSquare,
+  Snowflake,
+  Package,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -75,6 +78,18 @@ const Groceries = () => {
   const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+
+  // Accordion state for fridge/pantry sections with localStorage persistence
+  const [accordionState, setAccordionState] = useState(() => {
+    const stored = localStorage.getItem('mealplanner_grocery_accordion_state');
+    return stored ? JSON.parse(stored) : { fridge: true, pantry: true };
+  });
+
+  // Persist accordion state to localStorage
+  useEffect(() => {
+    localStorage.setItem('mealplanner_grocery_accordion_state', JSON.stringify(accordionState));
+  }, [accordionState]);
 
   // Form state for adding new grocery
   const [newItemName, setNewItemName] = useState('');
@@ -219,6 +234,21 @@ const Groceries = () => {
     },
   });
 
+  // Storage location update mutation
+  const updateStorageLocationMutation = useMutation({
+    mutationFn: ({ itemNames, storageLocation }: { itemNames: string[]; storageLocation: 'fridge' | 'pantry' }) =>
+      groceriesAPI.updateStorageLocation(workspaceId, itemNames, storageLocation),
+    onSuccess: (_, { itemNames, storageLocation }) => {
+      queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
+      const locationLabel = storageLocation === 'fridge' ? 'Fridge/Freezer' : 'Pantry';
+      toast.success(`Moved ${itemNames.length} item${itemNames.length !== 1 ? 's' : ''} to ${locationLabel}`);
+      setSelectedIngredients([]); // Clear selection after move
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to move items: ${error.message}`);
+    },
+  });
+
   // Receipt parsing mutation
   const parseReceiptMutation = useMutation({
     mutationFn: (imageBase64: string) => groceriesAPI.parseReceipt(workspaceId, imageBase64),
@@ -273,6 +303,10 @@ const Groceries = () => {
 
   const handleUpdateItem = (name: string, updates: Partial<GroceryItem>) => {
     updateMutation.mutate({ name, updates });
+  };
+
+  const handleMoveItem = (name: string, storageLocation: 'fridge' | 'pantry') => {
+    updateStorageLocationMutation.mutate({ itemNames: [name], storageLocation });
   };
 
   const toggleIngredientSelection = (name: string) => {
@@ -330,6 +364,20 @@ const Groceries = () => {
   const handleBulkDeleteConfirm = () => {
     bulkDeleteMutation.mutate(selectedIngredients);
     setShowDeleteConfirmDialog(false);
+  };
+
+  // Bulk move handlers
+  const handleBulkMoveRequest = () => {
+    if (selectedIngredients.length === 0) {
+      toast.error('Please select at least one item to move');
+      return;
+    }
+    setShowMoveDialog(true);
+  };
+
+  const handleBulkMove = (storageLocation: 'fridge' | 'pantry') => {
+    updateStorageLocationMutation.mutate({ itemNames: selectedIngredients, storageLocation });
+    setShowMoveDialog(false);
   };
 
   // Receipt upload handlers
@@ -534,59 +582,90 @@ const Groceries = () => {
         addMutationPending={addMutation.isPending}
       />
 
-      {/* Grocery List - Tag Cloud */}
-      {groceries.length > 0 ? (
-        <div className="rounded-2xl bg-card shadow-soft p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-muted-foreground">
-              {groceries.length} item{groceries.length !== 1 ? 's' : ''} on hand
-              {isSelectionMode && selectedIngredients.length > 0 && (
-                <span className="text-primary ml-2">
-                  ({selectedIngredients.length} selected)
-                </span>
-              )}
-            </p>
-            {isSelectionMode ? (
-              <button
-                onClick={handleCancelSelection}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Cancel
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsSelectionMode(true)}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <CheckSquare className="h-4 w-4" />
-                Select
-              </button>
-            )}
-          </div>
+      {/* Storage Location Help Text */}
+      <p className="text-sm text-muted-foreground">
+        Tap an item to move it between Fridge/Freezer and Pantry, or select multiple items to move them together.
+      </p>
 
-          {/* Tag Cloud Layout */}
-          <div className="flex flex-wrap gap-2">
-            {groceries.map((item) => (
-              <GroceryChip
-                key={item.name}
-                item={item}
-                isSelected={selectedIngredients.includes(item.name)}
+      {/* Grocery List - Split View (Fridge/Pantry) */}
+      {(() => {
+        // Split groceries by storage location
+        const fridgeItems = groceries.filter(g => (g.storage_location ?? 'fridge') === 'fridge');
+        const pantryItems = groceries.filter(g => g.storage_location === 'pantry');
+
+        if (groceries.length === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
+              <ShoppingBasket className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-2">Your grocery list is empty</p>
+              <p className="text-sm text-muted-foreground">
+                Add items to help generate better meal plans
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="rounded-2xl bg-card shadow-soft p-6 space-y-4">
+            {/* Header with count and selection toggle */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">
+                {groceries.length} item{groceries.length !== 1 ? 's' : ''} on hand
+                {isSelectionMode && selectedIngredients.length > 0 && (
+                  <span className="text-primary ml-2">
+                    ({selectedIngredients.length} selected)
+                  </span>
+                )}
+              </p>
+              {isSelectionMode ? (
+                <button
+                  onClick={handleCancelSelection}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsSelectionMode(true)}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <CheckSquare className="h-4 w-4" />
+                  Select
+                </button>
+              )}
+            </div>
+
+            {/* Responsive Layout: Stacked on mobile, side-by-side on desktop */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Fridge/Freezer Section */}
+              <GrocerySection
+                title="Fridge / Freezer"
+                icon={Snowflake}
+                items={fridgeItems}
+                isOpen={accordionState.fridge}
+                onOpenChange={(open) => setAccordionState(s => ({ ...s, fridge: open }))}
                 isSelectionMode={isSelectionMode}
+                selectedIngredients={selectedIngredients}
                 onToggleSelect={toggleIngredientSelection}
                 onOpenModal={handleOpenItemModal}
               />
-            ))}
+
+              {/* Pantry Section */}
+              <GrocerySection
+                title="Pantry"
+                icon={Package}
+                items={pantryItems}
+                isOpen={accordionState.pantry}
+                onOpenChange={(open) => setAccordionState(s => ({ ...s, pantry: open }))}
+                isSelectionMode={isSelectionMode}
+                selectedIngredients={selectedIngredients}
+                onToggleSelect={toggleIngredientSelection}
+                onOpenModal={handleOpenItemModal}
+              />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
-          <ShoppingBasket className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground mb-2">Your grocery list is empty</p>
-          <p className="text-sm text-muted-foreground">
-            Add items to help generate better meal plans
-          </p>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Tip */}
       <div className="rounded-xl bg-secondary/50 p-4">
@@ -638,12 +717,54 @@ const Groceries = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Bulk Move Dialog */}
+      <AlertDialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Move {selectedIngredients.length} item{selectedIngredients.length !== 1 ? 's' : ''}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose where to move the selected items.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              variant="outline"
+              className="w-full h-14 justify-start"
+              onClick={() => handleBulkMove('fridge')}
+            >
+              <Snowflake className="h-5 w-5 mr-3" />
+              <div className="text-left">
+                <div className="font-medium">Move to Fridge / Freezer</div>
+                <div className="text-xs text-muted-foreground">Perishables, dairy, meat</div>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full h-14 justify-start"
+              onClick={() => handleBulkMove('pantry')}
+            >
+              <Package className="h-5 w-5 mr-3" />
+              <div className="text-left">
+                <div className="font-medium">Move to Pantry</div>
+                <div className="text-xs text-muted-foreground">Dry goods, canned items, spices</div>
+              </div>
+            </Button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Sticky Action Bar - only show in selection mode */}
       {isSelectionMode && (
         <StickyActionBar
           selectedCount={selectedIngredients.length}
           onCook={handleCookWithSelected}
           onPlan={() => navigate('/plan', { state: { selectedIngredients } })}
+          onMove={handleBulkMoveRequest}
           onDelete={handleBulkDeleteRequest}
         />
       )}
@@ -655,6 +776,7 @@ const Groceries = () => {
         onOpenChange={setShowItemModal}
         onUpdate={handleUpdateItem}
         onDelete={removeGrocery}
+        onMove={handleMoveItem}
       />
     </div>
   );

@@ -1,10 +1,11 @@
 import { Button } from '@/components/ui/button';
-import { ChefHat, Calendar, Trash2 } from 'lucide-react';
+import { ChefHat, Calendar, Trash2, ArrowRightLeft } from 'lucide-react';
 
 interface StickyActionBarProps {
   selectedCount: number;
   onCook: () => void;
   onPlan: () => void;
+  onMove?: () => void;
   onDelete: () => void;
 }
 
@@ -12,6 +13,7 @@ export function StickyActionBar({
   selectedCount,
   onCook,
   onPlan,
+  onMove,
   onDelete,
 }: StickyActionBarProps) {
   if (selectedCount === 0) return null;
@@ -37,6 +39,18 @@ export function StickyActionBar({
         >
           <Calendar className="h-5 w-5" />
         </Button>
+
+        {onMove && (
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-12 w-12 p-0 shrink-0"
+            onClick={onMove}
+            title="Move to Fridge/Pantry"
+          >
+            <ArrowRightLeft className="h-5 w-5" />
+          </Button>
+        )}
 
         <Button
           variant="outline"

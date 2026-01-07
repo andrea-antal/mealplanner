@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Package, Calendar, Trash2, AlertCircle, Clock } from 'lucide-react';
+import { Package, Calendar, Trash2, AlertCircle, Clock, Snowflake } from 'lucide-react';
 import type { GroceryItem } from '@/lib/api';
 
 interface GroceryItemModalProps {
@@ -28,6 +28,7 @@ interface GroceryItemModalProps {
   onOpenChange: (open: boolean) => void;
   onUpdate: (name: string, updates: Partial<GroceryItem>) => void;
   onDelete: (name: string) => void;
+  onMove?: (name: string, storageLocation: 'fridge' | 'pantry') => void;
 }
 
 export function GroceryItemModal({
@@ -36,6 +37,7 @@ export function GroceryItemModal({
   onOpenChange,
   onUpdate,
   onDelete,
+  onMove,
 }: GroceryItemModalProps) {
   const [isEditingAmount, setIsEditingAmount] = useState(false);
   const [isEditingDates, setIsEditingDates] = useState(false);
@@ -112,6 +114,14 @@ export function GroceryItemModal({
     onOpenChange(false);
   };
 
+  const handleMove = () => {
+    if (!onMove) return;
+    const currentLocation = item.storage_location ?? 'fridge';
+    const newLocation = currentLocation === 'fridge' ? 'pantry' : 'fridge';
+    onMove(item.name, newLocation);
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -170,6 +180,37 @@ export function GroceryItemModal({
                 </div>
               </div>
             </Button>
+
+            {/* Move to Fridge/Pantry */}
+            {onMove && (
+              <Button
+                variant="outline"
+                className="w-full h-14 justify-start text-left"
+                onClick={handleMove}
+              >
+                {(item.storage_location ?? 'fridge') === 'fridge' ? (
+                  <>
+                    <Package className="h-5 w-5 mr-3 shrink-0" />
+                    <div>
+                      <div className="font-medium">Move to Pantry</div>
+                      <div className="text-xs text-muted-foreground">
+                        Currently in Fridge/Freezer
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Snowflake className="h-5 w-5 mr-3 shrink-0" />
+                    <div>
+                      <div className="font-medium">Move to Fridge</div>
+                      <div className="text-xs text-muted-foreground">
+                        Currently in Pantry
+                      </div>
+                    </div>
+                  </>
+                )}
+              </Button>
+            )}
 
             {/* Delete */}
             <Button

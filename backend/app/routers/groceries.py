@@ -15,6 +15,7 @@ from app.models.grocery import (
     ProposedGroceryItem,
     BatchAddRequest,
     BatchDeleteRequest,
+    UpdateStorageLocationRequest,
     ReceiptParseRequest,
     ReceiptParseResponse,
     ExcludedReceiptItem
@@ -396,6 +397,80 @@ async def batch_add_groceries(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to batch add groceries: {str(e)}"
+        )
+
+
+@router.patch("/storage-location", response_model=GroceryList)
+async def update_storage_location(
+    request: UpdateStorageLocationRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Update storage location for multiple grocery items.
+
+    This endpoint allows bulk updating of the storage_location field
+    (fridge or pantry) for one or more grocery items.
+
+    Args:
+        request: UpdateStorageLocationRequest with item names and new location
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        Updated GroceryList with all items
+
+    Raises:
+        HTTPException 400: Invalid request or no items found
+        HTTPException 500: Failed to save groceries
+
+    Example:
+        Request: {"item_names": ["chicken", "milk"], "storage_location": "fridge"}
+        Response: {"items": [/* all groceries with updated storage locations */]}
+    """
+    try:
+        if not request.item_names:
+            raise HTTPException(
+                status_code=400,
+                detail="At least one item name is required"
+            )
+
+        # Load existing groceries
+        items = load_groceries(workspace_id)
+
+        # Create set of names to update (lowercase for case-insensitive matching)
+        names_to_update = {name.lower() for name in request.item_names}
+
+        # Track statistics
+        updated_count = 0
+
+        # Update storage_location for matching items
+        for item in items:
+            if item.name.lower() in names_to_update:
+                item.storage_location = request.storage_location
+                updated_count += 1
+
+        if updated_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No matching items found to update"
+            )
+
+        # Save updated list
+        save_groceries(workspace_id, items)
+
+        logger.info(
+            f"Updated storage location to '{request.storage_location}' for {updated_count} items "
+            f"in workspace '{workspace_id}'"
+        )
+
+        return GroceryList(items=items)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update storage location for workspace '{workspace_id}': {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update storage location: {str(e)}"
         )
 
 

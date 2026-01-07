@@ -17,7 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { AlertCircle, CheckCircle2, AlertTriangle, X, Loader2, ChevronDown, Plus } from 'lucide-react';
+import { AlertCircle, CheckCircle2, AlertTriangle, X, Loader2, ChevronDown, Plus, Snowflake, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -37,6 +37,7 @@ export interface ProposedGroceryItem {
   purchase_date?: string;
   expiry_type?: 'expiry_date' | 'best_before_date';
   expiry_date?: string;
+  storage_location?: 'fridge' | 'pantry';
   portion?: string;
   confidence: 'high' | 'medium' | 'low';
   notes?: string;
@@ -51,6 +52,7 @@ export interface ConfirmedGroceryItem {
   purchase_date?: string;
   expiry_type?: 'expiry_date' | 'best_before_date';
   expiry_date?: string;
+  storage_location?: 'fridge' | 'pantry';
 }
 
 export interface GroceryConfirmationDialogProps {
@@ -127,6 +129,14 @@ export function GroceryConfirmationDialog({
     });
   };
 
+  const updateItemStorageLocation = (index: number, location: 'fridge' | 'pantry') => {
+    setEditableItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], storage_location: location };
+      return updated;
+    });
+  };
+
   const removeItem = (index: number) => {
     setEditableItems(prev => prev.filter((_, i) => i !== index));
   };
@@ -154,18 +164,25 @@ export function GroceryConfirmationDialog({
 
   const handleConfirm = () => {
     const today = new Date().toISOString().split('T')[0];
+    // Get shared purchase date from first item (receipt parsing sets same date for all)
+    const sharedPurchaseDate = editableItems.find(item => item.purchase_date)?.purchase_date;
+
     const confirmed: ConfirmedGroceryItem[] = editableItems
       .filter(item => item.name.trim()) // Remove empty names
       .map(item => ({
         name: item.name.trim(),
         date_added: today,
-        purchase_date: item.purchase_date,
+        purchase_date: sharedPurchaseDate,
         expiry_type: item.expiry_type,
         expiry_date: item.expiry_date,
+        storage_location: item.storage_location,
       }));
 
     onConfirm(confirmed);
   };
+
+  // Get shared purchase date for display at bottom
+  const sharedPurchaseDate = editableItems.find(item => item.purchase_date)?.purchase_date;
 
   const getConfidenceIcon = (confidence: 'high' | 'medium' | 'low') => {
     const config = {
@@ -240,64 +257,94 @@ export function GroceryConfirmationDialog({
             editableItems.map((item, index) => (
               <div
                 key={index}
-                className="rounded-lg border border-border p-4 space-y-2 bg-card"
+                className="rounded-lg border border-border p-3 bg-card"
               >
-                {/* Row 1: Confidence icon + Label + X button */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {getConfidenceIcon(item.confidence)}
-                    <Label htmlFor={`item-name-${index}`} className="text-xs text-muted-foreground">
-                      Item Name
-                    </Label>
-                  </div>
+                {/* Row 1: Input + X button */}
+                <div className="flex items-center gap-2">
+                  {getConfidenceIcon(item.confidence)}
+                  <Input
+                    id={`item-name-${index}`}
+                    value={item.name}
+                    onChange={(e) => updateItemName(index, e.target.value)}
+                    placeholder="Enter item name"
+                    className="flex-1 font-medium h-9"
+                  />
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => removeItem(index)}
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
                     title="Remove item"
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
 
-                {/* Row 2: Full-width input */}
-                <Input
-                  id={`item-name-${index}`}
-                  value={item.name}
-                  onChange={(e) => updateItemName(index, e.target.value)}
-                  placeholder="Enter item name"
-                  className="w-full font-medium"
-                />
-
-                {/* Metadata: Portion, Dates */}
-                {(item.portion || item.purchase_date || item.expiry_date) && (
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {item.portion && (
-                      <Badge variant="secondary" className="gap-1">
-                        <span className="font-semibold">Portion:</span> {item.portion}
-                      </Badge>
-                    )}
-                    {item.purchase_date && (
-                      <Badge variant="secondary" className="gap-1">
-                        <span className="font-semibold">Purchased:</span>{' '}
-                        {new Date(item.purchase_date).toLocaleDateString()}
-                      </Badge>
-                    )}
-                    {item.expiry_date && (
-                      <Badge variant="secondary" className="gap-1">
-                        <span className="font-semibold">
-                          {item.expiry_type === 'best_before_date' ? 'Best Before' : 'Expires'}:
-                        </span>{' '}
-                        {new Date(item.expiry_date).toLocaleDateString()}
-                      </Badge>
-                    )}
+                {/* Row 2: Storage location toggle + other metadata */}
+                <div className="flex flex-wrap items-center gap-2 text-xs mt-2">
+                  {/* Storage location toggle */}
+                  <div className="inline-flex rounded-lg border border-input bg-muted p-1 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => updateItemStorageLocation(index, 'fridge')}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                        (item.storage_location ?? 'fridge') === 'fridge'
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                      )}
+                    >
+                      <Snowflake className="h-3.5 w-3.5" />
+                      Fridge
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateItemStorageLocation(index, 'pantry')}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                        item.storage_location === 'pantry'
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                      )}
+                    >
+                      <Package className="h-3.5 w-3.5" />
+                      Pantry
+                    </button>
                   </div>
-                )}
+
+                  {item.portion && (
+                    <Badge variant="secondary" className="gap-1">
+                      {item.portion}
+                    </Badge>
+                  )}
+                  {item.expiry_date && (
+                    <Badge variant="secondary" className="gap-1">
+                      <span className="font-semibold">
+                        {item.expiry_type === 'best_before_date' ? 'Best Before' : 'Expires'}:
+                      </span>{' '}
+                      {new Date(item.expiry_date).toLocaleDateString()}
+                    </Badge>
+                  )}
+                </div>
               </div>
             ))
           )}
         </div>
+
+        {/* Shared Purchase Date (from receipt) */}
+        {sharedPurchaseDate && editableItems.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground border-t pt-3">
+            <span>Purchase date:</span>
+            <span className="font-medium text-foreground">
+              {new Date(sharedPurchaseDate).toLocaleDateString(undefined, {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              })}
+            </span>
+          </div>
+        )}
 
         {/* Excluded Items Section */}
         {excludedItems.length > 0 && (
