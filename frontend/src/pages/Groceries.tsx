@@ -49,9 +49,13 @@ import {
   CheckSquare,
   Snowflake,
   Package,
+  Search,
+  Clock,
 } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { GROCERY_CATEGORIES, itemMatchesCategory } from '@/lib/groceryCategories';
 
 const Groceries = () => {
   const queryClient = useQueryClient();
@@ -79,6 +83,10 @@ const Groceries = () => {
   const [showItemModal, setShowItemModal] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
+
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expiryFilter, setExpiryFilter] = useState<'all' | 'expiring' | 'expired'>('all');
 
   // Accordion state for fridge/pantry sections with localStorage persistence
   const [accordionState, setAccordionState] = useState(() => {
@@ -594,17 +602,116 @@ const Groceries = () => {
         addMutationPending={addMutation.isPending}
       />
 
-      {/* Storage Location Help Text */}
-      <p className="text-sm text-muted-foreground">
-        Tap an item to move it between Fridge/Freezer and Pantry, or select multiple items to move them together.
-      </p>
+      {/* Search and Filter Bar - only show when there are groceries */}
+      {groceries.length > 0 && (
+        <div className="rounded-2xl bg-card shadow-soft p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            {/* Text Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search groceries..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Expiry Filter */}
+            <ToggleGroup
+              type="single"
+              value={expiryFilter}
+              onValueChange={(value) => value && setExpiryFilter(value as 'all' | 'expiring' | 'expired')}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="all" aria-label="Show all items" className="text-xs px-3">
+                All
+              </ToggleGroupItem>
+              <ToggleGroupItem value="expiring" aria-label="Expiring soon" className="text-xs px-3">
+                <Clock className="h-3 w-3 mr-1" />
+                Expiring
+              </ToggleGroupItem>
+              <ToggleGroupItem value="expired" aria-label="Expired" className="text-xs px-3">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Expired
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          {/* Helper text for category search */}
+          {!searchQuery && (
+            <p className="text-xs text-muted-foreground">
+              Tip: Search by category like "dairy", "meat", or "produce"
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Storage Location Help Text - only show when there are groceries */}
+      {groceries.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Tap an item to move it between Fridge/Freezer and Pantry, or select multiple items to move them together.
+        </p>
+      )}
 
       {/* Grocery List - Split View (Fridge/Pantry) */}
       {(() => {
-        // Split groceries by storage location
-        const fridgeItems = groceries.filter(g => (g.storage_location ?? 'fridge') === 'fridge');
-        const pantryItems = groceries.filter(g => g.storage_location === 'pantry');
+        // Helper function to get expiry status
+        const getExpiryStatus = (item: GroceryItem): 'expired' | 'expiring' | 'good' => {
+          if (!item.expiry_date) return 'good';
 
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const expiryDate = new Date(item.expiry_date);
+          expiryDate.setHours(0, 0, 0, 0);
+
+          const daysUntilExpiry = Math.floor(
+            (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+          );
+
+          if (daysUntilExpiry <= 0) return 'expired';
+          if (daysUntilExpiry <= 3) return 'expiring';
+          return 'good';
+        };
+
+        // Filter groceries by search query and expiry status
+        const filteredGroceries = groceries.filter(item => {
+          const searchLower = searchQuery.toLowerCase().trim();
+
+          // 1. Direct text match (name or canonical_name)
+          const matchesText = searchLower === '' ||
+            item.name.toLowerCase().includes(searchLower) ||
+            (item.canonical_name?.toLowerCase().includes(searchLower) ?? false);
+
+          // 2. Category match (search "dairy" finds "milk")
+          const matchesCategory = searchLower !== '' &&
+            itemMatchesCategory(item.name, item.canonical_name, searchLower);
+
+          const matchesSearch = matchesText || matchesCategory;
+
+          // Expiry filter
+          const status = getExpiryStatus(item);
+          const matchesExpiry = expiryFilter === 'all' ||
+            (expiryFilter === 'expired' && status === 'expired') ||
+            (expiryFilter === 'expiring' && (status === 'expired' || status === 'expiring'));
+
+          return matchesSearch && matchesExpiry;
+        });
+
+        // Split filtered groceries by storage location
+        const fridgeItems = filteredGroceries.filter(g => (g.storage_location ?? 'fridge') === 'fridge');
+        const pantryItems = filteredGroceries.filter(g => g.storage_location === 'pantry');
+        const isFiltering = searchQuery !== '' || expiryFilter !== 'all';
+
+        // No groceries at all
         if (groceries.length === 0) {
           return (
             <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
@@ -617,12 +724,35 @@ const Groceries = () => {
           );
         }
 
+        // No matches for current filter/search
+        if (filteredGroceries.length === 0 && isFiltering) {
+          return (
+            <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-12 text-center shadow-soft">
+              <Search className="h-10 w-10 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-2">No items match your search</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setExpiryFilter('all');
+                }}
+              >
+                Clear filters
+              </Button>
+            </div>
+          );
+        }
+
         return (
           <div className="rounded-2xl bg-card shadow-soft p-6 space-y-4">
             {/* Header with count and selection toggle */}
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-muted-foreground">
-                {groceries.length} item{groceries.length !== 1 ? 's' : ''} on hand
+                {isFiltering
+                  ? `${filteredGroceries.length} of ${groceries.length} item${groceries.length !== 1 ? 's' : ''}`
+                  : `${groceries.length} item${groceries.length !== 1 ? 's' : ''} on hand`
+                }
                 {isSelectionMode && selectedIngredients.length > 0 && (
                   <span className="text-primary ml-2">
                     ({selectedIngredients.length} selected)
