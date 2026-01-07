@@ -9,9 +9,11 @@ class FamilyMember(BaseModel):
     age_group: str = Field(..., description="Age group: toddler, child, adult")
     allergies: List[str] = Field(default_factory=list, description="List of allergies")
     dislikes: List[str] = Field(default_factory=list, description="List of dislikes")
+    likes: List[str] = Field(default_factory=list, description="Foods the person enjoys")
+    diet: List[str] = Field(default_factory=list, description="Dietary patterns (e.g., 'vegetarian', 'low-carb')")
     preferences: List[str] = Field(
         default_factory=list,
-        description="Dietary preferences and patterns (e.g., 'lactose-intolerant', 'mostly pescetarian', 'low-carb')"
+        description="Deprecated - kept for backward compatibility with existing data"
     )
 
 

@@ -146,13 +146,19 @@ def _build_meal_plan_prompt(context: Dict, week_start_date: str) -> str:
         allergies = f"Allergies: {', '.join(member['allergies'])}" if member['allergies'] else "No allergies"
         dislikes = f"Dislikes: {', '.join(member['dislikes'])}" if member['dislikes'] else "No dislikes"
 
-        # Add preferences if present
-        preferences = ""
-        if member.get('preferences'):  # Handle old data without preferences field
-            pref_list = ', '.join(member['preferences'])
-            preferences = f". Preferences: {pref_list}"
+        # Add likes if present
+        likes = ""
+        if member.get('likes'):
+            likes_list = ', '.join(member['likes'])
+            likes = f". Likes: {likes_list}"
 
-        family_info.append(f"- {member['name']} ({member['age_group']}): {allergies}. {dislikes}{preferences}")
+        # Add diet patterns if present
+        diet = ""
+        if member.get('diet'):
+            diet_list = ', '.join(member['diet'])
+            diet = f". Diet: {diet_list}"
+
+        family_info.append(f"- {member['name']} ({member['age_group']}): {allergies}. {dislikes}{likes}{diet}")
 
     family_text = "\n".join(family_info)
 
@@ -942,7 +948,8 @@ TRANSCRIPTION:
 
 CONTEXT:
 - Today's date: {today}
-- Existing groceries: {existing_items_text}
+- Existing grocery names (includes both display names and canonical English names): {existing_items_text}
+- Check for duplicates against BOTH the canonical_name you generate AND the existing list above
 
 TASK:
 Extract all grocery items mentioned and structure them with:
@@ -961,6 +968,7 @@ Return your response as valid JSON matching this exact schema:
   "proposed_items": [
     {{
       "name": "chicken breast",
+      "canonical_name": "chicken breast",  // Required: English name for matching
       "date_added": "{today}",
       "purchase_date": "{yesterday}",  // Optional, ISO format
       "expiry_type": "expiry_date",    // Optional, "expiry_date" or "best_before_date"
@@ -979,22 +987,33 @@ Return your response as valid JSON matching this exact schema:
 RULES:
 1. Return ONLY valid JSON, no other text
 2. Use ISO date format (YYYY-MM-DD) for all dates
-3. Keep item names in the ORIGINAL LANGUAGE of the input (lowercase, singular form preferred)
-4. If you're unsure about something, mark confidence as "medium" or "low"
-5. Add warnings for potential duplicates or ambiguities
-6. If no items can be extracted, return empty proposed_items array with a warning
-7. date_added should always be today's date ({today})
-8. Only include purchase_date, expiry_date, expiry_type if you can infer them from the transcription
-9. storage_location is required for each item: "fridge" for perishables, "pantry" for shelf-stable items
+3. Keep "name" in the ORIGINAL LANGUAGE of the input (lowercase, singular form preferred)
+4. Always provide "canonical_name" as the English translation (lowercase, singular form) - this is required for matching
+5. If you're unsure about something, mark confidence as "medium" or "low"
+6. Add warnings for potential duplicates or ambiguities (check against canonical names)
+7. If no items can be extracted, return empty proposed_items array with a warning
+8. date_added should always be today's date ({today})
+9. Only include purchase_date, expiry_date, expiry_type if you can infer them from the transcription
+10. storage_location is required for each item: "fridge" for perishables, "pantry" for shelf-stable items
 
 EXAMPLES:
 
 Input: "Chicken breast, milk, and eggs"
 Output: {{
   "proposed_items": [
-    {{"name": "chicken breast", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}},
-    {{"name": "milk", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}},
-    {{"name": "eggs", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}}
+    {{"name": "chicken breast", "canonical_name": "chicken breast", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}},
+    {{"name": "milk", "canonical_name": "milk", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}},
+    {{"name": "eggs", "canonical_name": "eggs", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}}
+  ],
+  "warnings": []
+}}
+
+Input: "雞蛋、牛奶、雞胸肉" (Cantonese)
+Output: {{
+  "proposed_items": [
+    {{"name": "雞蛋", "canonical_name": "eggs", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}},
+    {{"name": "牛奶", "canonical_name": "milk", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}},
+    {{"name": "雞胸肉", "canonical_name": "chicken breast", "date_added": "{today}", "storage_location": "fridge", "confidence": "high"}}
   ],
   "warnings": []
 }}
@@ -1004,6 +1023,7 @@ Output: {{
   "proposed_items": [
     {{
       "name": "chicken",
+      "canonical_name": "chicken",
       "date_added": "{today}",
       "purchase_date": "{yesterday}",
       "expiry_date": "{tomorrow}",

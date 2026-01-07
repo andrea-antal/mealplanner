@@ -11,7 +11,8 @@ from datetime import date as Date
 
 class GroceryItem(BaseModel):
     """Individual grocery item with optional date tracking"""
-    name: str = Field(..., description="Grocery item name")
+    name: str = Field(..., description="Grocery item name (in user's language)")
+    canonical_name: Optional[str] = Field(None, description="English canonical name for matching (e.g., 'eggs' for '雞蛋')")
     date_added: Date = Field(default_factory=Date.today, description="When item was added to list")
     purchase_date: Optional[Date] = Field(None, description="When item was purchased (defaults to today)")
     expiry_type: Optional[Literal["expiry_date", "best_before_date"]] = Field(None, description="Type of expiry")
@@ -70,7 +71,8 @@ class ProposedGroceryItem(BaseModel):
     This extends the concept of GroceryItem with additional fields
     for AI-assisted input (confidence, notes, portion).
     """
-    name: str = Field(..., description="Grocery item name")
+    name: str = Field(..., description="Grocery item name (in user's language)")
+    canonical_name: Optional[str] = Field(None, description="English canonical name for matching (e.g., 'eggs' for '雞蛋')")
     date_added: Optional[Date] = Field(None, description="When item was added (optional for proposed items)")
     purchase_date: Optional[Date] = Field(None, description="When item was purchased")
     expiry_type: Optional[Literal["expiry_date", "best_before_date"]] = Field(None, description="Type of expiry")

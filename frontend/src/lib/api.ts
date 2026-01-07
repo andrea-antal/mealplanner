@@ -78,6 +78,7 @@ export interface HouseholdProfile {
 
 export interface GroceryItem {
   name: string;
+  canonical_name?: string; // English name for cross-language matching
   date_added: string; // ISO format
   purchase_date?: string; // ISO format, optional
   expiry_type?: 'expiry_date' | 'best_before_date';
@@ -92,6 +93,7 @@ export interface GroceryList {
 // Voice parsing types (Sprint 4 Phase 1)
 export interface ProposedGroceryItem {
   name: string;
+  canonical_name?: string; // English name for cross-language matching
   date_added?: string;
   purchase_date?: string;
   expiry_type?: 'expiry_date' | 'best_before_date';

@@ -286,13 +286,19 @@ async def parse_voice_input(
     """
     try:
         # Get existing groceries for duplicate detection
+        # Include both display names and canonical names for cross-language matching
         existing_items = load_groceries(workspace_id)
-        existing_names = [item.name.lower() for item in existing_items]
+        existing_names = set()
+        for item in existing_items:
+            existing_names.add(item.name.lower())
+            if item.canonical_name:
+                existing_names.add(item.canonical_name.lower())
+        existing_names_list = sorted(existing_names)
 
         # Parse voice input using Claude service
         proposed_items, warnings = await parse_voice_to_groceries(
             request.transcription,
-            existing_names
+            existing_names_list
         )
 
         logger.info(f"Parsed {len(proposed_items)} items from voice input for workspace '{workspace_id}'")
