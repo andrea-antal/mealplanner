@@ -1,11 +1,42 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2026-01-05
+**Last Updated**: 2026-01-06
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.11.0 - January 6, 2026
+
+### New Features
+
+- **Daycare/School Setup** - Configure packed lunch rules for children attending daycare or school:
+  - Select attendance days (weekdays toggle for quick setup)
+  - Toggle common food restrictions: no nuts, no peanuts, no chocolate, no honey, cold meals only
+  - Add custom rules for your facility's specific requirements
+
+- **Dietary Categories Expanded** - Family member profiles now support four categories:
+  - Allergies (medical restrictions)
+  - Dislikes (foods to avoid)
+  - Likes (favorite foods to include more often)
+  - Diet (dietary patterns like lactose-free, vegetarian, etc.)
+
+### Improvements
+
+- **Smarter Meal Plans** - "Eating out" meals are now handled intelligently - no generate button appears and they're excluded from "Save All Recipes"
+
+- **Compact Meal Plan View** - Day headers are now hidden on mobile (the navigator shows the selected day) and use a compact single-line format on desktop
+
+- **Redesigned Home Page** - Navigation tiles are larger and responsive (2x2 grid on mobile), with bolder labels and tallies showing your recipe count and current meal plan week
+
+- **Consistent Delete Dialogs** - Deleting a household member or grocery item now shows a confirmation dialog to prevent accidents
+
+- **iOS Safe Area Support** - Bottom navigation no longer gets cut off on iPhones with home indicators
+
+- **Better Button Hierarchy** - Add buttons now use outline style, delete buttons are consistently styled with red text
+
+---
 
 ## Version 0.10.0 - January 5, 2026
 

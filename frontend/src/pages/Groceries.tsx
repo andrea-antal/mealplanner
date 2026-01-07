@@ -45,6 +45,7 @@ import {
   Mic,
   MicOff,
   Camera,
+  CheckSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -67,6 +68,7 @@ const Groceries = () => {
   }
 
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [showAdvancedForm, setShowAdvancedForm] = useState(false);
   const [showExpiringDetails, setShowExpiringDetails] = useState(false);
@@ -281,6 +283,11 @@ const Groceries = () => {
     );
   };
 
+  const handleCancelSelection = () => {
+    setIsSelectionMode(false);
+    setSelectedIngredients([]);
+  };
+
   const handleCookWithSelected = () => {
     if (selectedIngredients.length === 0) {
       toast.error('Please select at least one ingredient');
@@ -454,7 +461,7 @@ const Groceries = () => {
   const expiringItems = expiringSoon?.items || [];
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div>
@@ -533,11 +540,27 @@ const Groceries = () => {
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-muted-foreground">
               {groceries.length} item{groceries.length !== 1 ? 's' : ''} on hand
+              {isSelectionMode && selectedIngredients.length > 0 && (
+                <span className="text-primary ml-2">
+                  ({selectedIngredients.length} selected)
+                </span>
+              )}
             </p>
-            {selectedIngredients.length > 0 && (
-              <p className="text-sm font-medium text-primary">
-                {selectedIngredients.length} selected
-              </p>
+            {isSelectionMode ? (
+              <button
+                onClick={handleCancelSelection}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsSelectionMode(true)}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <CheckSquare className="h-4 w-4" />
+                Select
+              </button>
             )}
           </div>
 
@@ -548,6 +571,7 @@ const Groceries = () => {
                 key={item.name}
                 item={item}
                 isSelected={selectedIngredients.includes(item.name)}
+                isSelectionMode={isSelectionMode}
                 onToggleSelect={toggleIngredientSelection}
                 onOpenModal={handleOpenItemModal}
               />
@@ -614,13 +638,15 @@ const Groceries = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Sticky Action Bar */}
-      <StickyActionBar
-        selectedCount={selectedIngredients.length}
-        onCook={handleCookWithSelected}
-        onPlan={() => navigate('/plan', { state: { selectedIngredients } })}
-        onDelete={handleBulkDeleteRequest}
-      />
+      {/* Sticky Action Bar - only show in selection mode */}
+      {isSelectionMode && (
+        <StickyActionBar
+          selectedCount={selectedIngredients.length}
+          onCook={handleCookWithSelected}
+          onPlan={() => navigate('/plan', { state: { selectedIngredients } })}
+          onDelete={handleBulkDeleteRequest}
+        />
+      )}
 
       {/* Grocery Item Modal */}
       <GroceryItemModal

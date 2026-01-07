@@ -9,6 +9,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Package, Calendar, Trash2, AlertCircle, Clock } from 'lucide-react';
 import type { GroceryItem } from '@/lib/api';
 
@@ -29,6 +39,7 @@ export function GroceryItemModal({
 }: GroceryItemModalProps) {
   const [isEditingAmount, setIsEditingAmount] = useState(false);
   const [isEditingDates, setIsEditingDates] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [amount, setAmount] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
   const [expiryType, setExpiryType] = useState<'expiry_date' | 'best_before_date' | ''>('');
@@ -162,9 +173,9 @@ export function GroceryItemModal({
 
             {/* Delete */}
             <Button
-              variant="destructive"
-              className="w-full h-14 justify-start text-left"
-              onClick={handleDelete}
+              variant="outline"
+              className="w-full h-14 justify-start text-left text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setShowDeleteConfirm(true)}
             >
               <Trash2 className="h-5 w-5 mr-3 shrink-0" />
               <div>
@@ -283,6 +294,30 @@ export function GroceryItemModal({
           </DialogFooter>
         )}
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {item.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove "{item.name}" from your grocery list. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleDelete();
+                setShowDeleteConfirm(false);
+              }}
+              className="border border-input bg-background text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

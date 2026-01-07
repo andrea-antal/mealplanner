@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Bug, Loader2, Send } from 'lucide-react';
+import { HelpCircle, Loader2, Send } from 'lucide-react';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import { toast } from 'sonner';
 
@@ -80,8 +80,8 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bug className="h-5 w-5 text-primary" />
-            Beta Testing Feedback
+            <HelpCircle className="h-5 w-5 text-primary" />
+            Help & Feedback
           </DialogTitle>
           <DialogDescription>
             Help us improve by sharing your feedback

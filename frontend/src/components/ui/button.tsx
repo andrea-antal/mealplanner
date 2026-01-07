@@ -9,16 +9,16 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-medium active:scale-[0.98]",
-        destructive: "bg-destructive text-destructive-foreground shadow-soft hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        default: "bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-medium active:scale-[0.98] text-shadow-subtle",
+        destructive: "bg-destructive text-white shadow-soft hover:bg-destructive/90 text-shadow-subtle",
+        outline: "border border-input bg-background hover:bg-muted hover:text-foreground",
         secondary: "bg-secondary text-secondary-foreground shadow-soft hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        ghost: "hover:bg-muted hover:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         // Hero CTA button
-        hero: "bg-primary text-primary-foreground shadow-glow hover:shadow-medium hover:bg-primary/90 active:scale-[0.98] font-semibold",
+        hero: "bg-primary text-primary-foreground shadow-glow hover:shadow-medium hover:bg-primary/90 active:scale-[0.98] font-semibold text-shadow-subtle",
         // Soft accent button
-        accent: "bg-accent text-accent-foreground shadow-soft hover:bg-accent/90 active:scale-[0.98]",
+        accent: "bg-accent text-accent-foreground shadow-soft hover:bg-accent/90 active:scale-[0.98] text-shadow-subtle",
       },
       size: {
         default: "h-12 px-6 py-3",

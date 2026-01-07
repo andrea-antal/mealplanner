@@ -14,6 +14,7 @@ import MealPlansMockup from "./pages/MealPlansMockup";
 import Recipes from "./pages/Recipes";
 import Household from "./pages/Household";
 import Groceries from "./pages/Groceries";
+import CookingPreferences from "./pages/CookingPreferences";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,7 +51,7 @@ const App = () => {
             <Route path="/" element={<Index />} />
 
             {/* Protected routes - require workspace to be set */}
-            <Route path="/cook" element={<WorkspaceGuard><Recipes /></WorkspaceGuard>} />
+            <Route path="/cook" element={<WorkspaceGuard><CookingPreferences /></WorkspaceGuard>} />
             <Route path="/plan" element={<WorkspaceGuard><MealPlans /></WorkspaceGuard>} />
             <Route path="/household" element={<WorkspaceGuard><Household /></WorkspaceGuard>} />
 

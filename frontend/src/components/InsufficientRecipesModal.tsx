@@ -14,6 +14,8 @@ interface InsufficientRecipesModalProps {
   onOpenChange: (open: boolean) => void;
   totalCount: number;
   missingMealTypes: string[];
+  onGenerateAnyway: () => void;
+  householdSetUp: boolean;
 }
 
 export function InsufficientRecipesModal({
@@ -21,20 +23,23 @@ export function InsufficientRecipesModal({
   onOpenChange,
   totalCount,
   missingMealTypes,
+  onGenerateAnyway,
+  householdSetUp,
 }: InsufficientRecipesModalProps) {
   const navigate = useNavigate();
 
-  const handleGoToRecipes = () => {
+  // Smart routing: household setup is more impactful for new users
+  const handlePrimaryAction = () => {
     onOpenChange(false);
-    navigate('/cook');
+    navigate(householdSetUp ? '/cook' : '/household');
   };
 
-  // Format meal types for display
-  const formatMealTypes = (types: string[]) => {
-    if (types.length === 1) return types[0];
-    if (types.length === 2) return `${types[0]} and ${types[1]}`;
-    return types.slice(0, -1).join(', ') + ', and ' + types[types.length - 1];
+  const handleGenerateAnyway = () => {
+    onOpenChange(false);
+    onGenerateAnyway();
   };
+
+  const primaryButtonText = householdSetUp ? 'Go to Recipes' : 'Set Up Household';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,7 +50,7 @@ export function InsufficientRecipesModal({
             More Recipes Needed
           </DialogTitle>
           <DialogDescription>
-            To generate a meal plan, you need recipes for each meal type
+            For best results, add recipes for each meal type
           </DialogDescription>
         </DialogHeader>
 
@@ -57,7 +62,7 @@ export function InsufficientRecipesModal({
                 You don't have any recipes yet
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                Add some recipes to get started with meal planning
+                You can still generate a meal plan to see how it works.
               </p>
             </div>
           ) : (
@@ -74,26 +79,32 @@ export function InsufficientRecipesModal({
                 ))}
               </ul>
               <p className="text-sm text-muted-foreground">
-                Each recipe needs a meal type tag (breakfast, lunch, or dinner).
+                You can still generate a meal plan, but some meals may not have matching recipes.
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="flex-1"
-          >
-            Cancel
+        <div className="flex flex-col gap-2 pt-2">
+          <Button onClick={handlePrimaryAction} className="w-full">
+            {primaryButtonText}
           </Button>
-          <Button
-            onClick={handleGoToRecipes}
-            className="flex-1"
-          >
-            Go to Recipes
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleGenerateAnyway}
+              className="flex-1"
+            >
+              Generate Anyway
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,10 +1,11 @@
-import { Check, AlertCircle, Clock } from 'lucide-react';
+import { AlertCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GroceryItem } from '@/lib/api';
 
 interface GroceryChipProps {
   item: GroceryItem;
   isSelected: boolean;
+  isSelectionMode: boolean;
   onToggleSelect: (name: string) => void;
   onOpenModal: (item: GroceryItem) => void;
 }
@@ -12,6 +13,7 @@ interface GroceryChipProps {
 export function GroceryChip({
   item,
   isSelected,
+  isSelectionMode,
   onToggleSelect,
   onOpenModal,
 }: GroceryChipProps) {
@@ -36,14 +38,13 @@ export function GroceryChip({
   const expiryStatus = getExpiryStatus();
 
   const handleChipClick = () => {
-    // Open modal for editing
-    onOpenModal(item);
-  };
-
-  const handleCheckboxClick = (e: React.MouseEvent) => {
-    // Prevent modal from opening when clicking checkbox area
-    e.stopPropagation();
-    onToggleSelect(item.name);
+    if (isSelectionMode) {
+      // In selection mode, clicking toggles selection
+      onToggleSelect(item.name);
+    } else {
+      // Normal mode, open modal for editing
+      onOpenModal(item);
+    }
   };
 
   return (
@@ -57,17 +58,8 @@ export function GroceryChip({
           : "bg-card border-border text-foreground hover:border-primary/50 hover:shadow-soft"
       )}
     >
-      {/* Selection checkbox area - separate click handler */}
-      <span
-        onClick={handleCheckboxClick}
-        className="flex items-center justify-center shrink-0"
-      >
-        {isSelected && <Check className="h-4 w-4" />}
-        {!isSelected && <span className="h-4 w-4 rounded border-2 border-current" />}
-      </span>
-
       {/* Item name */}
-      <span className="capitalize flex-1 text-left">{item.name}</span>
+      <span className="capitalize">{item.name}</span>
 
       {/* Expiry indicator - icon + color for accessibility */}
       {expiryStatus === 'expired' && (

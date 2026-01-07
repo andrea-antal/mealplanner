@@ -6,110 +6,131 @@
 
 @layer base {
   :root {
-    /* Warm, inviting meal planner palette - soft and calming */
-    --background: 30 25% 98%;
-    --foreground: 25 30% 18%;
+    /* Italian Market - Tuscan sun, terracotta, olive groves */
+    /* High contrast, saturated, warm and inviting */
 
-    --card: 30 20% 99%;
-    --card-foreground: 25 30% 18%;
+    --background: 45 40% 97%;
+    --foreground: 20 25% 12%;
 
-    --popover: 30 20% 99%;
-    --popover-foreground: 25 30% 18%;
+    --card: 45 50% 99%;
+    --card-foreground: 20 25% 12%;
 
-    /* Softer terracotta primary */
-    --primary: 14 65% 52%;
-    --primary-soft: 14 45% 88%;
-    --primary-foreground: 30 20% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 25% 12%;
 
-    /* Soft sage secondary */
-    --secondary: 150 30% 92%;
-    --secondary-foreground: 150 40% 35%;
+    /* Tuscan Sun - warm golden yellow */
+    --primary: 42 92% 50%;
+    --primary-soft: 45 80% 92%;
+    --primary-foreground: 0 0% 100%;
 
-    --muted: 30 20% 94%;
-    --muted-foreground: 25 15% 42%;
+    /* Olive Grove - rich Italian green */
+    --secondary: 85 45% 88%;
+    --secondary-foreground: 90 50% 25%;
 
-    /* Warm amber accent */
-    --accent: 30 70% 60%;
-    --accent-soft: 30 50% 90%;
-    --accent-foreground: 30 20% 98%;
+    --muted: 40 30% 92%;
+    --muted-foreground: 20 20% 30%;
 
-    /* Warm warning */
-    --warning: 42 85% 55%;
-    --warning-foreground: 25 25% 10%;
+    /* Terracotta - warm Italian clay */
+    --accent: 16 75% 48%;
+    --accent-soft: 20 60% 92%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Softer destructive */
-    --destructive: 8 70% 55%;
+    /* Limoncello warning */
+    --warning: 50 95% 48%;
+    --warning-foreground: 20 40% 12%;
+
+    /* Pomodoro destructive */
+    --destructive: 0 80% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 20% 86%;
-    --input: 30 20% 86%;
-    --ring: 14 65% 52%;
+    --border: 40 25% 82%;
+    --input: 40 25% 85%;
+    --ring: 42 92% 50%;
 
     --radius: 0.75rem;
 
-    /* Tag colors - more saturated */
-    --tag-toddler: 155 60% 40%;
-    --tag-quick: 42 95% 48%;
-    --tag-daycare: 205 75% 50%;
-    --tag-approved: 265 55% 55%;
-    --tag-onepot: 22 85% 52%;
-    --tag-batch: 170 60% 40%;
-    --tag-breakfast: 345 65% 60%;
-    --tag-leftover: 200 30% 48%;
+    /* Tag colors - saturated Italian palette */
+    --tag-toddler: 280 70% 52%;
+    --tag-quick: 50 95% 45%;
+    --tag-daycare: 200 80% 45%;
+    --tag-approved: 90 60% 38%;
+    --tag-onepot: 16 80% 48%;
+    --tag-batch: 170 65% 35%;
+    --tag-breakfast: 340 75% 52%;
+    --tag-leftover: 210 55% 48%;
 
-    /* Shadows */
-    --shadow-soft: 0 2px 8px -2px hsl(25 30% 18% / 0.06);
-    --shadow-medium: 0 4px 16px -4px hsl(25 30% 18% / 0.10);
-    --shadow-glow: 0 0 24px hsl(14 65% 52% / 0.18);
+    /* Warm Tuscan shadows */
+    --shadow-soft: 0 2px 8px -2px hsl(20 30% 20% / 0.1);
+    --shadow-medium: 0 4px 16px -4px hsl(20 30% 20% / 0.15);
+    --shadow-glow: 0 0 24px hsl(42 92% 50% / 0.25);
 
     /* Sidebar */
-    --sidebar-background: 30 22% 95%;
-    --sidebar-foreground: 25 25% 25%;
-    --sidebar-primary: 14 72% 48%;
-    --sidebar-primary-foreground: 30 20% 98%;
-    --sidebar-accent: 150 35% 90%;
-    --sidebar-accent-foreground: 150 45% 28%;
-    --sidebar-border: 30 18% 88%;
-    --sidebar-ring: 14 72% 48%;
+    --sidebar-background: 45 35% 95%;
+    --sidebar-foreground: 20 25% 15%;
+    --sidebar-primary: 42 92% 50%;
+    --sidebar-primary-foreground: 20 30% 10%;
+    --sidebar-accent: 16 50% 92%;
+    --sidebar-accent-foreground: 16 70% 30%;
+    --sidebar-border: 40 20% 85%;
+    --sidebar-ring: 42 92% 50%;
+
+    /* Italian market gradients */
+    --gradient-tuscan: linear-gradient(135deg, hsl(42 92% 50%) 0%, hsl(28 85% 52%) 100%);
+    --gradient-olive: linear-gradient(135deg, hsl(90 45% 42%) 0%, hsl(75 50% 38%) 100%);
+    --gradient-terracotta: linear-gradient(135deg, hsl(16 75% 48%) 0%, hsl(8 70% 45%) 100%);
+    --gradient-sunset: linear-gradient(180deg, hsl(45 60% 95%) 0%, hsl(30 50% 96%) 50%, hsl(45 40% 97%) 100%);
   }
 
   .dark {
-    --background: 25 25% 10%;
-    --foreground: 30 20% 94%;
+    /* Dark mode - warm Italian evening */
+    --background: 25 30% 8%;
+    --foreground: 40 25% 92%;
 
-    --card: 25 22% 13%;
-    --card-foreground: 30 20% 94%;
+    --card: 25 25% 12%;
+    --card-foreground: 40 25% 92%;
 
-    --popover: 25 22% 13%;
-    --popover-foreground: 30 20% 94%;
+    --popover: 25 25% 12%;
+    --popover-foreground: 40 25% 92%;
 
-    --primary: 14 68% 55%;
-    --primary-foreground: 25 25% 10%;
+    /* Golden hour yellow */
+    --primary: 45 90% 55%;
+    --primary-soft: 45 50% 18%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 150 25% 18%;
-    --secondary-foreground: 150 30% 82%;
+    --secondary: 85 30% 18%;
+    --secondary-foreground: 85 35% 75%;
 
-    --muted: 25 20% 18%;
-    --muted-foreground: 30 15% 58%;
+    --muted: 25 20% 16%;
+    --muted-foreground: 40 15% 65%;
 
-    --accent: 155 50% 38%;
+    /* Warm terracotta accent */
+    --accent: 20 80% 55%;
+    --accent-soft: 20 40% 18%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 60% 45%;
+    --warning: 50 90% 55%;
+    --warning-foreground: 25 30% 8%;
+
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 25 20% 20%;
     --input: 25 20% 20%;
-    --ring: 14 68% 55%;
+    --ring: 45 90% 55%;
 
-    --sidebar-background: 25 22% 11%;
-    --sidebar-foreground: 30 18% 88%;
-    --sidebar-primary: 14 68% 55%;
-    --sidebar-primary-foreground: 25 25% 10%;
+    /* Shadows for dark mode */
+    --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.35);
+    --shadow-medium: 0 4px 16px -4px hsl(0 0% 0% / 0.45);
+    --shadow-glow: 0 0 24px hsl(45 90% 55% / 0.3);
+
+    --sidebar-background: 25 28% 10%;
+    --sidebar-foreground: 40 20% 88%;
+    --sidebar-primary: 45 90% 55%;
+    --sidebar-primary-foreground: 25 30% 8%;
     --sidebar-accent: 25 20% 16%;
-    --sidebar-accent-foreground: 30 18% 88%;
+    --sidebar-accent-foreground: 40 20% 88%;
     --sidebar-border: 25 18% 18%;
-    --sidebar-ring: 14 68% 55%;
+    --sidebar-ring: 45 90% 55%;
   }
 }
 
@@ -122,6 +143,14 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-size: 16px;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Improve text contrast and readability */
+  p, span, li {
+    @apply text-foreground;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -148,11 +177,11 @@
   }
 
   @keyframes slideUp {
-    from { 
+    from {
       opacity: 0;
       transform: translateY(20px);
     }
-    to { 
+    to {
       opacity: 1;
       transform: translateY(0);
     }
@@ -176,5 +205,59 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Subtle text shadow for white text on bright backgrounds */
+  .text-shadow-subtle {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Italian market gradient backgrounds */
+  .bg-gradient-tuscan {
+    background: var(--gradient-tuscan);
+  }
+
+  .bg-gradient-olive {
+    background: var(--gradient-olive);
+  }
+
+  .bg-gradient-terracotta {
+    background: var(--gradient-terracotta);
+  }
+
+  .bg-gradient-sunset {
+    background: var(--gradient-sunset);
+  }
+
+  /* Italian market background - warm Tuscan glow */
+  .bg-market-pattern {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(ellipse 100% 60% at 50% -20%, hsl(42 80% 70% / 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 90% 80%, hsl(16 70% 55% / 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 30% at 5% 90%, hsl(90 50% 45% / 0.05) 0%, transparent 50%);
+  }
+
+  .dark .bg-market-pattern {
+    background-image:
+      radial-gradient(ellipse 100% 60% at 50% -20%, hsl(42 70% 50% / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 90% 80%, hsl(20 60% 45% / 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 30% at 5% 90%, hsl(85 40% 35% / 0.05) 0%, transparent 50%);
+  }
+
+  /* Tuscan sunset hero */
+  .bg-hero-fresh {
+    background:
+      linear-gradient(180deg, hsl(45 60% 95%) 0%, hsl(var(--background)) 100%);
+  }
+
+  .dark .bg-hero-fresh {
+    background:
+      linear-gradient(180deg, hsl(30 25% 12%) 0%, hsl(var(--background)) 100%);
+  }
+
+  /* Safe area inset utilities for notched devices */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
