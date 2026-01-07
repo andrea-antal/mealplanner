@@ -651,6 +651,24 @@ export interface ChromaSyncResult {
   total_in_sync: number;
 }
 
+export interface ErrorLogEntry {
+  timestamp: string;
+  method: string;
+  path: string;
+  workspace_id: string;
+  status_code: number;
+  duration_ms: number;
+  error: string;
+  response_body?: string;
+  acknowledged: boolean;
+}
+
+export interface WorkspaceErrorsResponse {
+  workspace_id: string;
+  count: number;
+  errors: ErrorLogEntry[];
+}
+
 // Admin API (workspace analytics and management)
 export const adminAPI = {
   async getWorkspacesSummary(): Promise<{ count: number; workspaces: WorkspaceSummary[] }> {
@@ -686,6 +704,29 @@ export const adminAPI = {
     const response = await fetch(`${API_BASE_URL}/recipes/admin/sync-chroma?workspace_id=${encodeURIComponent(workspaceId)}`, {
       method: 'POST',
     });
+    return handleResponse(response);
+  },
+
+  async getWorkspaceErrors(
+    workspaceId: string,
+    limit: number = 50,
+    includeAcknowledged: boolean = false
+  ): Promise<WorkspaceErrorsResponse> {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      include_acknowledged: includeAcknowledged.toString(),
+    });
+    const response = await fetch(
+      `${API_BASE_URL}/logs/errors/${encodeURIComponent(workspaceId)}?${params}`
+    );
+    return handleResponse(response);
+  },
+
+  async clearWorkspaceErrors(workspaceId: string): Promise<{ message: string; cleared_before: string }> {
+    const response = await fetch(
+      `${API_BASE_URL}/logs/errors/${encodeURIComponent(workspaceId)}/clear`,
+      { method: 'POST' }
+    );
     return handleResponse(response);
   },
 };

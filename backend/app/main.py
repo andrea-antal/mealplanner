@@ -103,7 +103,7 @@ async def workspaces_summary():
         stats = get_workspace_stats(ws)
         request_stats = get_workspace_request_stats(ws)
         stats["api_requests"] = request_stats["total_requests"]
-        stats["api_errors"] = request_stats["error_count"]
+        stats["api_errors"] = request_stats["unacknowledged_error_count"]
         stats["last_api_call"] = request_stats["last_request"]
         summaries.append(stats)
 
@@ -151,6 +151,55 @@ async def get_error_logs(limit: int = 50, workspace_id: str = None):
     return {
         "count": len(entries),
         "errors": entries
+    }
+
+
+@app.get("/logs/errors/{workspace_id}", tags=["admin"])
+async def get_workspace_errors(
+    workspace_id: str,
+    limit: int = 50,
+    include_acknowledged: bool = False
+):
+    """
+    Get errors for a specific workspace with acknowledgment status.
+
+    Args:
+        workspace_id: Workspace to get errors for
+        limit: Maximum number of errors (default 50)
+        include_acknowledged: Include cleared errors (default False)
+
+    Returns:
+        List of error entries with acknowledgment status
+    """
+    from app.middleware.request_logger import get_errors_for_workspace
+    errors = get_errors_for_workspace(
+        workspace_id=workspace_id,
+        limit=limit,
+        include_acknowledged=include_acknowledged
+    )
+    return {
+        "workspace_id": workspace_id,
+        "count": len(errors),
+        "errors": errors
+    }
+
+
+@app.post("/logs/errors/{workspace_id}/clear", tags=["admin"])
+async def clear_workspace_errors(workspace_id: str):
+    """
+    Clear/acknowledge all current errors for a workspace.
+
+    This marks all current errors as acknowledged. New errors that occur
+    after this call will still appear in the error count.
+
+    Returns:
+        Acknowledgment record with timestamp
+    """
+    from app.middleware.request_logger import clear_errors_for_workspace
+    record = clear_errors_for_workspace(workspace_id)
+    return {
+        "message": f"Errors cleared for workspace '{workspace_id}'",
+        "cleared_before": record["cleared_before"]
     }
 
 

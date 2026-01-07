@@ -4,6 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
+import {
   Table,
   TableBody,
   TableCell,
@@ -34,7 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { adminAPI, type WorkspaceSummary, type InactiveWorkspace } from '@/lib/api';
+import { adminAPI, type WorkspaceSummary, type InactiveWorkspace, type ErrorLogEntry } from '@/lib/api';
 import { toast } from 'sonner';
 import {
   Database,
@@ -48,6 +58,8 @@ import {
   AlertTriangle,
   Clock,
   Activity,
+  CheckCircle2,
+  ChevronRight,
 } from 'lucide-react';
 
 // Format relative time
@@ -73,6 +85,8 @@ const Admin = () => {
   const [inactiveDays, setInactiveDays] = useState(30);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [errorSheetWorkspace, setErrorSheetWorkspace] = useState<string | null>(null);
+  const [showAcknowledged, setShowAcknowledged] = useState(false);
 
   // Fetch workspace summary
   const { data: summaryData, isLoading: summaryLoading } = useQuery({
@@ -116,6 +130,29 @@ const Admin = () => {
     },
     onError: (error) => {
       toast.error(`Sync failed: ${error.message}`);
+    },
+  });
+
+  // Fetch workspace errors when sheet is open
+  const { data: errorsData, isLoading: errorsLoading } = useQuery({
+    queryKey: ['admin', 'errors', errorSheetWorkspace, showAcknowledged],
+    queryFn: () =>
+      errorSheetWorkspace
+        ? adminAPI.getWorkspaceErrors(errorSheetWorkspace, 50, showAcknowledged)
+        : Promise.resolve(null),
+    enabled: !!errorSheetWorkspace,
+  });
+
+  // Clear errors mutation
+  const clearErrorsMutation = useMutation({
+    mutationFn: (workspaceId: string) => adminAPI.clearWorkspaceErrors(workspaceId),
+    onSuccess: (_, workspaceId) => {
+      toast.success(`Errors cleared for "${workspaceId}"`);
+      queryClient.invalidateQueries({ queryKey: ['admin'] });
+      setErrorSheetWorkspace(null);
+    },
+    onError: (error) => {
+      toast.error(`Failed to clear errors: ${error.message}`);
     },
   });
 
@@ -263,8 +300,13 @@ const Admin = () => {
                         <TableCell className="text-center">
                           <span>{ws.api_requests}</span>
                           {ws.api_errors > 0 && (
-                            <Badge variant="destructive" className="ml-2 text-xs">
+                            <Badge
+                              variant="destructive"
+                              className="ml-2 text-xs cursor-pointer hover:bg-destructive/80"
+                              onClick={() => setErrorSheetWorkspace(ws.workspace_id)}
+                            >
                               {ws.api_errors} errors
+                              <ChevronRight className="h-3 w-3 ml-1" />
                             </Badge>
                           )}
                         </TableCell>
@@ -399,6 +441,115 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Error Details Sheet */}
+      <Sheet
+        open={errorSheetWorkspace !== null}
+        onOpenChange={(open) => !open && setErrorSheetWorkspace(null)}
+      >
+        <SheetContent className="w-[500px] sm:max-w-[500px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Errors: {errorSheetWorkspace}
+            </SheetTitle>
+            <SheetDescription>
+              {errorsData?.count || 0} unacknowledged errors
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-4 space-y-4">
+            {/* Toggle to show/hide acknowledged errors */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-muted-foreground">
+                Show cleared errors
+              </label>
+              <Switch
+                checked={showAcknowledged}
+                onCheckedChange={setShowAcknowledged}
+              />
+            </div>
+
+            {/* Clear errors button */}
+            {errorsData && errorsData.count > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => errorSheetWorkspace && clearErrorsMutation.mutate(errorSheetWorkspace)}
+                disabled={clearErrorsMutation.isPending}
+              >
+                {clearErrorsMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                Clear All Errors
+              </Button>
+            )}
+
+            {/* Error list */}
+            <ScrollArea className="h-[calc(100vh-280px)]">
+              {errorsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : errorsData?.errors.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50 text-green-500" />
+                  <p>No errors to display</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {errorsData?.errors.map((error: ErrorLogEntry, index: number) => (
+                    <div
+                      key={`${error.timestamp}-${index}`}
+                      className={cn(
+                        "p-3 rounded-lg border",
+                        error.acknowledged
+                          ? "bg-muted/30 border-muted"
+                          : "bg-destructive/5 border-destructive/20"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={error.acknowledged ? "secondary" : "destructive"}>
+                            {error.status_code}
+                          </Badge>
+                          <code className="text-xs font-mono">
+                            {error.method} {error.path}
+                          </code>
+                        </div>
+                        {error.acknowledged && (
+                          <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {new Date(error.timestamp).toLocaleString('en-US', {
+                          timeZone: 'America/Los_Angeles',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true,
+                        })} PST
+                      </div>
+                      <div className="mt-1 text-sm text-destructive">
+                        {error.error}
+                      </div>
+                      {error.response_body && error.response_body !== error.error && (
+                        <pre className="mt-2 text-xs bg-muted/50 p-2 rounded overflow-x-auto max-h-24 overflow-y-auto">
+                          {error.response_body}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog
