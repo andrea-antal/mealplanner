@@ -15,6 +15,7 @@ import Recipes from "./pages/Recipes";
 import Household from "./pages/Household";
 import Groceries from "./pages/Groceries";
 import CookingPreferences from "./pages/CookingPreferences";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,9 @@ const App = () => {
             <Route path="/recipes" element={<WorkspaceGuard><Recipes /></WorkspaceGuard>} />
             <Route path="/meal-plans" element={<WorkspaceGuard><MealPlans /></WorkspaceGuard>} />
             <Route path="/meal-plans-mockup" element={<WorkspaceGuard><MealPlansMockup /></WorkspaceGuard>} />
+
+            {/* Admin route - global view, no workspace required */}
+            <Route path="/admin" element={<Admin />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFound />} />

@@ -164,6 +164,87 @@ def get_workspace_stats(workspace_id: str) -> Dict:
     return stats
 
 
+def is_workspace_empty(workspace_id: str) -> bool:
+    """
+    Check if a workspace has no meaningful data.
+
+    A workspace is considered empty if it has:
+    - No recipes
+    - No meal plans
+    - No groceries
+    - No household members
+
+    Args:
+        workspace_id: Workspace identifier to check
+
+    Returns:
+        True if workspace is empty, False otherwise
+    """
+    stats = get_workspace_stats(workspace_id)
+
+    # If workspace doesn't exist, consider it "empty"
+    if "error" in stats:
+        return True
+
+    return (
+        stats.get("recipe_count", 0) == 0 and
+        stats.get("meal_plan_count", 0) == 0 and
+        stats.get("grocery_count", 0) == 0 and
+        stats.get("member_count", 0) == 0
+    )
+
+
+def delete_workspace(workspace_id: str) -> bool:
+    """
+    Delete an entire workspace directory and all its data.
+
+    This permanently removes:
+    - All recipes (JSON files)
+    - All meal plans
+    - Household profile
+    - Groceries list
+    - Recipe ratings
+    - Chroma DB entries for this workspace
+
+    WARNING: This operation is irreversible!
+
+    Args:
+        workspace_id: Workspace identifier to delete
+
+    Returns:
+        True if workspace was deleted, False if it didn't exist
+
+    Raises:
+        ValueError: If workspace_id is invalid
+    """
+    import shutil
+
+    _validate_workspace_id(workspace_id)
+    workspace_dir = DATA_DIR / workspace_id
+
+    if not workspace_dir.exists():
+        logger.warning(f"Workspace '{workspace_id}' does not exist, nothing to delete")
+        return False
+
+    # Remove from Chroma DB first (before deleting files)
+    try:
+        from app.data.chroma_manager import delete_workspace_from_chroma
+        chroma_deleted = delete_workspace_from_chroma(workspace_id)
+        logger.info(f"Removed {chroma_deleted} Chroma entries for workspace '{workspace_id}'")
+    except Exception as e:
+        logger.warning(f"Error cleaning Chroma for workspace '{workspace_id}': {e}")
+        # Continue with directory deletion even if Chroma cleanup fails
+
+    # Delete the entire workspace directory
+    try:
+        shutil.rmtree(workspace_dir)
+        logger.info(f"Deleted workspace '{workspace_id}' and all its data at {workspace_dir}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting workspace directory '{workspace_id}': {e}")
+        raise
+
+
 # ===== Household Profile =====
 
 def load_household_profile(workspace_id: str) -> Optional[HouseholdProfile]:

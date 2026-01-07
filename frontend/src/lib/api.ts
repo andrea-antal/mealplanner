@@ -82,6 +82,7 @@ export interface GroceryItem {
   purchase_date?: string; // ISO format, optional
   expiry_type?: 'expiry_date' | 'best_before_date';
   expiry_date?: string; // ISO format, optional
+  storage_location?: 'fridge' | 'pantry'; // defaults to 'fridge' on backend
 }
 
 export interface GroceryList {
@@ -95,6 +96,7 @@ export interface ProposedGroceryItem {
   purchase_date?: string;
   expiry_type?: 'expiry_date' | 'best_before_date';
   expiry_date?: string;
+  storage_location?: 'fridge' | 'pantry';
   portion?: string;
   confidence: 'high' | 'medium' | 'low';
   notes?: string;
@@ -378,6 +380,20 @@ export const groceriesAPI = {
     });
     return handleResponse<ReceiptParseResponse>(response);
   },
+
+  // Storage location management
+  async updateStorageLocation(
+    workspaceId: string,
+    itemNames: string[],
+    storageLocation: 'fridge' | 'pantry'
+  ): Promise<GroceryList> {
+    const response = await fetch(`${API_BASE_URL}/groceries/storage-location?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_names: itemNames, storage_location: storageLocation }),
+    });
+    return handleResponse<GroceryList>(response);
+  },
 };
 
 // Recipes API
@@ -604,5 +620,70 @@ export const onboardingAPI = {
       method: 'POST',
     });
     return handleResponse<OnboardingStatus>(response);
+  },
+};
+
+// Admin API types
+export interface WorkspaceSummary {
+  workspace_id: string;
+  recipe_count: number;
+  meal_plan_count: number;
+  grocery_count: number;
+  member_count: number;
+  last_meal_plan_date: string | null;
+  last_activity: string | null;
+  api_requests: number;
+  api_errors: number;
+  last_api_call: string | null;
+}
+
+export interface InactiveWorkspace {
+  workspace_id: string;
+  last_activity: string | null;
+  days_inactive: number | null;
+}
+
+export interface ChromaSyncResult {
+  orphaned_removed: number;
+  missing_added: number;
+  total_in_sync: number;
+}
+
+// Admin API (workspace analytics and management)
+export const adminAPI = {
+  async getWorkspacesSummary(): Promise<{ count: number; workspaces: WorkspaceSummary[] }> {
+    const response = await fetch(`${API_BASE_URL}/workspaces/summary`);
+    return handleResponse(response);
+  },
+
+  async getEmptyWorkspaces(): Promise<{ count: number; workspaces: string[] }> {
+    const response = await fetch(`${API_BASE_URL}/admin/workspaces/empty`);
+    return handleResponse(response);
+  },
+
+  async getInactiveWorkspaces(days: number = 30): Promise<{ count: number; days_threshold: number; workspaces: InactiveWorkspace[] }> {
+    const response = await fetch(`${API_BASE_URL}/admin/workspaces/inactive?days=${days}`);
+    return handleResponse(response);
+  },
+
+  async deleteWorkspace(workspaceId: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/admin/workspaces/${encodeURIComponent(workspaceId)}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+
+  async syncAllWorkspaces(): Promise<{ message: string; results: Record<string, ChromaSyncResult> }> {
+    const response = await fetch(`${API_BASE_URL}/recipes/admin/sync-all-workspaces`, {
+      method: 'POST',
+    });
+    return handleResponse(response);
+  },
+
+  async syncWorkspace(workspaceId: string): Promise<ChromaSyncResult> {
+    const response = await fetch(`${API_BASE_URL}/recipes/admin/sync-chroma?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+    });
+    return handleResponse(response);
   },
 };

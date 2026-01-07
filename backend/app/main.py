@@ -8,7 +8,7 @@ This is the main application file that sets up:
 - API routes
 """
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
@@ -152,6 +152,123 @@ async def get_error_logs(limit: int = 50, workspace_id: str = None):
         "count": len(entries),
         "errors": entries
     }
+
+
+# ===== Admin Endpoints =====
+
+@app.get("/admin/workspaces/empty", tags=["admin"])
+async def list_empty_workspaces():
+    """
+    List workspaces that have no data (no recipes, meal plans, groceries, or members).
+
+    Returns:
+        Count and list of empty workspace IDs
+    """
+    from app.data.data_manager import list_workspaces as get_workspaces, is_workspace_empty
+
+    workspaces = get_workspaces()
+    empty = [ws for ws in workspaces if is_workspace_empty(ws)]
+
+    return {
+        "count": len(empty),
+        "workspaces": empty
+    }
+
+
+@app.get("/admin/workspaces/inactive", tags=["admin"])
+async def list_inactive_workspaces(days: int = 30):
+    """
+    List workspaces with no activity in the last N days.
+
+    Args:
+        days: Number of days of inactivity threshold (default 30)
+
+    Returns:
+        Count, threshold, and list of inactive workspaces with last activity info
+    """
+    from datetime import datetime, timedelta
+    from app.data.data_manager import list_workspaces as get_workspaces, get_workspace_stats
+
+    workspaces = get_workspaces()
+    cutoff = datetime.now() - timedelta(days=days)
+    inactive = []
+
+    for ws in workspaces:
+        stats = get_workspace_stats(ws)
+        last_activity = stats.get("last_activity")
+
+        if last_activity:
+            try:
+                last_dt = datetime.fromisoformat(last_activity)
+                if last_dt < cutoff:
+                    inactive.append({
+                        "workspace_id": ws,
+                        "last_activity": last_activity,
+                        "days_inactive": (datetime.now() - last_dt).days
+                    })
+            except ValueError:
+                # Invalid date format, treat as inactive
+                inactive.append({
+                    "workspace_id": ws,
+                    "last_activity": last_activity,
+                    "days_inactive": None
+                })
+        else:
+            # No activity timestamp = consider inactive
+            inactive.append({
+                "workspace_id": ws,
+                "last_activity": None,
+                "days_inactive": None
+            })
+
+    # Sort by days_inactive descending (most inactive first, None values last)
+    inactive.sort(key=lambda x: x.get("days_inactive") or 9999, reverse=True)
+
+    return {
+        "count": len(inactive),
+        "days_threshold": days,
+        "workspaces": inactive
+    }
+
+
+@app.delete("/admin/workspaces/{workspace_id}", tags=["admin"])
+async def admin_delete_workspace(workspace_id: str):
+    """
+    Admin endpoint to completely delete a workspace and all its data.
+
+    This permanently removes:
+    - All recipes
+    - All meal plans
+    - Household profile
+    - Groceries list
+    - Recipe ratings
+    - Chroma DB entries
+
+    WARNING: This operation is irreversible!
+
+    Args:
+        workspace_id: Workspace identifier to delete
+
+    Returns:
+        Success message if deleted
+
+    Raises:
+        404: If workspace doesn't exist
+        400: If workspace_id is invalid
+    """
+    from app.data.data_manager import delete_workspace
+
+    try:
+        deleted = delete_workspace(workspace_id)
+        if deleted:
+            return {"message": f"Workspace '{workspace_id}' deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail=f"Workspace '{workspace_id}' not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to delete workspace '{workspace_id}': {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete workspace: {str(e)}")
 
 
 # Include routers

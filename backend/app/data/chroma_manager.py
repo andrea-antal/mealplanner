@@ -216,6 +216,33 @@ def delete_recipe_from_chroma(workspace_id: str, recipe_id: str) -> None:
         logger.warning(f"Could not remove {recipe_id} from Chroma for workspace '{workspace_id}' (may not exist): {e}")
 
 
+def delete_workspace_from_chroma(workspace_id: str) -> int:
+    """
+    Delete all recipe embeddings for a workspace from Chroma DB.
+
+    Used when deleting an entire workspace to prevent orphaned entries.
+
+    Args:
+        workspace_id: Workspace identifier to delete all recipes for
+
+    Returns:
+        int: Number of entries deleted
+    """
+    collection = get_recipes_collection()
+
+    # Get all entries for this workspace
+    results = collection.get(where={"workspace_id": workspace_id})
+
+    if not results or not results['ids']:
+        logger.info(f"No Chroma entries found for workspace '{workspace_id}'")
+        return 0
+
+    count = len(results['ids'])
+    collection.delete(ids=results['ids'])
+    logger.info(f"Deleted {count} Chroma entries for workspace '{workspace_id}'")
+    return count
+
+
 def get_recipe_count(workspace_id: Optional[str] = None) -> int:
     """
     Get the total number of recipes in the collection.
