@@ -63,7 +63,7 @@ const App = () => {
             <Route path="/meal-plans-mockup" element={<WorkspaceGuard><MealPlansMockup /></WorkspaceGuard>} />
 
             {/* Admin route - global view, no workspace required */}
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/a" element={<Admin />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
