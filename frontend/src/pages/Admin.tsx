@@ -315,7 +315,7 @@ const Admin = () => {
                       <TableHead className="text-center">Meal Plans</TableHead>
                       <TableHead className="text-center">Members</TableHead>
                       <TableHead className="text-center">Groceries</TableHead>
-                      <TableHead>Last Activity</TableHead>
+                      <TableHead>Last API Call</TableHead>
                       <TableHead className="text-center">API Calls</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -331,7 +331,7 @@ const Admin = () => {
                         <TableCell className="text-center">{ws.member_count}</TableCell>
                         <TableCell className="text-center">{ws.grocery_count}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {formatRelativeTime(ws.last_activity)}
+                          {formatRelativeTime(ws.last_api_call)}
                         </TableCell>
                         <TableCell className="text-center">
                           <span>{ws.api_requests}</span>
