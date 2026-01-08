@@ -5,6 +5,11 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// Admin key helper for protected admin endpoints
+function getAdminKey(): string | null {
+  return sessionStorage.getItem('adminKey');
+}
+
 // Type definitions matching backend Pydantic models
 export interface FamilyMember {
   name: string;
@@ -670,25 +675,33 @@ export interface WorkspaceErrorsResponse {
 }
 
 // Admin API (workspace analytics and management)
+// All admin endpoints require X-Admin-Key header
 export const adminAPI = {
   async getWorkspacesSummary(): Promise<{ count: number; workspaces: WorkspaceSummary[] }> {
-    const response = await fetch(`${API_BASE_URL}/workspaces/summary`);
+    const response = await fetch(`${API_BASE_URL}/workspaces/summary`, {
+      headers: { 'X-Admin-Key': getAdminKey() || '' },
+    });
     return handleResponse(response);
   },
 
   async getEmptyWorkspaces(): Promise<{ count: number; workspaces: string[] }> {
-    const response = await fetch(`${API_BASE_URL}/admin/workspaces/empty`);
+    const response = await fetch(`${API_BASE_URL}/admin/workspaces/empty`, {
+      headers: { 'X-Admin-Key': getAdminKey() || '' },
+    });
     return handleResponse(response);
   },
 
   async getInactiveWorkspaces(days: number = 30): Promise<{ count: number; days_threshold: number; workspaces: InactiveWorkspace[] }> {
-    const response = await fetch(`${API_BASE_URL}/admin/workspaces/inactive?days=${days}`);
+    const response = await fetch(`${API_BASE_URL}/admin/workspaces/inactive?days=${days}`, {
+      headers: { 'X-Admin-Key': getAdminKey() || '' },
+    });
     return handleResponse(response);
   },
 
   async deleteWorkspace(workspaceId: string): Promise<{ message: string }> {
     const response = await fetch(`${API_BASE_URL}/admin/workspaces/${encodeURIComponent(workspaceId)}`, {
       method: 'DELETE',
+      headers: { 'X-Admin-Key': getAdminKey() || '' },
     });
     return handleResponse(response);
   },
@@ -696,6 +709,7 @@ export const adminAPI = {
   async syncAllWorkspaces(): Promise<{ message: string; results: Record<string, ChromaSyncResult> }> {
     const response = await fetch(`${API_BASE_URL}/recipes/admin/sync-all-workspaces`, {
       method: 'POST',
+      headers: { 'X-Admin-Key': getAdminKey() || '' },
     });
     return handleResponse(response);
   },
@@ -703,6 +717,7 @@ export const adminAPI = {
   async syncWorkspace(workspaceId: string): Promise<ChromaSyncResult> {
     const response = await fetch(`${API_BASE_URL}/recipes/admin/sync-chroma?workspace_id=${encodeURIComponent(workspaceId)}`, {
       method: 'POST',
+      headers: { 'X-Admin-Key': getAdminKey() || '' },
     });
     return handleResponse(response);
   },
@@ -717,7 +732,8 @@ export const adminAPI = {
       include_acknowledged: includeAcknowledged.toString(),
     });
     const response = await fetch(
-      `${API_BASE_URL}/logs/errors/${encodeURIComponent(workspaceId)}?${params}`
+      `${API_BASE_URL}/logs/errors/${encodeURIComponent(workspaceId)}?${params}`,
+      { headers: { 'X-Admin-Key': getAdminKey() || '' } }
     );
     return handleResponse(response);
   },
@@ -725,7 +741,7 @@ export const adminAPI = {
   async clearWorkspaceErrors(workspaceId: string): Promise<{ message: string; cleared_before: string }> {
     const response = await fetch(
       `${API_BASE_URL}/logs/errors/${encodeURIComponent(workspaceId)}/clear`,
-      { method: 'POST' }
+      { method: 'POST', headers: { 'X-Admin-Key': getAdminKey() || '' } }
     );
     return handleResponse(response);
   },

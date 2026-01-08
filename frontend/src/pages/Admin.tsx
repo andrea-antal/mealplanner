@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,6 +60,7 @@ import {
   Activity,
   CheckCircle2,
   ChevronRight,
+  Lock,
 } from 'lucide-react';
 
 // Format relative time
@@ -87,6 +88,41 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [errorSheetWorkspace, setErrorSheetWorkspace] = useState<string | null>(null);
   const [showAcknowledged, setShowAcknowledged] = useState(false);
+  const [hasAdminKey, setHasAdminKey] = useState(() => !!sessionStorage.getItem('adminKey'));
+
+  // Handle admin key from URL parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const key = params.get('key');
+    if (key) {
+      sessionStorage.setItem('adminKey', key);
+      setHasAdminKey(true);
+      // Clean URL (remove key from address bar for security)
+      window.history.replaceState({}, '', '/a');
+    }
+  }, []);
+
+  // Access denied screen if no admin key
+  if (!hasAdminKey) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <Lock className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <CardTitle>Access Denied</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center text-muted-foreground">
+            <p>Admin access requires authentication.</p>
+            <p className="mt-2 text-sm">
+              Access via <code className="bg-muted px-1.5 py-0.5 rounded">/a?key=YOUR_ADMIN_SECRET</code>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Fetch workspace summary
   const { data: summaryData, isLoading: summaryLoading } = useQuery({
