@@ -5,7 +5,7 @@ Provides REST API for managing recipes in the system.
 """
 import logging
 from typing import List, Dict, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from app.models.recipe import (
     Recipe, DynamicRecipeRequest, ImportFromUrlRequest, ParseFromTextRequest,
@@ -22,6 +22,7 @@ from app.services.claude_service import (
     parse_recipe_from_url, parse_recipe_from_text, extract_text_from_recipe_photo
 )
 from app.services.url_fetcher import fetch_html_from_url
+from app.dependencies import verify_admin
 
 logger = logging.getLogger(__name__)
 
@@ -953,9 +954,13 @@ async def generate_recipe_from_title_endpoint(
 
 
 @router.post("/admin/sync-chroma", tags=["admin"])
-async def sync_chroma_db(workspace_id: str = Query(..., description="Workspace identifier")):
+async def sync_chroma_db(
+    workspace_id: str = Query(..., description="Workspace identifier"),
+    _: bool = Depends(verify_admin)
+):
     """
     Admin endpoint to sync Chroma DB with recipe storage for a workspace.
+    Requires X-Admin-Key header.
 
     Removes orphaned entries and adds missing embeddings.
     Useful for fixing inconsistencies between JSON storage and Chroma vector DB.
@@ -987,9 +992,10 @@ async def sync_chroma_db(workspace_id: str = Query(..., description="Workspace i
 
 
 @router.post("/admin/sync-all-workspaces", tags=["admin"])
-async def sync_all_workspaces():
+async def sync_all_workspaces(_: bool = Depends(verify_admin)):
     """
     Admin endpoint to sync Chroma DB with recipe storage for ALL workspaces.
+    Requires X-Admin-Key header.
 
     Iterates through all workspace directories and syncs each one.
     Useful for fixing global inconsistencies after deployment or data migration.

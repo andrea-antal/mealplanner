@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     LINEAR_LABEL_ID: str = ""
     LINEAR_ASSIGNEE_ID: str = ""
 
+    # Admin API protection
+    ADMIN_SECRET: str = ""  # Set via ADMIN_SECRET env var to protect admin endpoints
+
+    # Auth settings (for magic link authentication)
+    JWT_SECRET_KEY: str = ""  # Set via JWT_SECRET_KEY env var for signing tokens
+    RESEND_API_KEY: str = ""  # Set via RESEND_API_KEY env var for magic link emails
+    JWT_EXPIRATION_HOURS: int = 24 * 7  # Token valid for 1 week
+
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS_ORIGINS string into list"""

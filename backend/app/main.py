@@ -8,9 +8,10 @@ This is the main application file that sets up:
 - API routes
 """
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.dependencies import verify_admin
 
 # Configure logging
 logging.basicConfig(
@@ -69,10 +70,11 @@ async def health_check():
     }
 
 
-@app.get("/workspaces")
-async def list_workspaces():
+@app.get("/workspaces", tags=["admin"])
+async def list_workspaces(_: bool = Depends(verify_admin)):
     """
     List all workspace IDs.
+    Requires X-Admin-Key header.
 
     Returns:
         Count and sorted list of workspace IDs
@@ -85,10 +87,11 @@ async def list_workspaces():
     }
 
 
-@app.get("/workspaces/summary")
-async def workspaces_summary():
+@app.get("/workspaces/summary", tags=["admin"])
+async def workspaces_summary(_: bool = Depends(verify_admin)):
     """
     Get summary statistics for all workspaces.
+    Requires X-Admin-Key header.
 
     Returns:
         List of workspace stats including recipe count, meal plan count,
@@ -113,14 +116,16 @@ async def workspaces_summary():
     }
 
 
-@app.get("/logs/requests")
+@app.get("/logs/requests", tags=["admin"])
 async def get_request_logs(
     limit: int = 100,
     workspace_id: str = None,
-    errors_only: bool = False
+    errors_only: bool = False,
+    _: bool = Depends(verify_admin)
 ):
     """
     Get recent API request logs.
+    Requires X-Admin-Key header.
 
     Args:
         limit: Maximum entries to return (default 100)
@@ -138,10 +143,11 @@ async def get_request_logs(
     }
 
 
-@app.get("/logs/errors")
-async def get_error_logs(limit: int = 50, workspace_id: str = None):
+@app.get("/logs/errors", tags=["admin"])
+async def get_error_logs(limit: int = 50, workspace_id: str = None, _: bool = Depends(verify_admin)):
     """
     Get recent API errors (convenience endpoint).
+    Requires X-Admin-Key header.
 
     Returns:
         List of request log entries with errors (most recent first)
@@ -158,10 +164,12 @@ async def get_error_logs(limit: int = 50, workspace_id: str = None):
 async def get_workspace_errors(
     workspace_id: str,
     limit: int = 50,
-    include_acknowledged: bool = False
+    include_acknowledged: bool = False,
+    _: bool = Depends(verify_admin)
 ):
     """
     Get errors for a specific workspace with acknowledgment status.
+    Requires X-Admin-Key header.
 
     Args:
         workspace_id: Workspace to get errors for
@@ -185,9 +193,10 @@ async def get_workspace_errors(
 
 
 @app.post("/logs/errors/{workspace_id}/clear", tags=["admin"])
-async def clear_workspace_errors(workspace_id: str):
+async def clear_workspace_errors(workspace_id: str, _: bool = Depends(verify_admin)):
     """
     Clear/acknowledge all current errors for a workspace.
+    Requires X-Admin-Key header.
 
     This marks all current errors as acknowledged. New errors that occur
     after this call will still appear in the error count.
@@ -206,9 +215,10 @@ async def clear_workspace_errors(workspace_id: str):
 # ===== Admin Endpoints =====
 
 @app.get("/admin/workspaces/empty", tags=["admin"])
-async def list_empty_workspaces():
+async def list_empty_workspaces(_: bool = Depends(verify_admin)):
     """
     List workspaces that have no data (no recipes, meal plans, groceries, or members).
+    Requires X-Admin-Key header.
 
     Returns:
         Count and list of empty workspace IDs
@@ -225,9 +235,10 @@ async def list_empty_workspaces():
 
 
 @app.get("/admin/workspaces/inactive", tags=["admin"])
-async def list_inactive_workspaces(days: int = 30):
+async def list_inactive_workspaces(days: int = 30, _: bool = Depends(verify_admin)):
     """
     List workspaces with no activity in the last N days.
+    Requires X-Admin-Key header.
 
     Args:
         days: Number of days of inactivity threshold (default 30)
@@ -281,9 +292,10 @@ async def list_inactive_workspaces(days: int = 30):
 
 
 @app.delete("/admin/workspaces/{workspace_id}", tags=["admin"])
-async def admin_delete_workspace(workspace_id: str):
+async def admin_delete_workspace(workspace_id: str, _: bool = Depends(verify_admin)):
     """
     Admin endpoint to completely delete a workspace and all its data.
+    Requires X-Admin-Key header.
 
     This permanently removes:
     - All recipes
@@ -321,8 +333,9 @@ async def admin_delete_workspace(workspace_id: str):
 
 
 # Include routers
-from app.routers import meal_plans_router, household_router, recipes_router, groceries_router, feedback_router
+from app.routers import meal_plans_router, household_router, recipes_router, groceries_router, feedback_router, auth_router
 
+app.include_router(auth_router)  # Auth first for visibility in docs
 app.include_router(meal_plans_router)
 app.include_router(household_router)
 app.include_router(recipes_router)
