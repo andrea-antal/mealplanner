@@ -353,13 +353,15 @@ async def migrate_to_supabase(_: bool = Depends(verify_admin)):
         sys.path.insert(0, str(scripts_dir))
 
     try:
+        # Use the app's Supabase client (which uses settings) instead of migration script's client
+        from app.db.supabase_client import get_supabase_admin_client
         from migrate_to_supabase import (
-            get_supabase_client, list_workspaces, migrate_household_profile,
+            list_workspaces, migrate_household_profile,
             migrate_recipes, migrate_meal_plans, migrate_groceries,
             migrate_recipe_ratings, migrate_invites
         )
 
-        supabase = get_supabase_client()
+        supabase = get_supabase_admin_client()
         workspaces = list_workspaces()
 
         logger.info(f"Starting Supabase migration for {len(workspaces)} workspaces")
