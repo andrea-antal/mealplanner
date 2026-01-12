@@ -339,10 +339,10 @@ async def debug_supabase(_: bool = Depends(verify_admin)):
     from app.db.supabase_client import get_supabase_admin_client
 
     debug_info = {
-        "supabase_url_set": bool(settings.SUPABASE_URL),
-        "supabase_url_preview": settings.SUPABASE_URL[:30] + "..." if settings.SUPABASE_URL else None,
-        "secret_key_set": bool(settings.SUPABASE_SECRET_KEY),
-        "secret_key_preview": settings.SUPABASE_SECRET_KEY[:10] + "..." if settings.SUPABASE_SECRET_KEY else None,
+        "supabase_url": settings.SUPABASE_URL,
+        "secret_key_length": len(settings.SUPABASE_SECRET_KEY) if settings.SUPABASE_SECRET_KEY else 0,
+        "secret_key_first_20": settings.SUPABASE_SECRET_KEY[:20] if settings.SUPABASE_SECRET_KEY else None,
+        "secret_key_last_10": settings.SUPABASE_SECRET_KEY[-10:] if settings.SUPABASE_SECRET_KEY else None,
     }
 
     try:
