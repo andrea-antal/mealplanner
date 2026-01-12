@@ -525,7 +525,7 @@ const Admin = () => {
             )}
 
             {/* Error list */}
-            <ScrollArea className="h-[calc(100vh-280px)]">
+            <ScrollArea className="h-[calc(100dvh-280px)]">
               {errorsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

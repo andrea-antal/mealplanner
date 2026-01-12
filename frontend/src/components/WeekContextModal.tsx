@@ -128,6 +128,7 @@ export function WeekContextModal({ open, onOpenChange, onSubmit, onSkip }: WeekC
                   }`}
                   onClick={handleVoiceToggle}
                   disabled={voiceState === 'processing'}
+                  aria-label={voiceState === 'listening' ? 'Stop voice input' : 'Start voice input'}
                 >
                   {voiceState === 'listening' ? (
                     <MicOff className="h-4 w-4" />

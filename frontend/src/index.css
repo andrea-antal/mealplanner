@@ -59,10 +59,9 @@
     --tag-breakfast: 340 75% 52%;
     --tag-leftover: 210 55% 48%;
 
-    /* Warm Tuscan shadows */
+    /* Shadows */
     --shadow-soft: 0 2px 8px -2px hsl(20 30% 20% / 0.1);
     --shadow-medium: 0 4px 16px -4px hsl(20 30% 20% / 0.15);
-    --shadow-glow: 0 0 24px hsl(42 92% 50% / 0.25);
 
     /* Sidebar */
     --sidebar-background: 45 35% 95%;
@@ -74,11 +73,6 @@
     --sidebar-border: 40 20% 85%;
     --sidebar-ring: 42 92% 50%;
 
-    /* Italian market gradients */
-    --gradient-tuscan: linear-gradient(135deg, hsl(42 92% 50%) 0%, hsl(28 85% 52%) 100%);
-    --gradient-olive: linear-gradient(135deg, hsl(90 45% 42%) 0%, hsl(75 50% 38%) 100%);
-    --gradient-terracotta: linear-gradient(135deg, hsl(16 75% 48%) 0%, hsl(8 70% 45%) 100%);
-    --gradient-sunset: linear-gradient(180deg, hsl(45 60% 95%) 0%, hsl(30 50% 96%) 50%, hsl(45 40% 97%) 100%);
   }
 
   .dark {
@@ -121,7 +115,6 @@
     /* Shadows for dark mode */
     --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.35);
     --shadow-medium: 0 4px 16px -4px hsl(0 0% 0% / 0.45);
-    --shadow-glow: 0 0 24px hsl(45 90% 55% / 0.3);
 
     --sidebar-background: 25 28% 10%;
     --sidebar-foreground: 40 20% 88%;
@@ -159,45 +152,6 @@
 }
 
 @layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
-  }
-
-  .animate-slide-up {
-    animation: slideUp 0.5s ease-out forwards;
-  }
-
-  .animate-scale-in {
-    animation: scaleIn 0.3s ease-out forwards;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
   /* Hide scrollbar across browsers */
   .scrollbar-hide {
     -ms-overflow-style: none;
@@ -205,55 +159,6 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
-  }
-
-  /* Subtle text shadow for white text on bright backgrounds */
-  .text-shadow-subtle {
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  }
-
-  /* Italian market gradient backgrounds */
-  .bg-gradient-tuscan {
-    background: var(--gradient-tuscan);
-  }
-
-  .bg-gradient-olive {
-    background: var(--gradient-olive);
-  }
-
-  .bg-gradient-terracotta {
-    background: var(--gradient-terracotta);
-  }
-
-  .bg-gradient-sunset {
-    background: var(--gradient-sunset);
-  }
-
-  /* Italian market background - warm Tuscan glow */
-  .bg-market-pattern {
-    background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(ellipse 100% 60% at 50% -20%, hsl(42 80% 70% / 0.12) 0%, transparent 50%),
-      radial-gradient(ellipse 50% 40% at 90% 80%, hsl(16 70% 55% / 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse 40% 30% at 5% 90%, hsl(90 50% 45% / 0.05) 0%, transparent 50%);
-  }
-
-  .dark .bg-market-pattern {
-    background-image:
-      radial-gradient(ellipse 100% 60% at 50% -20%, hsl(42 70% 50% / 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse 50% 40% at 90% 80%, hsl(20 60% 45% / 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse 40% 30% at 5% 90%, hsl(85 40% 35% / 0.05) 0%, transparent 50%);
-  }
-
-  /* Tuscan sunset hero */
-  .bg-hero-fresh {
-    background:
-      linear-gradient(180deg, hsl(45 60% 95%) 0%, hsl(var(--background)) 100%);
-  }
-
-  .dark .bg-hero-fresh {
-    background:
-      linear-gradient(180deg, hsl(30 25% 12%) 0%, hsl(var(--background)) 100%);
   }
 
   /* Safe area inset utilities for notched devices */

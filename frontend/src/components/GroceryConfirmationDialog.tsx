@@ -274,7 +274,7 @@ export function GroceryConfirmationDialog({
                     size="icon"
                     onClick={() => removeItem(index)}
                     className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                    title="Remove item"
+                    aria-label={`Remove ${item.name || 'item'}`}
                   >
                     <X className="h-4 w-4" />
                   </Button>

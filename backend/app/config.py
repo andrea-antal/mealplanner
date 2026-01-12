@@ -1,7 +1,6 @@
 """Application configuration using Pydantic Settings"""
 from pydantic_settings import BaseSettings
 from typing import List
-from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -15,10 +14,13 @@ class Settings(BaseSettings):
     MODEL_NAME: str = "claude-sonnet-4-5-20250929"  # Sonnet 4.5: 70% cost reduction, 2-3x faster than Opus 4
     HIGH_ACCURACY_MODEL_NAME: str = "claude-opus-4-5-20251101"  # Opus 4.5: Used for receipt OCR and voice parsing (higher accuracy)
 
-    # Data directories
-    # In production (Railway), set DATA_DIR=/app/data to use persistent volume
-    # In development, defaults to ./data (relative to project root)
-    DATA_DIR: str = "./data"
+    # Supabase
+    SUPABASE_URL: str = ""  # e.g., https://xxxxx.supabase.co
+    SUPABASE_PUBLISHABLE_KEY: str = ""  # Frontend-safe key (respects RLS)
+    SUPABASE_SECRET_KEY: str = ""  # Backend-only key (bypasses RLS)
+
+    # OpenAI (for embeddings)
+    OPENAI_API_KEY: str = ""
 
     # CORS origins (comma-separated string)
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:8081,http://localhost:8082"
@@ -36,20 +38,10 @@ class Settings(BaseSettings):
     # Admin API protection
     ADMIN_SECRET: str = ""  # Set via ADMIN_SECRET env var to protect admin endpoints
 
-    # Auth settings (for magic link authentication)
-    JWT_SECRET_KEY: str = ""  # Set via JWT_SECRET_KEY env var for signing tokens
-    RESEND_API_KEY: str = ""  # Set via RESEND_API_KEY env var for magic link emails
-    JWT_EXPIRATION_HOURS: int = 24 * 7  # Token valid for 1 week
-
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS_ORIGINS string into list"""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
-
-    @property
-    def chroma_persist_dir(self) -> str:
-        """Get Chroma DB persist directory (always relative to DATA_DIR)"""
-        return str(Path(self.DATA_DIR) / "chroma_db")
 
     class Config:
         env_file = ".env"

@@ -332,8 +332,70 @@ async def admin_delete_workspace(workspace_id: str, _: bool = Depends(verify_adm
         raise HTTPException(status_code=500, detail=f"Failed to delete workspace: {str(e)}")
 
 
+@app.post("/admin/migrate-to-supabase", tags=["admin"])
+async def migrate_to_supabase(_: bool = Depends(verify_admin)):
+    """
+    One-time migration endpoint to move data from JSON files to Supabase.
+    Requires X-Admin-Key header.
+
+    This reads from the local data/ directory (JSON files) and writes to Supabase.
+    Safe to run multiple times (uses upsert operations).
+
+    Returns:
+        Migration statistics including counts of migrated items
+    """
+    import sys
+    from pathlib import Path
+
+    # Add scripts directory to path for imports
+    scripts_dir = Path(__file__).parent.parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+
+    try:
+        from migrate_to_supabase import (
+            get_supabase_client, list_workspaces, migrate_household_profile,
+            migrate_recipes, migrate_meal_plans, migrate_groceries,
+            migrate_recipe_ratings, migrate_invites
+        )
+
+        supabase = get_supabase_client()
+        workspaces = list_workspaces()
+
+        logger.info(f"Starting Supabase migration for {len(workspaces)} workspaces")
+
+        stats = {
+            "workspaces": len(workspaces),
+            "household_profiles": 0,
+            "recipes": 0,
+            "meal_plans": 0,
+            "groceries": 0,
+            "ratings": 0,
+            "invites": 0
+        }
+
+        for workspace_id in workspaces:
+            logger.info(f"Migrating workspace: {workspace_id}")
+            if migrate_household_profile(supabase, workspace_id):
+                stats["household_profiles"] += 1
+            stats["recipes"] += migrate_recipes(supabase, workspace_id)
+            stats["meal_plans"] += migrate_meal_plans(supabase, workspace_id)
+            if migrate_groceries(supabase, workspace_id):
+                stats["groceries"] += 1
+            stats["ratings"] += migrate_recipe_ratings(supabase, workspace_id)
+
+        stats["invites"] = migrate_invites(supabase)
+
+        logger.info(f"Migration complete: {stats}")
+        return {"status": "success", "stats": stats}
+
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
+
+
 # Include routers
-from app.routers import meal_plans_router, household_router, recipes_router, groceries_router, feedback_router, auth_router
+from app.routers import meal_plans_router, household_router, recipes_router, groceries_router, feedback_router, auth_router, invites_router
 
 app.include_router(auth_router)  # Auth first for visibility in docs
 app.include_router(meal_plans_router)
@@ -341,6 +403,7 @@ app.include_router(household_router)
 app.include_router(recipes_router)
 app.include_router(groceries_router)
 app.include_router(feedback_router)
+app.include_router(invites_router)  # Admin-only invite management
 
 
 if __name__ == "__main__":

@@ -111,6 +111,7 @@ export function CuisinePreferencesStep({ value, onChange }: CuisinePreferencesSt
           size="icon"
           onClick={addCustomCuisine}
           disabled={!customCuisine.trim()}
+          aria-label="Add custom cuisine"
         >
           <Plus className="h-4 w-4" />
         </Button>

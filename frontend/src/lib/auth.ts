@@ -1,119 +1,196 @@
 /**
- * Authentication utilities for magic link login.
+ * Authentication utilities using Supabase Auth.
  *
- * Stores JWT tokens in localStorage and provides auth state management.
- * Works alongside the existing workspace system during migration.
+ * Provides auth state management with magic link login.
  */
-
-const TOKEN_STORAGE_KEY = 'mealplanner_auth_token';
-const USER_STORAGE_KEY = 'mealplanner_auth_user';
+import { supabase } from './supabase';
+import { Session, User } from '@supabase/supabase-js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export interface AuthUser {
+  id: string;
   email: string;
   workspace_id: string;
-  created_at?: string;
-  last_login?: string;
 }
 
 export interface AuthState {
   isAuthenticated: boolean;
   user: AuthUser | null;
-  token: string | null;
+  session: Session | null;
 }
 
 /**
- * Get the stored auth token.
+ * Get the current Supabase session.
  */
-export function getAuthToken(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_STORAGE_KEY);
-  } catch (error) {
-    console.error('Failed to read auth token:', error);
-    return null;
-  }
+export async function getSession(): Promise<Session | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
 }
 
 /**
- * Get the stored auth user.
+ * Get the current access token for API requests.
  */
-export function getAuthUser(): AuthUser | null {
-  try {
-    const userJson = localStorage.getItem(USER_STORAGE_KEY);
-    if (!userJson) return null;
-    return JSON.parse(userJson);
-  } catch (error) {
-    console.error('Failed to read auth user:', error);
-    return null;
-  }
+export async function getAccessToken(): Promise<string | null> {
+  const session = await getSession();
+  return session?.access_token || null;
 }
 
 /**
- * Get the current auth state.
+ * Convert Supabase User to our AuthUser format.
+ * Fetches workspace_id from the profiles table.
  */
-export function getAuthState(): AuthState {
-  const token = getAuthToken();
-  const user = getAuthUser();
+async function userToAuthUser(user: User): Promise<AuthUser> {
+  // Get workspace_id from profiles table
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('workspace_id')
+    .eq('id', user.id)
+    .single();
+
+  const workspace_id = profile?.workspace_id || emailToWorkspaceId(user.email || '');
+
+  // Store workspace for backwards compatibility
+  localStorage.setItem('mealplanner_current_workspace', workspace_id);
+
   return {
-    isAuthenticated: !!token && !!user,
-    token,
-    user,
+    id: user.id,
+    email: user.email || '',
+    workspace_id,
   };
 }
 
 /**
- * Store auth credentials after successful login.
+ * Convert email to workspace_id (same logic as backend).
  */
-export function setAuthCredentials(token: string, user: AuthUser): void {
-  try {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-
-    // Also set the workspace for backwards compatibility with existing code
-    localStorage.setItem('mealplanner_current_workspace', user.workspace_id);
-  } catch (error) {
-    console.error('Failed to save auth credentials:', error);
-    throw new Error('Failed to save login. Please check your browser settings.');
-  }
+function emailToWorkspaceId(email: string): string {
+  const username = email.split('@')[0];
+  return username.toLowerCase().replace(/[^a-z0-9]/g, '-');
 }
 
 /**
- * Clear auth credentials (logout).
+ * Validate an invite code before signup.
  */
-export function clearAuthCredentials(): void {
+export async function validateInviteCode(
+  inviteCode: string,
+  email: string
+): Promise<{ valid: boolean; message: string }> {
   try {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem(USER_STORAGE_KEY);
-    // Note: We don't clear workspace for backwards compatibility
-  } catch (error) {
-    console.error('Failed to clear auth credentials:', error);
-  }
-}
-
-/**
- * Request a magic link to be sent to the user's email.
- */
-export async function requestMagicLink(email: string): Promise<{ success: boolean; message: string }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/magic-link`, {
+    const response = await fetch(`${API_BASE_URL}/auth/validate-invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ invite_code: inviteCode, email }),
     });
 
     if (!response.ok) {
       const error = await response.json();
+      return { valid: false, message: error.detail || 'Invalid invite code' };
+    }
+
+    return { valid: true, message: 'Invite code is valid' };
+  } catch (error) {
+    console.error('Invite validation failed:', error);
+    return { valid: false, message: 'Network error. Please try again.' };
+  }
+}
+
+/**
+ * Use (redeem) an invite code after signup.
+ */
+export async function useInviteCode(
+  inviteCode: string,
+  email: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/use-invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite_code: inviteCode, email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return { success: false, message: error.detail || 'Failed to redeem invite code' };
+    }
+
+    return { success: true, message: 'Invite code redeemed' };
+  } catch (error) {
+    console.error('Invite redemption failed:', error);
+    return { success: false, message: 'Network error. Please try again.' };
+  }
+}
+
+/**
+ * Check if a user exists (has used the app before).
+ */
+async function checkUserExists(email: string): Promise<boolean> {
+  // We check if they have a profile in the database
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  return !!data;
+}
+
+/**
+ * Request a magic link to be sent to the user's email.
+ * New users must validate an invite code first.
+ */
+export async function requestMagicLink(
+  email: string,
+  inviteCode?: string
+): Promise<{ success: boolean; message: string; needsInviteCode?: boolean }> {
+  try {
+    // Check if this is a new user
+    const userExists = await checkUserExists(email);
+
+    if (!userExists) {
+      // New user - require invite code
+      if (!inviteCode) {
+        return {
+          success: false,
+          message: 'Invite code required for new accounts',
+          needsInviteCode: true,
+        };
+      }
+
+      // Validate the invite code
+      const validation = await validateInviteCode(inviteCode, email);
+      if (!validation.valid) {
+        return {
+          success: false,
+          message: validation.message,
+        };
+      }
+    }
+
+    // Get the redirect URL based on environment
+    const redirectTo = window.location.origin + '/auth/callback';
+
+    // Send magic link via Supabase
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectTo,
+        data: {
+          invite_code: inviteCode, // Store invite code to redeem after verification
+        },
+      },
+    });
+
+    if (error) {
+      console.error('Supabase magic link error:', error);
       return {
         success: false,
-        message: error.detail || 'Failed to send magic link',
+        message: error.message || 'Failed to send magic link',
       };
     }
 
-    const data = await response.json();
     return {
       success: true,
-      message: data.message || 'Check your email for the login link.',
+      message: 'Check your email for the login link.',
     };
   } catch (error) {
     console.error('Magic link request failed:', error);
@@ -125,72 +202,59 @@ export async function requestMagicLink(email: string): Promise<{ success: boolea
 }
 
 /**
- * Verify a magic link token and get session credentials.
+ * Handle the auth callback after clicking magic link.
+ * This is called on the /auth/callback route.
  */
-export async function verifyMagicLink(token: string): Promise<{
+export async function handleAuthCallback(): Promise<{
   success: boolean;
-  message: string;
   user?: AuthUser;
+  message: string;
 }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/verify?token=${encodeURIComponent(token)}`);
+    // Get session from URL (Supabase handles the token exchange)
+    const { data: { session }, error } = await supabase.auth.getSession();
 
-    if (!response.ok) {
-      const error = await response.json();
-      return {
-        success: false,
-        message: error.detail || 'Invalid or expired link',
-      };
+    if (error) {
+      console.error('Auth callback error:', error);
+      return { success: false, message: error.message };
     }
 
-    const data = await response.json();
+    if (!session?.user) {
+      return { success: false, message: 'No session found' };
+    }
 
-    // Store credentials
-    setAuthCredentials(data.access_token, {
-      email: data.email,
-      workspace_id: data.workspace_id,
-    });
+    // Check if this is a new user with an invite code to redeem
+    const inviteCode = session.user.user_metadata?.invite_code;
+    if (inviteCode) {
+      // Redeem the invite code
+      await useInviteCode(inviteCode, session.user.email || '');
+    }
+
+    const authUser = await userToAuthUser(session.user);
 
     return {
       success: true,
+      user: authUser,
       message: 'Login successful!',
-      user: {
-        email: data.email,
-        workspace_id: data.workspace_id,
-      },
     };
   } catch (error) {
-    console.error('Magic link verification failed:', error);
-    return {
-      success: false,
-      message: 'Network error. Please try again.',
-    };
+    console.error('Auth callback failed:', error);
+    return { success: false, message: 'Login failed. Please try again.' };
   }
 }
 
 /**
- * Get current user info from the server.
+ * Get the current authenticated user.
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const token = getAuthToken();
-  if (!token) return null;
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session?.user) {
+    return null;
+  }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      // Token might be expired
-      if (response.status === 401) {
-        clearAuthCredentials();
-      }
-      return null;
-    }
-
-    return await response.json();
+    return await userToAuthUser(session.user);
   } catch (error) {
     console.error('Failed to get current user:', error);
     return null;
@@ -201,33 +265,38 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  * Logout the current user.
  */
 export async function logout(): Promise<void> {
-  const token = getAuthToken();
-
-  // Call logout endpoint (optional, mainly for logging)
-  if (token) {
-    try {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-    } catch (error) {
-      // Ignore errors - we're logging out anyway
-    }
-  }
-
-  clearAuthCredentials();
+  await supabase.auth.signOut();
+  localStorage.removeItem('mealplanner_current_workspace');
 }
 
 /**
  * Get headers for authenticated API requests.
- * Returns Authorization header if logged in.
+ * Returns Authorization header with Supabase access token.
  */
-export function getAuthHeaders(): Record<string, string> {
-  const token = getAuthToken();
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
   if (token) {
     return { Authorization: `Bearer ${token}` };
   }
   return {};
+}
+
+/**
+ * Subscribe to auth state changes.
+ */
+export function onAuthStateChange(
+  callback: (user: AuthUser | null) => void
+): () => void {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      if (session?.user) {
+        const authUser = await userToAuthUser(session.user);
+        callback(authUser);
+      } else {
+        callback(null);
+      }
+    }
+  );
+
+  return () => subscription.unsubscribe();
 }

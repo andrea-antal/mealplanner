@@ -223,6 +223,7 @@ const MealPlansMockup = () => {
                 size="icon"
                 onClick={handlePrevDay}
                 className="h-12 w-12 rounded-full"
+                aria-label="Previous day"
               >
                 <ChevronLeft className="h-6 w-6" />
               </Button>
@@ -270,6 +271,7 @@ const MealPlansMockup = () => {
                 size="icon"
                 onClick={handleNextDay}
                 className="h-12 w-12 rounded-full"
+                aria-label="Next day"
               >
                 <ChevronRight className="h-6 w-6" />
               </Button>

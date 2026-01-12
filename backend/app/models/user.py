@@ -25,6 +25,7 @@ class UserCreate(BaseModel):
 class MagicLinkRequest(BaseModel):
     """Request model for sending a magic link."""
     email: str
+    invite_code: Optional[str] = None  # Required for new users during beta
 
 
 class TokenResponse(BaseModel):

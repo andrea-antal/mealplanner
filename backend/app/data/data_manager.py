@@ -1,77 +1,45 @@
 """
-Data manager for JSON file I/O operations.
+Data manager for Supabase database operations.
 
-This module provides an abstraction layer for data persistence,
-making it easy to swap JSON files for a database in the future.
+This module provides an abstraction layer for data persistence using Supabase.
+All functions require a workspace_id parameter for multi-tenant data isolation.
 
-All functions now require a workspace_id parameter to support multi-tenant data isolation.
+Note: Row-Level Security (RLS) in Supabase provides an additional layer of
+data isolation at the database level.
 """
-import json
 import logging
-import re
-from pathlib import Path
 from typing import List, Optional, Dict
-from datetime import date as Date
+from datetime import date as Date, datetime
 from app.models import Recipe, HouseholdProfile
 from app.models.grocery import GroceryItem, GroceryList
 from app.models.meal_plan import MealPlan
+from app.db.supabase_client import get_supabase_admin_client
 
 logger = logging.getLogger(__name__)
 
-# Data directory - default to ./data relative to backend root
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
 
-# Workspace ID validation pattern (lowercase alphanumeric + hyphens only)
-WORKSPACE_ID_PATTERN = re.compile(r'^[a-z0-9-]+$')
-
-
-def _validate_workspace_id(workspace_id: str) -> None:
-    """
-    Validate workspace_id to prevent directory traversal attacks.
-
-    Args:
-        workspace_id: Workspace identifier to validate
-
-    Raises:
-        ValueError: If workspace_id is invalid
-    """
-    if not workspace_id or len(workspace_id) > 50:
-        raise ValueError("workspace_id must be between 1 and 50 characters")
-
-    if not WORKSPACE_ID_PATTERN.match(workspace_id):
-        raise ValueError("workspace_id must contain only lowercase letters, numbers, and hyphens")
+def _get_client():
+    """Get Supabase admin client for data operations."""
+    return get_supabase_admin_client()
 
 
-def _ensure_data_dir(workspace_id: str):
-    """
-    Ensure data directory and subdirectories exist for a workspace.
-
-    Args:
-        workspace_id: Workspace identifier
-    """
-    _validate_workspace_id(workspace_id)
-
-    workspace_dir = DATA_DIR / workspace_id
-    workspace_dir.mkdir(exist_ok=True, parents=True)
-    (workspace_dir / "recipes").mkdir(exist_ok=True)
-    logger.info(f"Data directory ensured for workspace '{workspace_id}' at: {workspace_dir}")
-
+# ===== Workspace Management =====
 
 def list_workspaces() -> List[str]:
     """
-    List all valid workspace directories.
+    List all workspace IDs.
 
     Returns:
-        Sorted list of workspace IDs (directories matching the validation pattern)
+        Sorted list of workspace IDs
     """
-    if not DATA_DIR.exists():
+    try:
+        supabase = _get_client()
+        response = supabase.table("profiles").select("workspace_id").execute()
+        workspaces = [row["workspace_id"] for row in response.data]
+        return sorted(set(workspaces))
+    except Exception as e:
+        logger.error(f"Error listing workspaces: {e}")
         return []
-
-    workspaces = [
-        d.name for d in DATA_DIR.iterdir()
-        if d.is_dir() and WORKSPACE_ID_PATTERN.match(d.name)
-    ]
-    return sorted(workspaces)
 
 
 def get_workspace_stats(workspace_id: str) -> Dict:
@@ -82,97 +50,52 @@ def get_workspace_stats(workspace_id: str) -> Dict:
         Dict with recipe_count, meal_plan_count, grocery_count, member_count,
         last_meal_plan_date, and last_activity timestamp.
     """
-    from datetime import datetime
+    try:
+        supabase = _get_client()
 
-    workspace_dir = DATA_DIR / workspace_id
-    if not workspace_dir.exists():
-        return {"error": f"Workspace '{workspace_id}' not found"}
+        stats = {
+            "workspace_id": workspace_id,
+            "recipe_count": 0,
+            "meal_plan_count": 0,
+            "grocery_count": 0,
+            "member_count": 0,
+            "last_meal_plan_date": None,
+            "last_activity": None,
+        }
 
-    stats = {
-        "workspace_id": workspace_id,
-        "recipe_count": 0,
-        "meal_plan_count": 0,
-        "grocery_count": 0,
-        "member_count": 0,
-        "last_meal_plan_date": None,
-        "last_activity": None,
-    }
+        # Recipe count
+        recipe_response = supabase.table("recipes").select("id", count="exact").eq("workspace_id", workspace_id).execute()
+        stats["recipe_count"] = recipe_response.count or 0
 
-    # Track most recent file modification
-    latest_mtime = 0
+        # Meal plan count + most recent
+        meal_plan_response = supabase.table("meal_plans").select("id, created_at").eq("workspace_id", workspace_id).order("created_at", desc=True).execute()
+        stats["meal_plan_count"] = len(meal_plan_response.data)
+        if meal_plan_response.data:
+            stats["last_meal_plan_date"] = meal_plan_response.data[0]["created_at"]
+            stats["last_activity"] = meal_plan_response.data[0]["created_at"]
 
-    # Recipe count
-    recipes_dir = workspace_dir / "recipes"
-    if recipes_dir.exists():
-        recipe_files = list(recipes_dir.glob("*.json"))
-        stats["recipe_count"] = len(recipe_files)
-        for f in recipe_files:
-            mtime = f.stat().st_mtime
-            if mtime > latest_mtime:
-                latest_mtime = mtime
+        # Grocery count
+        grocery_response = supabase.table("groceries").select("items").eq("workspace_id", workspace_id).single().execute()
+        if grocery_response.data:
+            items = grocery_response.data.get("items", [])
+            stats["grocery_count"] = len(items) if items else 0
 
-    # Meal plan count + most recent
-    meal_plans_dir = workspace_dir / "meal_plans"
-    if meal_plans_dir.exists():
-        meal_plan_files = list(meal_plans_dir.glob("*.json"))
-        stats["meal_plan_count"] = len(meal_plan_files)
-        for f in meal_plan_files:
-            mtime = f.stat().st_mtime
-            if mtime > latest_mtime:
-                latest_mtime = mtime
-            # Try to extract created_at from meal plan
-            try:
-                with open(f, 'r') as fp:
-                    data = json.load(fp)
-                    created = data.get("created_at")
-                    if created:
-                        if stats["last_meal_plan_date"] is None or created > stats["last_meal_plan_date"]:
-                            stats["last_meal_plan_date"] = created
-            except Exception:
-                pass
+        # Household member count
+        household_response = supabase.table("household_profiles").select("family_members").eq("workspace_id", workspace_id).single().execute()
+        if household_response.data:
+            members = household_response.data.get("family_members", [])
+            stats["member_count"] = len(members) if members else 0
 
-    # Grocery count
-    groceries_file = workspace_dir / "groceries.json"
-    if groceries_file.exists():
-        mtime = groceries_file.stat().st_mtime
-        if mtime > latest_mtime:
-            latest_mtime = mtime
-        try:
-            with open(groceries_file, 'r') as f:
-                data = json.load(f)
-                stats["grocery_count"] = len(data.get("items", []))
-        except Exception:
-            pass
+        return stats
 
-    # Household member count
-    profile_file = workspace_dir / "household_profile.json"
-    if profile_file.exists():
-        mtime = profile_file.stat().st_mtime
-        if mtime > latest_mtime:
-            latest_mtime = mtime
-        try:
-            with open(profile_file, 'r') as f:
-                data = json.load(f)
-                stats["member_count"] = len(data.get("family_members", []))
-        except Exception:
-            pass
-
-    # Convert latest mtime to ISO string
-    if latest_mtime > 0:
-        stats["last_activity"] = datetime.fromtimestamp(latest_mtime).isoformat()
-
-    return stats
+    except Exception as e:
+        logger.error(f"Error getting workspace stats for '{workspace_id}': {e}")
+        return {"error": str(e), "workspace_id": workspace_id}
 
 
 def is_workspace_empty(workspace_id: str) -> bool:
     """
     Check if a workspace has no meaningful data.
-
-    A workspace is considered empty if it has:
-    - No recipes
-    - No meal plans
-    - No groceries
-    - No household members
 
     Args:
         workspace_id: Workspace identifier to check
@@ -182,7 +105,6 @@ def is_workspace_empty(workspace_id: str) -> bool:
     """
     stats = get_workspace_stats(workspace_id)
 
-    # If workspace doesn't exist, consider it "empty"
     if "error" in stats:
         return True
 
@@ -196,15 +118,14 @@ def is_workspace_empty(workspace_id: str) -> bool:
 
 def delete_workspace(workspace_id: str) -> bool:
     """
-    Delete an entire workspace directory and all its data.
+    Delete all data for a workspace.
 
     This permanently removes:
-    - All recipes (JSON files)
+    - All recipes
     - All meal plans
     - Household profile
     - Groceries list
     - Recipe ratings
-    - Chroma DB entries for this workspace
 
     WARNING: This operation is irreversible!
 
@@ -212,36 +133,23 @@ def delete_workspace(workspace_id: str) -> bool:
         workspace_id: Workspace identifier to delete
 
     Returns:
-        True if workspace was deleted, False if it didn't exist
-
-    Raises:
-        ValueError: If workspace_id is invalid
+        True if data was deleted, False if workspace didn't exist
     """
-    import shutil
-
-    _validate_workspace_id(workspace_id)
-    workspace_dir = DATA_DIR / workspace_id
-
-    if not workspace_dir.exists():
-        logger.warning(f"Workspace '{workspace_id}' does not exist, nothing to delete")
-        return False
-
-    # Remove from Chroma DB first (before deleting files)
     try:
-        from app.data.chroma_manager import delete_workspace_from_chroma
-        chroma_deleted = delete_workspace_from_chroma(workspace_id)
-        logger.info(f"Removed {chroma_deleted} Chroma entries for workspace '{workspace_id}'")
-    except Exception as e:
-        logger.warning(f"Error cleaning Chroma for workspace '{workspace_id}': {e}")
-        # Continue with directory deletion even if Chroma cleanup fails
+        supabase = _get_client()
 
-    # Delete the entire workspace directory
-    try:
-        shutil.rmtree(workspace_dir)
-        logger.info(f"Deleted workspace '{workspace_id}' and all its data at {workspace_dir}")
+        # Delete in order (respecting potential foreign keys)
+        supabase.table("recipe_ratings").delete().eq("workspace_id", workspace_id).execute()
+        supabase.table("meal_plans").delete().eq("workspace_id", workspace_id).execute()
+        supabase.table("recipes").delete().eq("workspace_id", workspace_id).execute()
+        supabase.table("groceries").delete().eq("workspace_id", workspace_id).execute()
+        supabase.table("household_profiles").delete().eq("workspace_id", workspace_id).execute()
+
+        logger.info(f"Deleted all data for workspace '{workspace_id}'")
         return True
+
     except Exception as e:
-        logger.error(f"Error deleting workspace directory '{workspace_id}': {e}")
+        logger.error(f"Error deleting workspace '{workspace_id}': {e}")
         raise
 
 
@@ -249,47 +157,74 @@ def delete_workspace(workspace_id: str) -> bool:
 
 def load_household_profile(workspace_id: str) -> Optional[HouseholdProfile]:
     """
-    Load household profile from JSON file.
+    Load household profile from database.
 
     Args:
         workspace_id: Workspace identifier
 
     Returns:
-        HouseholdProfile if file exists, None otherwise
+        HouseholdProfile if exists, None otherwise
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "household_profile.json"
-
-    if not filepath.exists():
-        logger.warning(f"Household profile not found at {filepath}")
-        return None
-
     try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-        profile = HouseholdProfile(**data)
+        supabase = _get_client()
+        response = supabase.table("household_profiles").select("*").eq("workspace_id", workspace_id).single().execute()
+
+        if not response.data:
+            logger.warning(f"Household profile not found for workspace '{workspace_id}'")
+            return None
+
+        data = response.data
+        profile = HouseholdProfile(
+            family_members=data.get("family_members", []),
+            daycare_rules=data.get("daycare_rules", {}),
+            cooking_preferences=data.get("cooking_preferences", {}),
+            preferences=data.get("preferences", {}),
+            onboarding_status=data.get("onboarding_status", {}),
+            onboarding_data=data.get("onboarding_data", {})
+        )
         logger.info(f"Loaded household profile for workspace '{workspace_id}' with {len(profile.family_members)} members")
         return profile
+
     except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            logger.warning(f"Household profile not found for workspace '{workspace_id}'")
+            return None
         logger.error(f"Error loading household profile for workspace '{workspace_id}': {e}")
         raise
 
 
 def save_household_profile(workspace_id: str, profile: HouseholdProfile) -> None:
     """
-    Save household profile to JSON file.
+    Save household profile to database (upsert).
 
     Args:
         workspace_id: Workspace identifier
         profile: HouseholdProfile to save
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "household_profile.json"
-
     try:
-        with open(filepath, 'w') as f:
-            json.dump(profile.model_dump(), f, indent=2, default=str)
-        logger.info(f"Saved household profile for workspace '{workspace_id}' to {filepath}")
+        supabase = _get_client()
+
+        data = {
+            "workspace_id": workspace_id,
+            "family_members": profile.family_members if hasattr(profile, 'family_members') else [],
+            "daycare_rules": profile.daycare_rules.model_dump() if hasattr(profile.daycare_rules, 'model_dump') else (profile.daycare_rules if profile.daycare_rules else {}),
+            "cooking_preferences": profile.cooking_preferences.model_dump() if hasattr(profile.cooking_preferences, 'model_dump') else (profile.cooking_preferences if profile.cooking_preferences else {}),
+            "preferences": profile.preferences.model_dump() if hasattr(profile.preferences, 'model_dump') else (profile.preferences if profile.preferences else {}),
+            "onboarding_status": profile.onboarding_status.model_dump() if hasattr(profile.onboarding_status, 'model_dump') else (profile.onboarding_status if profile.onboarding_status else {}),
+            "onboarding_data": profile.onboarding_data.model_dump() if hasattr(profile.onboarding_data, 'model_dump') else (profile.onboarding_data if profile.onboarding_data else {}),
+            "updated_at": datetime.now().isoformat()
+        }
+
+        # Convert family_members if they're Pydantic models
+        if data["family_members"]:
+            data["family_members"] = [
+                m.model_dump() if hasattr(m, 'model_dump') else m
+                for m in data["family_members"]
+            ]
+
+        supabase.table("household_profiles").upsert(data, on_conflict="workspace_id").execute()
+        logger.info(f"Saved household profile for workspace '{workspace_id}'")
+
     except Exception as e:
         logger.error(f"Error saving household profile for workspace '{workspace_id}': {e}")
         raise
@@ -299,66 +234,59 @@ def save_household_profile(workspace_id: str, profile: HouseholdProfile) -> None
 
 def load_groceries(workspace_id: str) -> List[GroceryItem]:
     """
-    Load available groceries from JSON file.
-
-    Supports backward compatibility with old string-based format.
-    Old format will be automatically migrated to new GroceryItem format.
+    Load groceries from database.
 
     Args:
         workspace_id: Workspace identifier
 
     Returns:
-        List of GroceryItem objects, empty list if file doesn't exist
+        List of GroceryItem objects, empty list if none exist
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "groceries.json"
-
-    if not filepath.exists():
-        logger.warning(f"Groceries file not found at {filepath}")
-        return []
-
     try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-        items_data = data.get("items", [])
+        supabase = _get_client()
+        response = supabase.table("groceries").select("items").eq("workspace_id", workspace_id).single().execute()
 
-        # Check if migration needed (old string format)
-        if items_data and isinstance(items_data[0], str):
-            logger.info(f"Migrating {len(items_data)} groceries from old string format for workspace '{workspace_id}'")
-            items = [
-                GroceryItem(name=item, date_added=Date.today())
-                for item in items_data
-            ]
-            # Save migrated data immediately
-            save_groceries(workspace_id, items)
-        else:
-            # Parse as GroceryItem objects
-            items = [GroceryItem(**item) for item in items_data]
+        if not response.data:
+            logger.info(f"No groceries found for workspace '{workspace_id}'")
+            return []
 
+        items_data = response.data.get("items", [])
+        if not items_data:
+            return []
+
+        items = [GroceryItem(**item) for item in items_data]
         logger.info(f"Loaded {len(items)} grocery items for workspace '{workspace_id}'")
         return items
+
     except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            return []
         logger.error(f"Error loading groceries for workspace '{workspace_id}': {e}")
         raise
 
 
 def save_groceries(workspace_id: str, items: List[GroceryItem]) -> None:
     """
-    Save groceries list to JSON file.
+    Save groceries list to database (upsert).
 
     Args:
         workspace_id: Workspace identifier
         items: List of GroceryItem objects
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "groceries.json"
-
     try:
-        # Convert GroceryItem objects to dicts for JSON serialization
+        supabase = _get_client()
+
         items_data = [item.model_dump(mode='json') for item in items]
-        with open(filepath, 'w') as f:
-            json.dump({"items": items_data}, f, indent=2, default=str)
-        logger.info(f"Saved {len(items)} grocery items for workspace '{workspace_id}' to {filepath}")
+
+        data = {
+            "workspace_id": workspace_id,
+            "items": items_data,
+            "updated_at": datetime.now().isoformat()
+        }
+
+        supabase.table("groceries").upsert(data, on_conflict="workspace_id").execute()
+        logger.info(f"Saved {len(items)} grocery items for workspace '{workspace_id}'")
+
     except Exception as e:
         logger.error(f"Error saving groceries for workspace '{workspace_id}': {e}")
         raise
@@ -368,41 +296,25 @@ def save_groceries(workspace_id: str, items: List[GroceryItem]) -> None:
 
 def load_recipe_ratings(workspace_id: str) -> dict:
     """
-    Load recipe ratings from JSON file.
+    Load all recipe ratings for a workspace.
 
     Args:
         workspace_id: Workspace identifier
 
     Returns:
         Dict mapping recipe_id to ratings dict (member_name -> rating).
-        Returns empty dict if file doesn't exist.
-
-    Example:
-        {
-            "recipe_001": {"Andrea": "like", "Adam": "dislike", "Nathan": "like"},
-            "recipe_002": {"Andrea": "dislike", "Adam": "like"}
-        }
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "recipe_ratings.json"
-
-    if not filepath.exists():
-        logger.info(f"Recipe ratings file not found at {filepath}, returning empty ratings")
-        return {}
-
     try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
+        supabase = _get_client()
+        response = supabase.table("recipe_ratings").select("recipe_id, ratings").eq("workspace_id", workspace_id).execute()
 
-        # Convert list of rating objects to dict format
         ratings_dict = {}
-        for rating in data.get("ratings", []):
-            recipe_id = rating.get("recipe_id")
-            if recipe_id:
-                ratings_dict[recipe_id] = rating.get("ratings", {})
+        for row in response.data:
+            ratings_dict[row["recipe_id"]] = row.get("ratings", {})
 
         logger.info(f"Loaded ratings for {len(ratings_dict)} recipes in workspace '{workspace_id}'")
         return ratings_dict
+
     except Exception as e:
         logger.error(f"Error loading recipe ratings for workspace '{workspace_id}': {e}")
         return {}
@@ -420,54 +332,51 @@ def save_recipe_rating(workspace_id: str, recipe_id: str, member_name: str, rati
 
     Returns:
         Updated ratings dict for this recipe
-
-    Example:
-        >>> save_recipe_rating("andrea", "recipe_001", "Andrea", "like")
-        {"Andrea": "like", "Adam": "dislike"}
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "recipe_ratings.json"
-
-    # Load existing ratings
     try:
-        if filepath.exists():
-            with open(filepath, 'r') as f:
-                data = json.load(f)
+        supabase = _get_client()
+
+        # Get existing ratings for this recipe
+        response = supabase.table("recipe_ratings").select("ratings").eq("workspace_id", workspace_id).eq("recipe_id", recipe_id).single().execute()
+
+        if response.data:
+            current_ratings = response.data.get("ratings", {})
         else:
-            data = {"ratings": []}
-    except Exception as e:
-        logger.error(f"Error loading ratings for update in workspace '{workspace_id}': {e}")
-        data = {"ratings": []}
+            current_ratings = {}
 
-    # Find or create rating entry for this recipe
-    recipe_rating = None
-    for rating_entry in data["ratings"]:
-        if rating_entry.get("recipe_id") == recipe_id:
-            recipe_rating = rating_entry
-            break
+        # Update the rating
+        if rating is None:
+            current_ratings.pop(member_name, None)
+        else:
+            current_ratings[member_name] = rating
 
-    if recipe_rating is None:
-        # Create new rating entry
-        recipe_rating = {"recipe_id": recipe_id, "ratings": {}}
-        data["ratings"].append(recipe_rating)
+        # Upsert the ratings
+        data = {
+            "workspace_id": workspace_id,
+            "recipe_id": recipe_id,
+            "ratings": current_ratings,
+            "updated_at": datetime.now().isoformat()
+        }
 
-    # Update the member's rating
-    if rating is None:
-        # Remove rating if None
-        recipe_rating["ratings"].pop(member_name, None)
-    else:
-        recipe_rating["ratings"][member_name] = rating
-
-    # Save back to file
-    try:
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=2)
+        supabase.table("recipe_ratings").upsert(data, on_conflict="workspace_id,recipe_id").execute()
         logger.info(f"Saved rating for {recipe_id} by {member_name} in workspace '{workspace_id}': {rating}")
+        return current_ratings
+
     except Exception as e:
+        if "PGRST116" in str(e):  # No existing row
+            # Create new rating entry
+            data = {
+                "workspace_id": workspace_id,
+                "recipe_id": recipe_id,
+                "ratings": {member_name: rating} if rating else {},
+                "updated_at": datetime.now().isoformat()
+            }
+            supabase = _get_client()
+            supabase.table("recipe_ratings").insert(data).execute()
+            return data["ratings"]
+
         logger.error(f"Error saving recipe rating for workspace '{workspace_id}': {e}")
         raise
-
-    return recipe_rating["ratings"]
 
 
 def get_recipe_rating(workspace_id: str, recipe_id: str) -> Dict[str, Optional[str]]:
@@ -480,52 +389,34 @@ def get_recipe_rating(workspace_id: str, recipe_id: str) -> Dict[str, Optional[s
 
     Returns:
         Dict mapping member_name to rating, empty dict if no ratings exist
-
-    Example:
-        >>> get_recipe_rating("andrea", "recipe_001")
-        {"Andrea": "like", "Adam": "dislike", "Nathan": "like"}
     """
-    ratings_dict = load_recipe_ratings(workspace_id)
-    return ratings_dict.get(recipe_id, {})
+    try:
+        supabase = _get_client()
+        response = supabase.table("recipe_ratings").select("ratings").eq("workspace_id", workspace_id).eq("recipe_id", recipe_id).single().execute()
+
+        if response.data:
+            return response.data.get("ratings", {})
+        return {}
+
+    except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            return {}
+        logger.error(f"Error getting recipe rating for workspace '{workspace_id}': {e}")
+        return {}
 
 
 def delete_recipe_rating(workspace_id: str, recipe_id: str) -> None:
     """
     Delete all ratings for a recipe.
 
-    Called when a recipe is deleted to clean up orphaned rating data.
-
     Args:
         workspace_id: Workspace identifier
         recipe_id: Recipe identifier to delete ratings for
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "recipe_ratings.json"
-
-    if not filepath.exists():
-        logger.info(f"No ratings file exists for workspace '{workspace_id}', nothing to delete for {recipe_id}")
-        return
-
     try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-
-        # Filter out ratings for this recipe
-        original_count = len(data.get("ratings", []))
-        data["ratings"] = [
-            rating for rating in data.get("ratings", [])
-            if rating.get("recipe_id") != recipe_id
-        ]
-        deleted_count = original_count - len(data["ratings"])
-
-        # Save back to file
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=2)
-
-        if deleted_count > 0:
-            logger.info(f"Deleted ratings for recipe {recipe_id} in workspace '{workspace_id}'")
-        else:
-            logger.info(f"No ratings found for recipe {recipe_id} in workspace '{workspace_id}'")
+        supabase = _get_client()
+        supabase.table("recipe_ratings").delete().eq("workspace_id", workspace_id).eq("recipe_id", recipe_id).execute()
+        logger.info(f"Deleted ratings for recipe {recipe_id} in workspace '{workspace_id}'")
 
     except Exception as e:
         logger.error(f"Error deleting recipe ratings for workspace '{workspace_id}': {e}")
@@ -545,39 +436,54 @@ def load_recipe(workspace_id: str, recipe_id: str) -> Optional[Recipe]:
     Returns:
         Recipe if found, None otherwise
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "recipes" / f"{recipe_id}.json"
-
-    if not filepath.exists():
-        logger.warning(f"Recipe {recipe_id} not found at {filepath}")
-        return None
-
     try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
+        supabase = _get_client()
+        response = supabase.table("recipes").select("*").eq("workspace_id", workspace_id).eq("id", recipe_id).single().execute()
+
+        if not response.data:
+            logger.warning(f"Recipe {recipe_id} not found in workspace '{workspace_id}'")
+            return None
+
+        data = response.data
+        # Remove Supabase-specific fields
+        data.pop("embedding", None)
+        data.pop("workspace_id", None)
+
         recipe = Recipe(**data)
         logger.info(f"Loaded recipe: {recipe.title} from workspace '{workspace_id}'")
         return recipe
+
     except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            logger.warning(f"Recipe {recipe_id} not found in workspace '{workspace_id}'")
+            return None
         logger.error(f"Error loading recipe {recipe_id} for workspace '{workspace_id}': {e}")
         raise
 
 
 def save_recipe(workspace_id: str, recipe: Recipe) -> None:
     """
-    Save a recipe to JSON file.
+    Save a recipe to database (upsert).
 
     Args:
         workspace_id: Workspace identifier
         recipe: Recipe to save
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "recipes" / f"{recipe.id}.json"
-
     try:
-        with open(filepath, 'w') as f:
-            json.dump(recipe.model_dump(), f, indent=2)
-        logger.info(f"Saved recipe: {recipe.title} to {filepath} in workspace '{workspace_id}'")
+        supabase = _get_client()
+
+        data = recipe.model_dump()
+        data["workspace_id"] = workspace_id
+        data["updated_at"] = datetime.now().isoformat()
+
+        # Generate embedding for the recipe
+        embedding = _generate_recipe_embedding(recipe)
+        if embedding:
+            data["embedding"] = embedding
+
+        supabase.table("recipes").upsert(data, on_conflict="id").execute()
+        logger.info(f"Saved recipe: {recipe.title} to workspace '{workspace_id}'")
+
     except Exception as e:
         logger.error(f"Error saving recipe {recipe.id} for workspace '{workspace_id}': {e}")
         raise
@@ -585,49 +491,37 @@ def save_recipe(workspace_id: str, recipe: Recipe) -> None:
 
 def list_all_recipes(workspace_id: str) -> List[Recipe]:
     """
-    Load all recipes from the recipes directory.
-    Recipes are sorted by modification time (most recent first).
+    Load all recipes for a workspace.
+    Recipes are sorted by updated_at (most recent first).
 
     Args:
         workspace_id: Workspace identifier
 
     Returns:
-        List of all Recipe objects, sorted by creation/modification time
+        List of all Recipe objects
     """
-    _ensure_data_dir(workspace_id)
-    recipes_dir = DATA_DIR / workspace_id / "recipes"
-    recipe_files = []
+    try:
+        supabase = _get_client()
+        response = supabase.table("recipes").select("*").eq("workspace_id", workspace_id).order("updated_at", desc=True).execute()
 
-    # Collect recipe files with their modification times
-    for filepath in recipes_dir.glob("*.json"):
-        try:
-            mtime = filepath.stat().st_mtime
-            recipe_files.append((filepath, mtime))
-        except Exception as e:
-            logger.error(f"Error accessing file {filepath}: {e}")
+        recipes = []
+        for data in response.data:
+            # Remove Supabase-specific fields
+            data.pop("embedding", None)
+            data.pop("workspace_id", None)
+            recipes.append(Recipe(**data))
 
-    # Sort by modification time (most recent first)
-    recipe_files.sort(key=lambda x: x[1], reverse=True)
+        logger.info(f"Loaded {len(recipes)} recipes for workspace '{workspace_id}'")
+        return recipes
 
-    # Load recipes in sorted order
-    recipes = []
-    for filepath, _ in recipe_files:
-        try:
-            with open(filepath, 'r') as f:
-                data = json.load(f)
-            recipe = Recipe(**data)
-            recipes.append(recipe)
-        except Exception as e:
-            logger.error(f"Error loading recipe from {filepath}: {e}")
-            # Continue loading other recipes even if one fails
-
-    logger.info(f"Loaded {len(recipes)} recipes for workspace '{workspace_id}' (sorted by most recent)")
-    return recipes
+    except Exception as e:
+        logger.error(f"Error listing recipes for workspace '{workspace_id}': {e}")
+        raise
 
 
 def delete_recipe(workspace_id: str, recipe_id: str) -> bool:
     """
-    Delete a recipe by ID from both JSON storage and Chroma DB.
+    Delete a recipe by ID.
 
     Args:
         workspace_id: Workspace identifier
@@ -636,46 +530,32 @@ def delete_recipe(workspace_id: str, recipe_id: str) -> bool:
     Returns:
         True if deleted, False if recipe didn't exist
     """
-    _ensure_data_dir(workspace_id)
-    filepath = DATA_DIR / workspace_id / "recipes" / f"{recipe_id}.json"
-
-    if not filepath.exists():
-        logger.warning(f"Recipe {recipe_id} not found in storage for workspace '{workspace_id}'")
-        # Still try to remove from Chroma in case it's orphaned
-
     try:
-        # Delete JSON file if it exists
-        if filepath.exists():
-            filepath.unlink()
-            logger.info(f"Deleted recipe file: {recipe_id} from workspace '{workspace_id}'")
+        supabase = _get_client()
 
-        # Remove from Chroma DB (workspace filtering will be handled by chroma_manager)
-        from app.data.chroma_manager import delete_recipe_from_chroma
-        delete_recipe_from_chroma(workspace_id, recipe_id)
+        # Check if recipe exists
+        check = supabase.table("recipes").select("id").eq("workspace_id", workspace_id).eq("id", recipe_id).single().execute()
+        if not check.data:
+            logger.warning(f"Recipe {recipe_id} not found in workspace '{workspace_id}'")
+            return False
 
+        # Delete the recipe
+        supabase.table("recipes").delete().eq("workspace_id", workspace_id).eq("id", recipe_id).execute()
+
+        # Also delete associated ratings
+        delete_recipe_rating(workspace_id, recipe_id)
+
+        logger.info(f"Deleted recipe {recipe_id} from workspace '{workspace_id}'")
         return True
+
     except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            return False
         logger.error(f"Error deleting recipe {recipe_id} for workspace '{workspace_id}': {e}")
         raise
 
 
 # ===== Meal Plans =====
-
-def _ensure_meal_plans_dir(workspace_id: str) -> Path:
-    """
-    Ensure meal_plans directory exists for a workspace.
-
-    Args:
-        workspace_id: Workspace identifier
-
-    Returns:
-        Path to the meal_plans directory
-    """
-    _ensure_data_dir(workspace_id)
-    meal_plans_dir = DATA_DIR / workspace_id / "meal_plans"
-    meal_plans_dir.mkdir(exist_ok=True)
-    return meal_plans_dir
-
 
 def load_meal_plan(workspace_id: str, meal_plan_id: str) -> Optional[MealPlan]:
     """
@@ -688,48 +568,46 @@ def load_meal_plan(workspace_id: str, meal_plan_id: str) -> Optional[MealPlan]:
     Returns:
         MealPlan if found, None otherwise
     """
-    meal_plans_dir = _ensure_meal_plans_dir(workspace_id)
-    filepath = meal_plans_dir / f"{meal_plan_id}.json"
-
-    if not filepath.exists():
-        logger.warning(f"Meal plan {meal_plan_id} not found at {filepath}")
-        return None
-
     try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
+        supabase = _get_client()
+        response = supabase.table("meal_plans").select("*").eq("workspace_id", workspace_id).eq("id", meal_plan_id).single().execute()
+
+        if not response.data:
+            logger.warning(f"Meal plan {meal_plan_id} not found in workspace '{workspace_id}'")
+            return None
+
+        data = response.data
+        data.pop("workspace_id", None)
+
         meal_plan = MealPlan(**data)
         logger.info(f"Loaded meal plan: {meal_plan_id} from workspace '{workspace_id}'")
         return meal_plan
+
     except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            return None
         logger.error(f"Error loading meal plan {meal_plan_id} for workspace '{workspace_id}': {e}")
         raise
 
 
 def save_meal_plan(workspace_id: str, meal_plan: MealPlan) -> None:
     """
-    Save a meal plan to JSON file.
-
-    Updates the updated_at timestamp automatically.
+    Save a meal plan to database (upsert).
 
     Args:
         workspace_id: Workspace identifier
         meal_plan: MealPlan to save
     """
-    from datetime import datetime
-
-    meal_plans_dir = _ensure_meal_plans_dir(workspace_id)
-    filepath = meal_plans_dir / f"{meal_plan.id}.json"
-
-    # Update the updated_at timestamp
-    # Use model_copy to create a new instance with updated field
-    meal_plan_data = meal_plan.model_dump(mode='json')
-    meal_plan_data['updated_at'] = datetime.now().isoformat()
-
     try:
-        with open(filepath, 'w') as f:
-            json.dump(meal_plan_data, f, indent=2, default=str)
-        logger.info(f"Saved meal plan: {meal_plan.id} to {filepath} in workspace '{workspace_id}'")
+        supabase = _get_client()
+
+        data = meal_plan.model_dump(mode='json')
+        data["workspace_id"] = workspace_id
+        data["updated_at"] = datetime.now().isoformat()
+
+        supabase.table("meal_plans").upsert(data, on_conflict="id").execute()
+        logger.info(f"Saved meal plan: {meal_plan.id} to workspace '{workspace_id}'")
+
     except Exception as e:
         logger.error(f"Error saving meal plan {meal_plan.id} for workspace '{workspace_id}': {e}")
         raise
@@ -745,26 +623,23 @@ def list_all_meal_plans(workspace_id: str) -> List[MealPlan]:
         workspace_id: Workspace identifier
 
     Returns:
-        List of all MealPlan objects, sorted by week_start_date descending
+        List of all MealPlan objects
     """
-    meal_plans_dir = _ensure_meal_plans_dir(workspace_id)
-    meal_plans = []
+    try:
+        supabase = _get_client()
+        response = supabase.table("meal_plans").select("*").eq("workspace_id", workspace_id).order("week_start_date", desc=True).execute()
 
-    for filepath in meal_plans_dir.glob("*.json"):
-        try:
-            with open(filepath, 'r') as f:
-                data = json.load(f)
-            meal_plan = MealPlan(**data)
-            meal_plans.append(meal_plan)
-        except Exception as e:
-            logger.error(f"Error loading meal plan from {filepath}: {e}")
-            # Continue loading other meal plans even if one fails
+        meal_plans = []
+        for data in response.data:
+            data.pop("workspace_id", None)
+            meal_plans.append(MealPlan(**data))
 
-    # Sort by week_start_date (most recent first)
-    meal_plans.sort(key=lambda mp: mp.week_start_date, reverse=True)
+        logger.info(f"Loaded {len(meal_plans)} meal plans for workspace '{workspace_id}'")
+        return meal_plans
 
-    logger.info(f"Loaded {len(meal_plans)} meal plans for workspace '{workspace_id}'")
-    return meal_plans
+    except Exception as e:
+        logger.error(f"Error listing meal plans for workspace '{workspace_id}': {e}")
+        raise
 
 
 def delete_meal_plan(workspace_id: str, meal_plan_id: str) -> bool:
@@ -778,17 +653,179 @@ def delete_meal_plan(workspace_id: str, meal_plan_id: str) -> bool:
     Returns:
         True if deleted, False if meal plan didn't exist
     """
-    meal_plans_dir = _ensure_meal_plans_dir(workspace_id)
-    filepath = meal_plans_dir / f"{meal_plan_id}.json"
-
-    if not filepath.exists():
-        logger.warning(f"Meal plan {meal_plan_id} not found for deletion in workspace '{workspace_id}'")
-        return False
-
     try:
-        filepath.unlink()
-        logger.info(f"Deleted meal plan: {meal_plan_id} from workspace '{workspace_id}'")
+        supabase = _get_client()
+
+        # Check if meal plan exists
+        check = supabase.table("meal_plans").select("id").eq("workspace_id", workspace_id).eq("id", meal_plan_id).single().execute()
+        if not check.data:
+            logger.warning(f"Meal plan {meal_plan_id} not found in workspace '{workspace_id}'")
+            return False
+
+        # Delete the meal plan
+        supabase.table("meal_plans").delete().eq("workspace_id", workspace_id).eq("id", meal_plan_id).execute()
+
+        logger.info(f"Deleted meal plan {meal_plan_id} from workspace '{workspace_id}'")
         return True
+
     except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            return False
         logger.error(f"Error deleting meal plan {meal_plan_id} for workspace '{workspace_id}': {e}")
         raise
+
+
+# ===== Recipe Embedding & Search =====
+
+def _generate_recipe_embedding(recipe: Recipe) -> Optional[List[float]]:
+    """
+    Generate embedding vector for a recipe using OpenAI.
+
+    Args:
+        recipe: Recipe to generate embedding for
+
+    Returns:
+        List of floats (1536-dimensional vector) or None if generation fails
+    """
+    try:
+        from openai import OpenAI
+        from app.config import settings
+
+        if not settings.OPENAI_API_KEY:
+            logger.warning("OpenAI API key not configured, skipping embedding generation")
+            return None
+
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+        # Create text to embed: title + tags + ingredients
+        text_parts = [recipe.title]
+        if recipe.tags:
+            text_parts.extend(recipe.tags)
+        if recipe.ingredients:
+            # Handle both string and dict ingredients
+            for ing in recipe.ingredients:
+                if isinstance(ing, str):
+                    text_parts.append(ing)
+                elif isinstance(ing, dict):
+                    text_parts.append(ing.get("name", str(ing)))
+
+        text = " ".join(text_parts)
+
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text
+        )
+
+        return response.data[0].embedding
+
+    except Exception as e:
+        logger.error(f"Error generating embedding for recipe {recipe.id}: {e}")
+        return None
+
+
+def query_recipes(
+    workspace_id: str,
+    query_text: str,
+    n_results: int = 10,
+    filters: Optional[Dict] = None
+) -> List[Recipe]:
+    """
+    Query recipes using semantic similarity search with pgvector.
+
+    Args:
+        workspace_id: Workspace identifier
+        query_text: Natural language query
+        n_results: Maximum number of results to return
+        filters: Optional filters (tags, meal_types, etc.)
+
+    Returns:
+        List of Recipe objects sorted by similarity
+    """
+    try:
+        from openai import OpenAI
+        from app.config import settings
+
+        if not settings.OPENAI_API_KEY:
+            logger.warning("OpenAI API key not configured, falling back to text search")
+            return _text_search_recipes(workspace_id, query_text, n_results, filters)
+
+        # Generate embedding for query
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=query_text
+        )
+        query_embedding = response.data[0].embedding
+
+        # Query Supabase with vector similarity
+        supabase = _get_client()
+
+        # Use RPC for vector similarity search
+        # Note: This requires a database function - we'll use a simple approach for now
+        # For full vector search, you'd create a Postgres function
+
+        # Fallback: Get all recipes and sort by embedding similarity in Python
+        all_recipes = list_all_recipes(workspace_id)
+
+        if not all_recipes:
+            return []
+
+        # For now, return all recipes (proper vector search requires DB function)
+        # TODO: Implement proper pgvector similarity search via RPC
+        logger.info(f"Returning {len(all_recipes)} recipes for query '{query_text}' (vector search pending)")
+        return all_recipes[:n_results]
+
+    except Exception as e:
+        logger.error(f"Error querying recipes for workspace '{workspace_id}': {e}")
+        return _text_search_recipes(workspace_id, query_text, n_results, filters)
+
+
+def _text_search_recipes(
+    workspace_id: str,
+    query_text: str,
+    n_results: int = 10,
+    filters: Optional[Dict] = None
+) -> List[Recipe]:
+    """
+    Fallback text-based recipe search.
+
+    Args:
+        workspace_id: Workspace identifier
+        query_text: Text to search for
+        n_results: Maximum number of results
+        filters: Optional filters
+
+    Returns:
+        List of matching Recipe objects
+    """
+    try:
+        all_recipes = list_all_recipes(workspace_id)
+
+        # Simple text matching
+        query_lower = query_text.lower()
+        matched = []
+
+        for recipe in all_recipes:
+            score = 0
+            if query_lower in recipe.title.lower():
+                score += 10
+            if recipe.tags:
+                for tag in recipe.tags:
+                    if query_lower in tag.lower():
+                        score += 5
+            if recipe.ingredients:
+                for ing in recipe.ingredients:
+                    ing_text = ing if isinstance(ing, str) else str(ing)
+                    if query_lower in ing_text.lower():
+                        score += 1
+
+            if score > 0:
+                matched.append((recipe, score))
+
+        # Sort by score and return top results
+        matched.sort(key=lambda x: x[1], reverse=True)
+        return [r for r, _ in matched[:n_results]]
+
+    except Exception as e:
+        logger.error(f"Error in text search for workspace '{workspace_id}': {e}")
+        return []

@@ -6,5 +6,6 @@ from .recipes import router as recipes_router
 from .groceries import router as groceries_router
 from .feedback import router as feedback_router
 from .auth import router as auth_router
+from .invites import router as invites_router
 
-__all__ = ["meal_plans_router", "household_router", "recipes_router", "groceries_router", "feedback_router", "auth_router"]
+__all__ = ["meal_plans_router", "household_router", "recipes_router", "groceries_router", "feedback_router", "auth_router", "invites_router"]

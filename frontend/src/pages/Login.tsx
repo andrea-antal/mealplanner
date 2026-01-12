@@ -1,5 +1,6 @@
 /**
  * Login page with magic link authentication.
+ * New users need an invite code during beta.
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -7,10 +8,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Loader2, CheckCircle } from 'lucide-react';
+import { Mail, Loader2, CheckCircle, Ticket } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [showInviteCode, setShowInviteCode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,12 +31,16 @@ export default function Login() {
     setError(null);
     setIsSubmitting(true);
 
-    const result = await login(email);
+    const result = await login(email, inviteCode || undefined);
 
     setIsSubmitting(false);
 
     if (result.success) {
       setSent(true);
+    } else if (result.needsInviteCode && !showInviteCode) {
+      // New user without invite code - show the invite code field
+      setShowInviteCode(true);
+      setError('New account! Please enter your invite code.');
     } else {
       setError(result.message);
     }
@@ -61,6 +68,8 @@ export default function Login() {
               onClick={() => {
                 setSent(false);
                 setEmail('');
+                setInviteCode('');
+                setShowInviteCode(false);
               }}
             >
               Use a different email
@@ -77,7 +86,9 @@ export default function Login() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Sign in to Meal Planner</CardTitle>
           <CardDescription>
-            Enter your email and we'll send you a magic link to sign in.
+            {showInviteCode
+              ? "Enter your invite code to create an account."
+              : "Enter your email and we'll send you a magic link to sign in."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -93,10 +104,31 @@ export default function Login() {
                   className="pl-10"
                   required
                   disabled={isSubmitting}
-                  autoFocus
+                  autoFocus={!showInviteCode}
                 />
               </div>
             </div>
+
+            {showInviteCode && (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="MEAL-XXXXXX"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    className="pl-10 uppercase"
+                    required
+                    disabled={isSubmitting}
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Don't have an invite code? Ask the person who told you about Meal Planner!
+                </p>
+              </div>
+            )}
 
             {error && (
               <p className="text-sm text-destructive">{error}</p>
@@ -105,12 +137,12 @@ export default function Login() {
             <Button
               type="submit"
               className="w-full"
-              disabled={isSubmitting || !email}
+              disabled={isSubmitting || !email || (showInviteCode && !inviteCode)}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
+                  {showInviteCode ? 'Validating...' : 'Sending...'}
                 </>
               ) : (
                 'Send magic link'
@@ -121,6 +153,18 @@ export default function Login() {
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>No password needed. Just click the link in your email.</p>
           </div>
+
+          {!showInviteCode && (
+            <div className="mt-4 text-center">
+              <Button
+                variant="link"
+                className="text-xs"
+                onClick={() => setShowInviteCode(true)}
+              >
+                Have an invite code?
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

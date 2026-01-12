@@ -363,6 +363,7 @@ const Household = () => {
                     size="icon"
                     onClick={() => setMemberToDelete(member.name)}
                     className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    aria-label={`Delete ${member.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

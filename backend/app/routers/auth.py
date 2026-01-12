@@ -1,16 +1,17 @@
 """
 Authentication API endpoints.
 
-Provides magic link login and session management.
+Authentication is handled by Supabase Auth on the frontend.
+This router provides endpoints for:
+- Getting current user info
+- Invite code management for beta access
 """
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Query
-from app.models.user import MagicLinkRequest, TokenResponse, UserResponse
-from app.auth.magic_link import create_magic_link_token, verify_magic_link_token, send_magic_link_email
-from app.auth.jwt_handler import create_access_token
-from app.data.user_manager import get_or_create_user, update_last_login, get_user_by_email
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from typing import Optional
 from app.dependencies import get_current_user
-from app.config import settings
+from app.db.supabase_client import get_supabase_admin_client
 
 logger = logging.getLogger(__name__)
 
@@ -20,101 +21,17 @@ router = APIRouter(
 )
 
 
-@router.post("/magic-link")
-async def request_magic_link(request: MagicLinkRequest):
-    """
-    Request a magic link to be sent to the user's email.
-
-    The magic link will be valid for 15 minutes.
-
-    Args:
-        request: Contains the email address
-
-    Returns:
-        Success message (always returns success to prevent email enumeration)
-    """
-    email = request.email.lower().strip()
-
-    if not email or "@" not in email:
-        raise HTTPException(status_code=400, detail="Invalid email address")
-
-    # Check if auth is configured
-    if not settings.JWT_SECRET_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="Authentication not configured (JWT_SECRET_KEY missing)"
-        )
-
-    # Create magic link token
-    token = create_magic_link_token(email)
-
-    # Build magic link URL - frontend will handle this route
-    # In production, this should use a configured frontend URL
-    frontend_url = "http://localhost:5173"  # Default for development
-    if settings.CORS_ORIGINS:
-        # Use first non-localhost origin as production frontend URL
-        for origin in settings.cors_origins_list:
-            if "localhost" not in origin and "127.0.0.1" not in origin:
-                frontend_url = origin
-                break
-
-    magic_link_url = f"{frontend_url}/auth/verify?token={token}"
-
-    # Send email
-    if settings.RESEND_API_KEY:
-        success, error = send_magic_link_email(email, magic_link_url)
-        if not success:
-            logger.error(f"Failed to send magic link to {email}: {error}")
-            # Don't reveal email sending failures to prevent enumeration
-    else:
-        # Development mode - log the link
-        logger.warning(f"RESEND_API_KEY not configured. Magic link for {email}: {magic_link_url}")
-
-    # Always return success to prevent email enumeration
-    return {
-        "message": "If that email is registered, you will receive a login link shortly.",
-        "email": email
-    }
+class UserResponse(BaseModel):
+    """User information response."""
+    email: str
+    workspace_id: str
+    user_id: Optional[str] = None
 
 
-@router.get("/verify", response_model=TokenResponse)
-async def verify_magic_link(token: str = Query(..., description="Magic link token")):
-    """
-    Verify a magic link token and return a session JWT.
-
-    This endpoint is called when the user clicks the magic link in their email.
-
-    Args:
-        token: The magic link token from the email
-
-    Returns:
-        JWT access token for authenticated sessions
-    """
-    # Verify the magic link token
-    email = verify_magic_link_token(token)
-    if not email:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired magic link"
-        )
-
-    # Get or create user
-    user = get_or_create_user(email)
-
-    # Update last login
-    update_last_login(email)
-
-    # Create access token
-    access_token = create_access_token(email=user.email, workspace_id=user.workspace_id)
-
-    logger.info(f"User {email} authenticated via magic link")
-
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        workspace_id=user.workspace_id,
-        email=user.email
-    )
+class InviteValidateRequest(BaseModel):
+    """Request to validate an invite code."""
+    invite_code: str
+    email: str
 
 
 @router.get("/me", response_model=UserResponse)
@@ -122,34 +39,127 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """
     Get the current authenticated user's information.
 
-    Requires a valid JWT Bearer token.
+    Requires a valid Supabase JWT Bearer token.
 
     Returns:
         User information including email and workspace_id
     """
-    user = get_user_by_email(current_user["email"])
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
     return UserResponse(
-        email=user.email,
-        workspace_id=user.workspace_id,
-        created_at=user.created_at,
-        last_login=user.last_login
+        email=current_user["email"],
+        workspace_id=current_user["workspace_id"],
+        user_id=current_user.get("user_id")
     )
 
 
-@router.post("/logout")
-async def logout(current_user: dict = Depends(get_current_user)):
+@router.post("/validate-invite")
+async def validate_invite(request: InviteValidateRequest):
     """
-    Log out the current user.
+    Validate an invite code before signup.
 
-    Note: JWT tokens are stateless, so this endpoint just returns success.
-    The client should discard the token. For true token invalidation,
-    you would need a token blacklist (not implemented here).
+    Called by frontend before allowing new user registration.
+    This checks if the code is valid but does NOT consume it.
+
+    Args:
+        request: Contains invite_code and email
 
     Returns:
-        Success message
+        Success if valid, error if invalid
     """
-    logger.info(f"User {current_user['email']} logged out")
-    return {"message": "Logged out successfully"}
+    try:
+        supabase = get_supabase_admin_client()
+
+        # Get the invite code
+        response = supabase.table("invite_codes").select("*").eq("code", request.invite_code).single().execute()
+
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Invalid invite code")
+
+        invite = response.data
+
+        # Check if disabled
+        if invite.get("disabled"):
+            raise HTTPException(status_code=400, detail="This invite code has been disabled")
+
+        # Check if expired
+        if invite.get("expires_at"):
+            from datetime import datetime
+            expires = datetime.fromisoformat(invite["expires_at"].replace("Z", "+00:00"))
+            if datetime.now(expires.tzinfo) > expires:
+                raise HTTPException(status_code=400, detail="This invite code has expired")
+
+        # Check if max uses reached
+        if invite.get("max_uses") and invite.get("uses", 0) >= invite["max_uses"]:
+            raise HTTPException(status_code=400, detail="This invite code has reached its maximum uses")
+
+        # Check if email already used this code
+        redemption_check = supabase.table("invite_redemptions").select("id").eq("code", request.invite_code).eq("email", request.email.lower()).execute()
+        if redemption_check.data:
+            raise HTTPException(status_code=400, detail="You have already used this invite code")
+
+        return {"valid": True, "message": "Invite code is valid"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating invite code: {e}")
+        raise HTTPException(status_code=500, detail="Error validating invite code")
+
+
+@router.post("/use-invite")
+async def use_invite(request: InviteValidateRequest):
+    """
+    Use (redeem) an invite code after successful signup.
+
+    Called by frontend after Supabase Auth signup completes.
+    This marks the invite as used.
+
+    Args:
+        request: Contains invite_code and email
+
+    Returns:
+        Success if redeemed
+    """
+    try:
+        supabase = get_supabase_admin_client()
+
+        # First validate the code
+        response = supabase.table("invite_codes").select("*").eq("code", request.invite_code).single().execute()
+
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Invalid invite code")
+
+        invite = response.data
+
+        # All validation checks from validate_invite
+        if invite.get("disabled"):
+            raise HTTPException(status_code=400, detail="This invite code has been disabled")
+
+        if invite.get("expires_at"):
+            from datetime import datetime
+            expires = datetime.fromisoformat(invite["expires_at"].replace("Z", "+00:00"))
+            if datetime.now(expires.tzinfo) > expires:
+                raise HTTPException(status_code=400, detail="This invite code has expired")
+
+        if invite.get("max_uses") and invite.get("uses", 0) >= invite["max_uses"]:
+            raise HTTPException(status_code=400, detail="This invite code has reached its maximum uses")
+
+        # Record redemption
+        email_lower = request.email.lower()
+        supabase.table("invite_redemptions").insert({
+            "code": request.invite_code,
+            "email": email_lower
+        }).execute()
+
+        # Increment use count
+        supabase.table("invite_codes").update({
+            "uses": (invite.get("uses", 0) or 0) + 1
+        }).eq("code", request.invite_code).execute()
+
+        logger.info(f"Invite code {request.invite_code} redeemed by {email_lower}")
+        return {"success": True, "message": "Invite code redeemed successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error using invite code: {e}")
+        raise HTTPException(status_code=500, detail="Error redeeming invite code")

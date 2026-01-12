@@ -147,7 +147,7 @@ const Index = () => {
       <div className="space-y-12">
         {/* Get Started */}
         <section>
-          <h2 className="font-display text-2xl font-semibold text-foreground mb-6">
+          <h2 className="font-display text-2xl font-semibold text-foreground mb-6 text-balance">
             Get Started
           </h2>
 
@@ -182,10 +182,10 @@ const Index = () => {
           {/* Plan */}
           <Link
             to="/meal-plans"
-            className="group flex flex-col items-center gap-3 p-4 rounded-2xl transition-all duration-200 hover:bg-card hover:shadow-soft"
+            className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
           >
-            <div className="flex items-center justify-center h-20 w-20 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-2xl bg-primary shadow-soft transition-transform group-hover:scale-110 text-shadow-subtle">
-              <Calendar className="h-10 w-10 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary-foreground" />
+            <div className="flex items-center justify-center size-20 md:size-24 rounded-2xl bg-primary shadow-sm">
+              <Calendar className="size-10 md:size-12 text-primary-foreground" />
             </div>
             <div className="text-center">
               <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground block">Plan</span>
@@ -198,10 +198,10 @@ const Index = () => {
           {/* Groceries */}
           <Link
             to="/groceries"
-            className="group flex flex-col items-center gap-3 p-4 rounded-2xl transition-all duration-200 hover:bg-card hover:shadow-soft"
+            className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
           >
-            <div className="flex items-center justify-center h-20 w-20 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-2xl bg-primary shadow-soft transition-transform group-hover:scale-110 text-shadow-subtle">
-              <ShoppingBasket className="h-10 w-10 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary-foreground" />
+            <div className="flex items-center justify-center size-20 md:size-24 rounded-2xl bg-primary shadow-sm">
+              <ShoppingBasket className="size-10 md:size-12 text-primary-foreground" />
             </div>
             <div className="text-center">
               <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground block">Groceries</span>
@@ -214,10 +214,10 @@ const Index = () => {
           {/* Recipes */}
           <Link
             to="/recipes"
-            className="group flex flex-col items-center gap-3 p-4 rounded-2xl transition-all duration-200 hover:bg-card hover:shadow-soft"
+            className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
           >
-            <div className="flex items-center justify-center h-20 w-20 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-2xl bg-primary shadow-soft transition-transform group-hover:scale-110 text-shadow-subtle">
-              <UtensilsCrossed className="h-10 w-10 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary-foreground" />
+            <div className="flex items-center justify-center size-20 md:size-24 rounded-2xl bg-primary shadow-sm">
+              <UtensilsCrossed className="size-10 md:size-12 text-primary-foreground" />
             </div>
             <div className="text-center">
               <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground block">Recipes</span>
@@ -230,10 +230,10 @@ const Index = () => {
           {/* Cook */}
           <Link
             to="/cook"
-            className="group flex flex-col items-center gap-3 p-4 rounded-2xl transition-all duration-200 hover:bg-card hover:shadow-soft"
+            className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
           >
-            <div className="flex items-center justify-center h-20 w-20 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-2xl bg-primary shadow-soft transition-transform group-hover:scale-110 text-shadow-subtle">
-              <ChefHat className="h-10 w-10 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary-foreground" />
+            <div className="flex items-center justify-center size-20 md:size-24 rounded-2xl bg-primary shadow-sm">
+              <ChefHat className="size-10 md:size-12 text-primary-foreground" />
             </div>
             <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground text-center">Cook</span>
           </Link>
@@ -241,8 +241,8 @@ const Index = () => {
       </section>
 
       {/* Household Members Preview */}
-      <section className="animate-slide-up" style={{ animationDelay: '0.4s' }}>
-        <h2 className="font-display text-2xl font-semibold text-foreground mb-6">
+      <section>
+        <h2 className="font-display text-2xl font-semibold text-foreground mb-6 text-balance">
           Your Household
         </h2>
         {isLoadingProfile && !profileError ? (
@@ -259,10 +259,10 @@ const Index = () => {
                 <Link
                   key={member.name}
                   to="/household"
-                  className="group flex flex-col items-center gap-3 p-4 rounded-2xl transition-all duration-200 hover:bg-card hover:shadow-soft"
+                  className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
                 >
-                  <div className="flex items-center justify-center h-12 w-12 transition-transform group-hover:scale-110">
-                    <AgeIcon className="h-10 w-10 text-primary" />
+                  <div className="flex items-center justify-center size-12">
+                    <AgeIcon className="size-10 text-primary" />
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">{member.name}</p>

@@ -109,6 +109,7 @@ export function HouseholdMembersStep({ value, onChange }: HouseholdMembersStepPr
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
                 onClick={() => removeMember(index)}
+                aria-label={`Remove ${member.name}`}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -152,6 +153,7 @@ export function HouseholdMembersStep({ value, onChange }: HouseholdMembersStepPr
             size="icon"
             onClick={addMember}
             disabled={!newName.trim()}
+            aria-label="Add household member"
           >
             <Plus className="h-4 w-4" />
           </Button>

@@ -2,21 +2,27 @@
  * Authentication context for React components.
  *
  * Provides auth state and actions to the component tree.
+ * Uses Supabase Auth for authentication.
  */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Session } from '@supabase/supabase-js';
 import {
-  AuthState,
   AuthUser,
-  getAuthState,
-  requestMagicLink,
-  verifyMagicLink,
-  logout as logoutUser,
   getCurrentUser,
+  requestMagicLink,
+  logout as logoutUser,
+  onAuthStateChange,
+  getSession,
 } from '@/lib/auth';
 
+interface AuthState {
+  isAuthenticated: boolean;
+  user: AuthUser | null;
+  session: Session | null;
+}
+
 interface AuthContextType extends AuthState {
-  login: (email: string) => Promise<{ success: boolean; message: string }>;
-  verify: (token: string) => Promise<{ success: boolean; message: string; user?: AuthUser }>;
+  login: (email: string, inviteCode?: string) => Promise<{ success: boolean; message: string; needsInviteCode?: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isLoading: boolean;
@@ -25,70 +31,78 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [authState, setAuthState] = useState<AuthState>(getAuthState);
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    user: null,
+    session: null,
+  });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check auth state on mount
+  // Initialize auth state and subscribe to changes
   useEffect(() => {
-    const checkAuth = async () => {
-      const state = getAuthState();
-      if (state.isAuthenticated) {
-        // Verify token is still valid by fetching user
-        const user = await getCurrentUser();
-        if (user) {
+    let mounted = true;
+
+    const initAuth = async () => {
+      try {
+        const session = await getSession();
+        if (session && mounted) {
+          const user = await getCurrentUser();
           setAuthState({
-            isAuthenticated: true,
-            token: state.token,
+            isAuthenticated: !!user,
             user,
-          });
-        } else {
-          // Token invalid, clear state
-          setAuthState({
-            isAuthenticated: false,
-            token: null,
-            user: null,
+            session,
           });
         }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
     };
 
-    checkAuth();
+    initAuth();
+
+    // Subscribe to auth state changes
+    const unsubscribe = onAuthStateChange(async (user) => {
+      if (mounted) {
+        const session = await getSession();
+        setAuthState({
+          isAuthenticated: !!user,
+          user,
+          session,
+        });
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string) => {
-    return requestMagicLink(email);
-  };
-
-  const verify = async (token: string) => {
-    const result = await verifyMagicLink(token);
-    if (result.success && result.user) {
-      setAuthState({
-        isAuthenticated: true,
-        token: getAuthState().token,
-        user: result.user,
-      });
-    }
-    return result;
+  const login = async (email: string, inviteCode?: string) => {
+    return requestMagicLink(email, inviteCode);
   };
 
   const logout = async () => {
     await logoutUser();
     setAuthState({
       isAuthenticated: false,
-      token: null,
       user: null,
+      session: null,
     });
   };
 
   const refreshUser = async () => {
     const user = await getCurrentUser();
-    if (user) {
-      setAuthState((prev) => ({
-        ...prev,
-        user,
-      }));
-    }
+    const session = await getSession();
+    setAuthState({
+      isAuthenticated: !!user,
+      user,
+      session,
+    });
   };
 
   return (
@@ -96,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         ...authState,
         login,
-        verify,
         logout,
         refreshUser,
         isLoading,

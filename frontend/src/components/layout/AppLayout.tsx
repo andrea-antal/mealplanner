@@ -22,9 +22,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [showFeedback, setShowFeedback] = useState(false);
 
   return (
-    <div className="min-h-screen bg-market-pattern">
+    <div className="min-h-dvh bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-lg">
+      <header className="sticky top-0 z-50 border-b border-border bg-card">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3">
@@ -40,7 +40,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               size="icon"
               variant="ghost"
               className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-              title="Help & feedback"
+              aria-label="Help and feedback"
             >
               <HelpCircle className="h-4 w-4" />
             </Button>
@@ -74,7 +74,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div id="unsaved-banner-slot" />
 
       {/* Mobile Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg md:hidden pb-safe">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card md:hidden pb-safe">
         <div className="flex justify-around py-2">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;

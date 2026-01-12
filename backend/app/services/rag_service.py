@@ -2,9 +2,8 @@
 RAG (Retrieval Augmented Generation) service for meal planning.
 
 This service handles:
-1. Retrieving relevant recipes from Chroma based on user constraints
-2. Loading full recipe details from JSON storage
-3. Building context for LLM prompt construction
+1. Retrieving relevant recipes using semantic search (pgvector)
+2. Building context for LLM prompt construction
 
 Separated from meal plan generation to keep concerns distinct and
 enable future multi-agent refactoring.
@@ -14,8 +13,7 @@ from typing import List, Dict, Optional
 from app.models.recipe import Recipe
 from app.models.household import HouseholdProfile
 from app.models.grocery import GroceryItem
-from app.data.chroma_manager import query_recipes
-from app.data.data_manager import load_recipe
+from app.data.data_manager import query_recipes, list_all_recipes
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +27,7 @@ def retrieve_relevant_recipes(
     """
     Retrieve relevant recipes based on household constraints and available groceries.
 
-    This function performs semantic search in the Chroma vector database to find
+    This function performs semantic search using pgvector to find
     recipes that best match the household's needs and available ingredients.
 
     Args:
@@ -57,24 +55,13 @@ def retrieve_relevant_recipes(
     filters = _build_filters(household)
     logger.debug(f"Filters: {filters}")
 
-    # Query Chroma for relevant recipe IDs
-    search_results = query_recipes(
+    # Query for relevant recipes using semantic search
+    recipes = query_recipes(
         workspace_id=workspace_id,
         query_text=query_text,
-        filters=filters,
-        n_results=num_recipes
+        n_results=num_recipes,
+        filters=filters
     )
-
-    # Load full Recipe objects from JSON storage
-    recipes = []
-    for result in search_results:
-        recipe_id = result['id']
-        recipe = load_recipe(workspace_id, recipe_id)
-
-        if recipe:
-            recipes.append(recipe)
-        else:
-            logger.warning(f"Recipe {recipe_id} found in Chroma but not in JSON storage for workspace '{workspace_id}'")
 
     logger.info(f"Retrieved {len(recipes)} recipes for workspace '{workspace_id}'")
     return recipes
@@ -122,7 +109,7 @@ def _build_query_text(household: HouseholdProfile, groceries: List[GroceryItem])
 
 def _build_filters(household: HouseholdProfile) -> Optional[Dict]:
     """
-    Build Chroma metadata filters for hard constraints.
+    Build metadata filters for hard constraints.
 
     Filters ensure recipes meet non-negotiable requirements:
     - Available appliances (can't make recipe without required equipment)
@@ -135,7 +122,7 @@ def _build_filters(household: HouseholdProfile) -> Optional[Dict]:
         household: Household profile
 
     Returns:
-        Filter dictionary for Chroma query, or None if no filters needed
+        Filter dictionary for query, or None if no filters needed
     """
     # For v0.1, we're keeping filters minimal
     # Future: Add appliance filtering when we have more recipe data
@@ -144,10 +131,7 @@ def _build_filters(household: HouseholdProfile) -> Optional[Dict]:
     # available_appliances = household.cooking_preferences.available_appliances
     # if available_appliances:
     #     return {
-    #         "$or": [
-    #             {"required_appliances": {"$contains": appliance}}
-    #             for appliance in available_appliances
-    #         ]
+    #         "required_appliances": available_appliances
     #     }
 
     # For now, return None (no hard filters)

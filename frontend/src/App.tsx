@@ -12,6 +12,7 @@ import { ReleaseNotesModal } from "@/components/ReleaseNotesModal";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AuthVerify from "./pages/AuthVerify";
+import AuthCallback from "./pages/AuthCallback";
 import MealPlans from "./pages/MealPlans";
 import MealPlansMockup from "./pages/MealPlansMockup";
 import Recipes from "./pages/Recipes";
@@ -58,6 +59,7 @@ const App = () => {
               {/* Auth routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/auth/verify" element={<AuthVerify />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* Protected routes - require workspace to be set */}
               <Route path="/cook" element={<WorkspaceGuard><CookingPreferences /></WorkspaceGuard>} />

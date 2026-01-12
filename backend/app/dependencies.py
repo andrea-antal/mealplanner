@@ -1,16 +1,26 @@
 """
 Shared FastAPI dependencies for the Meal Planner API.
+
+Authentication is handled by Supabase. The frontend obtains a JWT from Supabase Auth,
+and the backend validates it to extract user information.
 """
 import logging
 from typing import Optional
 from fastapi import Header, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
 from app.config import settings
+from app.db.supabase_client import get_supabase_admin_client
 
 logger = logging.getLogger(__name__)
 
 # Bearer token security scheme
 bearer_scheme = HTTPBearer(auto_error=False)
+
+# Supabase JWT settings
+# The JWT secret is derived from your project's JWT secret in Supabase dashboard
+# For now, we'll use the Supabase API to validate tokens
+SUPABASE_JWT_SECRET = None  # We'll validate via Supabase API instead
 
 
 def verify_admin(x_admin_key: str = Header(None, alias="X-Admin-Key")):
@@ -33,13 +43,15 @@ def verify_admin(x_admin_key: str = Header(None, alias="X-Admin-Key")):
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)
-):
+) -> dict:
     """
-    Dependency to get the current authenticated user.
-    Requires a valid JWT Bearer token.
+    Dependency to get the current authenticated user from Supabase JWT.
+
+    The frontend sends the Supabase access token in the Authorization header.
+    We validate it and extract the user's email and workspace_id.
 
     Returns:
-        dict with 'email' and 'workspace_id'
+        dict with 'email', 'workspace_id', and 'user_id' (Supabase UUID)
 
     Raises:
         HTTPException 401 if not authenticated
@@ -51,20 +63,48 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-    from app.auth.jwt_handler import decode_access_token
+    token = credentials.credentials
 
-    payload = decode_access_token(credentials.credentials)
-    if not payload:
+    try:
+        # Use Supabase admin client to get user from token
+        supabase = get_supabase_admin_client()
+        user_response = supabase.auth.get_user(token)
+
+        if not user_response or not user_response.user:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+
+        user = user_response.user
+
+        # Get the user's profile to get workspace_id
+        profile_response = supabase.table("profiles").select("workspace_id").eq("id", user.id).single().execute()
+
+        if not profile_response.data:
+            # Profile doesn't exist yet - this shouldn't happen if trigger worked
+            # But handle gracefully by creating workspace_id from email
+            workspace_id = _email_to_workspace_id(user.email)
+            logger.warning(f"No profile found for user {user.id}, using derived workspace_id: {workspace_id}")
+        else:
+            workspace_id = profile_response.data["workspace_id"]
+
+        return {
+            "user_id": str(user.id),
+            "email": user.email,
+            "workspace_id": workspace_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating Supabase token: {e}")
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"}
         )
-
-    return {
-        "email": payload.get("sub"),
-        "workspace_id": payload.get("workspace_id")
-    }
 
 
 async def get_current_user_optional(
@@ -75,95 +115,45 @@ async def get_current_user_optional(
     Does not raise if not authenticated (returns None).
 
     Returns:
-        dict with 'email' and 'workspace_id', or None if not authenticated
+        dict with 'email', 'workspace_id', and 'user_id', or None if not authenticated
     """
     if not credentials:
         return None
 
-    from app.auth.jwt_handler import decode_access_token
-
-    payload = decode_access_token(credentials.credentials)
-    if not payload:
+    try:
+        return await get_current_user(credentials)
+    except HTTPException:
         return None
 
-    return {
-        "email": payload.get("sub"),
-        "workspace_id": payload.get("workspace_id")
-    }
 
-
-def get_workspace_id_factory(workspace_id_param: Optional[str] = None):
-    """
-    Factory for dual-mode workspace ID dependency.
-
-    Accepts either:
-    1. JWT Bearer token (preferred) - workspace_id from token
-    2. workspace_id query parameter (legacy) - for backwards compatibility
-
-    During migration, both methods work. Eventually, we can deprecate
-    the query parameter method.
-    """
-    async def get_workspace_id(
-        workspace_id: Optional[str] = workspace_id_param,
-        credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)
-    ) -> str:
-        # First, try to get workspace from JWT token
-        if credentials:
-            from app.auth.jwt_handler import decode_access_token
-            payload = decode_access_token(credentials.credentials)
-            if payload and payload.get("workspace_id"):
-                logger.debug(f"Using workspace from JWT: {payload.get('workspace_id')}")
-                return payload.get("workspace_id")
-
-        # Fall back to workspace_id query parameter (legacy mode)
-        if workspace_id:
-            logger.debug(f"Using workspace from query param: {workspace_id}")
-            return workspace_id
-
-        # Neither provided
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required. Provide a Bearer token or workspace_id parameter."
-        )
-
-    return get_workspace_id
-
-
-# Default dual-mode workspace dependency
-# Usage: workspace_id: str = Depends(get_workspace_id)
-from fastapi import Query
 async def get_workspace_id(
-    workspace_id: Optional[str] = Query(None, description="Workspace identifier (legacy, prefer auth)"),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)
 ) -> str:
     """
-    Dual-mode workspace ID dependency.
-
-    Accepts either:
-    1. JWT Bearer token (preferred) - workspace_id from token
-    2. workspace_id query parameter (legacy) - for backwards compatibility
+    Dependency to get the current user's workspace_id.
 
     Returns:
         workspace_id string
 
     Raises:
-        HTTPException 401 if neither auth nor workspace_id provided
+        HTTPException 401 if not authenticated
     """
-    # First, try to get workspace from JWT token
-    if credentials:
-        from app.auth.jwt_handler import decode_access_token
-        payload = decode_access_token(credentials.credentials)
-        if payload and payload.get("workspace_id"):
-            logger.debug(f"Using workspace from JWT: {payload.get('workspace_id')}")
-            return payload.get("workspace_id")
+    user = await get_current_user(credentials)
+    return user["workspace_id"]
 
-    # Fall back to workspace_id query parameter (legacy mode)
-    if workspace_id:
-        logger.debug(f"Using workspace from query param: {workspace_id}")
-        return workspace_id
 
-    # Neither provided
-    raise HTTPException(
-        status_code=401,
-        detail="Authentication required. Provide a Bearer token or workspace_id parameter."
-    )
+def _email_to_workspace_id(email: str) -> str:
+    """
+    Convert email to workspace_id.
+
+    Same logic as the database trigger:
+    - Take the part before @
+    - Replace non-alphanumeric with hyphens
+    - Lowercase
+
+    Example: "Andrea.Chan@gmail.com" -> "andrea-chan"
+    """
+    import re
+    username = email.split("@")[0]
+    workspace_id = re.sub(r'[^a-z0-9]', '-', username.lower())
+    return workspace_id
