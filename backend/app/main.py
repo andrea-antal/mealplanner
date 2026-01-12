@@ -332,6 +332,31 @@ async def admin_delete_workspace(workspace_id: str, _: bool = Depends(verify_adm
         raise HTTPException(status_code=500, detail=f"Failed to delete workspace: {str(e)}")
 
 
+@app.get("/admin/debug-supabase", tags=["admin"])
+async def debug_supabase(_: bool = Depends(verify_admin)):
+    """Debug endpoint to check Supabase connection."""
+    from app.config import settings
+    from app.db.supabase_client import get_supabase_admin_client
+
+    debug_info = {
+        "supabase_url_set": bool(settings.SUPABASE_URL),
+        "supabase_url_preview": settings.SUPABASE_URL[:30] + "..." if settings.SUPABASE_URL else None,
+        "secret_key_set": bool(settings.SUPABASE_SECRET_KEY),
+        "secret_key_preview": settings.SUPABASE_SECRET_KEY[:10] + "..." if settings.SUPABASE_SECRET_KEY else None,
+    }
+
+    try:
+        client = get_supabase_admin_client()
+        result = client.table("profiles").select("*").limit(1).execute()
+        debug_info["connection"] = "success"
+        debug_info["profiles_count"] = len(result.data)
+    except Exception as e:
+        debug_info["connection"] = "failed"
+        debug_info["error"] = str(e)
+
+    return debug_info
+
+
 @app.post("/admin/migrate-to-supabase", tags=["admin"])
 async def migrate_to_supabase(_: bool = Depends(verify_admin)):
     """
