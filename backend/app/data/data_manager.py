@@ -27,16 +27,40 @@ def _get_client():
 
 def list_workspaces() -> List[str]:
     """
-    List all workspace IDs.
+    List all workspace IDs that have data.
+
+    Queries multiple tables to find all workspaces with actual data,
+    not just user profiles (which are created at signup).
 
     Returns:
         Sorted list of workspace IDs
     """
     try:
         supabase = _get_client()
-        response = supabase.table("profiles").select("workspace_id").execute()
-        workspaces = [row["workspace_id"] for row in response.data]
-        return sorted(set(workspaces))
+        workspaces = set()
+
+        # Check profiles (users who have signed up)
+        try:
+            response = supabase.table("profiles").select("workspace_id").execute()
+            workspaces.update(row["workspace_id"] for row in response.data if row.get("workspace_id"))
+        except Exception:
+            pass
+
+        # Check household_profiles (migrated data)
+        try:
+            response = supabase.table("household_profiles").select("workspace_id").execute()
+            workspaces.update(row["workspace_id"] for row in response.data if row.get("workspace_id"))
+        except Exception:
+            pass
+
+        # Check recipes (migrated data)
+        try:
+            response = supabase.table("recipes").select("workspace_id").limit(1000).execute()
+            workspaces.update(row["workspace_id"] for row in response.data if row.get("workspace_id"))
+        except Exception:
+            pass
+
+        return sorted(workspaces)
     except Exception as e:
         logger.error(f"Error listing workspaces: {e}")
         return []
