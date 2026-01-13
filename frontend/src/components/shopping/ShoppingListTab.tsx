@@ -14,12 +14,18 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   shoppingListAPI,
   templatesAPI,
   type ShoppingListItem,
   type TemplateItem,
 } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
+import { TemplatesManager } from './TemplatesManager';
 import {
   Plus,
   Trash2,
@@ -27,6 +33,8 @@ import {
   Star,
   ShoppingCart,
   Package,
+  Bookmark,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -44,6 +52,7 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showAddToInventoryDialog, setShowAddToInventoryDialog] = useState(false);
   const [itemToCheckOff, setItemToCheckOff] = useState<ShoppingListItem | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // Fetch shopping list
   const { data: shoppingList, isLoading } = useQuery({
@@ -250,7 +259,7 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
                   <div
                     key={item.id}
                     className={cn(
-                      'flex items-center gap-3 p-3 rounded-lg border bg-card',
+                      'flex items-center gap-3 p-3 rounded-lg border bg-card group',
                       'hover:bg-accent/50 transition-colors',
                       item.is_checked && 'opacity-60'
                     )}
@@ -290,6 +299,30 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
           ))}
         </div>
       )}
+
+      {/* Templates section */}
+      <Collapsible open={showTemplates} onOpenChange={setShowTemplates}>
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Bookmark className="w-4 h-4" />
+              <span>Manage Templates</span>
+            </div>
+            <ChevronDown
+              className={cn(
+                'w-4 h-4 transition-transform',
+                showTemplates && 'rotate-180'
+              )}
+            />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-4">
+          <TemplatesManager />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Clear list confirmation dialog */}
       <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
