@@ -12,6 +12,7 @@ from typing import List, Optional, Dict
 from datetime import date as Date, datetime
 from app.models import Recipe, HouseholdProfile
 from app.models.grocery import GroceryItem, GroceryList
+from app.models.shopping import ShoppingListItem, ShoppingList, TemplateItem, TemplateList
 from app.models.meal_plan import MealPlan
 from app.db.supabase_client import get_supabase_admin_client
 
@@ -313,6 +314,141 @@ def save_groceries(workspace_id: str, items: List[GroceryItem]) -> None:
 
     except Exception as e:
         logger.error(f"Error saving groceries for workspace '{workspace_id}': {e}")
+        raise
+
+
+# ===== Shopping List =====
+
+def load_shopping_list(workspace_id: str) -> List[ShoppingListItem]:
+    """
+    Load shopping list from database.
+
+    Args:
+        workspace_id: Workspace identifier
+
+    Returns:
+        List of ShoppingListItem objects, empty list if none exist
+    """
+    try:
+        supabase = _get_client()
+        response = supabase.table("shopping_lists").select("items").eq("workspace_id", workspace_id).single().execute()
+
+        if not response.data:
+            logger.info(f"No shopping list found for workspace '{workspace_id}'")
+            return []
+
+        items_data = response.data.get("items", [])
+        if not items_data:
+            return []
+
+        items = [ShoppingListItem(**item) for item in items_data]
+        logger.info(f"Loaded {len(items)} shopping list items for workspace '{workspace_id}'")
+        return items
+
+    except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            return []
+        logger.error(f"Error loading shopping list for workspace '{workspace_id}': {e}")
+        raise
+
+
+def save_shopping_list(workspace_id: str, items: List[ShoppingListItem]) -> None:
+    """
+    Save shopping list to database (upsert).
+
+    Args:
+        workspace_id: Workspace identifier
+        items: List of ShoppingListItem objects
+    """
+    try:
+        supabase = _get_client()
+
+        items_data = [item.model_dump(mode='json') for item in items]
+
+        data = {
+            "workspace_id": workspace_id,
+            "items": items_data,
+            "updated_at": datetime.now().isoformat()
+        }
+
+        supabase.table("shopping_lists").upsert(data, on_conflict="workspace_id").execute()
+        logger.info(f"Saved {len(items)} shopping list items for workspace '{workspace_id}'")
+
+    except Exception as e:
+        logger.error(f"Error saving shopping list for workspace '{workspace_id}': {e}")
+        raise
+
+
+def clear_shopping_list(workspace_id: str) -> None:
+    """
+    Clear all items from shopping list.
+
+    Args:
+        workspace_id: Workspace identifier
+    """
+    save_shopping_list(workspace_id, [])
+    logger.info(f"Cleared shopping list for workspace '{workspace_id}'")
+
+
+# ===== Shopping Templates =====
+
+def load_shopping_templates(workspace_id: str) -> List[TemplateItem]:
+    """
+    Load shopping templates from database.
+
+    Args:
+        workspace_id: Workspace identifier
+
+    Returns:
+        List of TemplateItem objects, empty list if none exist
+    """
+    try:
+        supabase = _get_client()
+        response = supabase.table("shopping_templates").select("items").eq("workspace_id", workspace_id).single().execute()
+
+        if not response.data:
+            logger.info(f"No shopping templates found for workspace '{workspace_id}'")
+            return []
+
+        items_data = response.data.get("items", [])
+        if not items_data:
+            return []
+
+        templates = [TemplateItem(**item) for item in items_data]
+        logger.info(f"Loaded {len(templates)} shopping templates for workspace '{workspace_id}'")
+        return templates
+
+    except Exception as e:
+        if "PGRST116" in str(e):  # No rows returned
+            return []
+        logger.error(f"Error loading shopping templates for workspace '{workspace_id}': {e}")
+        raise
+
+
+def save_shopping_templates(workspace_id: str, templates: List[TemplateItem]) -> None:
+    """
+    Save shopping templates to database (upsert).
+
+    Args:
+        workspace_id: Workspace identifier
+        templates: List of TemplateItem objects
+    """
+    try:
+        supabase = _get_client()
+
+        items_data = [template.model_dump(mode='json') for template in templates]
+
+        data = {
+            "workspace_id": workspace_id,
+            "items": items_data,
+            "updated_at": datetime.now().isoformat()
+        }
+
+        supabase.table("shopping_templates").upsert(data, on_conflict="workspace_id").execute()
+        logger.info(f"Saved {len(templates)} shopping templates for workspace '{workspace_id}'")
+
+    except Exception as e:
+        logger.error(f"Error saving shopping templates for workspace '{workspace_id}': {e}")
         raise
 
 

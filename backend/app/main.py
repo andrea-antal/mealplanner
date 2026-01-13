@@ -422,13 +422,18 @@ async def migrate_to_supabase(_: bool = Depends(verify_admin)):
 
 
 # Include routers
-from app.routers import meal_plans_router, household_router, recipes_router, groceries_router, feedback_router, auth_router, invites_router
+from app.routers import (
+    meal_plans_router, household_router, recipes_router, groceries_router,
+    feedback_router, auth_router, invites_router, shopping_router, templates_router
+)
 
 app.include_router(auth_router)  # Auth first for visibility in docs
 app.include_router(meal_plans_router)
 app.include_router(household_router)
 app.include_router(recipes_router)
 app.include_router(groceries_router)
+app.include_router(shopping_router)
+app.include_router(templates_router)
 app.include_router(feedback_router)
 app.include_router(invites_router)  # Admin-only invite management
 
