@@ -95,6 +95,54 @@ export interface GroceryList {
   items: GroceryItem[];
 }
 
+// Shopping List types (Shopping List V1)
+export interface ShoppingListItem {
+  id: string;
+  name: string;
+  canonical_name?: string;
+  quantity?: string;
+  category?: string;
+  is_checked: boolean;
+  template_id?: string;
+  added_at: string;
+}
+
+export interface ShoppingList {
+  items: ShoppingListItem[];
+}
+
+export interface TemplateItem {
+  id: string;
+  name: string;
+  canonical_name?: string;
+  default_quantity?: string;
+  category: string;
+  frequency?: 'weekly' | 'biweekly' | 'monthly' | 'as_needed';
+  last_purchased?: string;
+  is_favorite: boolean;
+  created_at: string;
+}
+
+export interface TemplateList {
+  items: TemplateItem[];
+}
+
+export interface AddShoppingItemRequest {
+  name: string;
+  canonical_name?: string;
+  quantity?: string;
+  category?: string;
+}
+
+export interface CreateTemplateRequest {
+  name: string;
+  canonical_name?: string;
+  category: string;
+  default_quantity?: string;
+  frequency?: 'weekly' | 'biweekly' | 'monthly' | 'as_needed';
+  is_favorite?: boolean;
+}
+
 // Voice parsing types (Sprint 4 Phase 1)
 export interface ProposedGroceryItem {
   name: string;
@@ -400,6 +448,112 @@ export const groceriesAPI = {
       body: JSON.stringify({ item_names: itemNames, storage_location: storageLocation }),
     });
     return handleResponse<GroceryList>(response);
+  },
+};
+
+// Shopping List API (Shopping List V1)
+export const shoppingListAPI = {
+  async getAll(workspaceId: string): Promise<ShoppingList> {
+    const response = await fetch(`${API_BASE_URL}/shopping-list?workspace_id=${encodeURIComponent(workspaceId)}`);
+    return handleResponse<ShoppingList>(response);
+  },
+
+  async addItem(workspaceId: string, item: AddShoppingItemRequest): Promise<ShoppingListItem> {
+    const response = await fetch(`${API_BASE_URL}/shopping-list/items?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    });
+    return handleResponse<ShoppingListItem>(response);
+  },
+
+  async updateItem(
+    workspaceId: string,
+    itemId: string,
+    updates: { name?: string; quantity?: string; is_checked?: boolean }
+  ): Promise<ShoppingListItem> {
+    const response = await fetch(`${API_BASE_URL}/shopping-list/items/${itemId}?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    return handleResponse<ShoppingListItem>(response);
+  },
+
+  async deleteItem(workspaceId: string, itemId: string): Promise<ShoppingList> {
+    const response = await fetch(`${API_BASE_URL}/shopping-list/items/${itemId}?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<ShoppingList>(response);
+  },
+
+  async clearAll(workspaceId: string): Promise<ShoppingList> {
+    const response = await fetch(`${API_BASE_URL}/shopping-list?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<ShoppingList>(response);
+  },
+
+  async checkOff(workspaceId: string, itemId: string, addToInventory: boolean = false): Promise<ShoppingListItem> {
+    const response = await fetch(`${API_BASE_URL}/shopping-list/check-off?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, add_to_inventory: addToInventory }),
+    });
+    return handleResponse<ShoppingListItem>(response);
+  },
+
+  async addFromTemplates(workspaceId: string, templateIds: string[]): Promise<ShoppingList> {
+    const response = await fetch(`${API_BASE_URL}/shopping-list/from-templates?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_ids: templateIds }),
+    });
+    return handleResponse<ShoppingList>(response);
+  },
+
+  async addFromFavorites(workspaceId: string): Promise<ShoppingList> {
+    const response = await fetch(`${API_BASE_URL}/shopping-list/from-favorites?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+    });
+    return handleResponse<ShoppingList>(response);
+  },
+};
+
+// Shopping Templates API (Shopping List V1)
+export const templatesAPI = {
+  async getAll(workspaceId: string): Promise<TemplateList> {
+    const response = await fetch(`${API_BASE_URL}/shopping-templates?workspace_id=${encodeURIComponent(workspaceId)}`);
+    return handleResponse<TemplateList>(response);
+  },
+
+  async create(workspaceId: string, template: CreateTemplateRequest): Promise<TemplateItem> {
+    const response = await fetch(`${API_BASE_URL}/shopping-templates?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(template),
+    });
+    return handleResponse<TemplateItem>(response);
+  },
+
+  async update(
+    workspaceId: string,
+    templateId: string,
+    updates: Partial<CreateTemplateRequest>
+  ): Promise<TemplateItem> {
+    const response = await fetch(`${API_BASE_URL}/shopping-templates/${templateId}?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    return handleResponse<TemplateItem>(response);
+  },
+
+  async delete(workspaceId: string, templateId: string): Promise<TemplateList> {
+    const response = await fetch(`${API_BASE_URL}/shopping-templates/${templateId}?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<TemplateList>(response);
   },
 };
 

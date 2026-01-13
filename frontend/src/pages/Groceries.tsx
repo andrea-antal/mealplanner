@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -29,6 +30,7 @@ import { GroceryChip } from '@/components/groceries/GroceryChip';
 import { GrocerySection } from '@/components/groceries/GrocerySection';
 import { GroceryItemModal } from '@/components/groceries/GroceryItemModal';
 import { StickyActionBar } from '@/components/groceries/StickyActionBar';
+import { ShoppingListTab } from '@/components/shopping/ShoppingListTab';
 import { groceriesAPI, type GroceryItem, type Recipe, type ExcludedReceiptItem } from '@/lib/api';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { getCurrentWorkspace } from '@/lib/workspace';
@@ -87,6 +89,16 @@ const Groceries = () => {
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [expiryFilter, setExpiryFilter] = useState<'all' | 'expiring' | 'expired'>('all');
+
+  // Tab state with localStorage persistence
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('mealplanner_groceries_tab') || 'inventory';
+  });
+
+  // Persist tab state to localStorage
+  useEffect(() => {
+    localStorage.setItem('mealplanner_groceries_tab', activeTab);
+  }, [activeTab]);
 
   // Accordion state for fridge/pantry sections with localStorage persistence
   const [accordionState, setAccordionState] = useState(() => {
@@ -527,20 +539,34 @@ const Groceries = () => {
   const expiringItems = expiringSoon?.items || [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold text-foreground">
-            Grocery List
+            Groceries
           </h1>
           <p className="text-muted-foreground mt-1">
-            Track what ingredients you have with expiry dates
+            Manage your inventory and shopping list
           </p>
         </div>
       </div>
 
-      {/* Expiring Soon Alert - Subtle and Expandable */}
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="shopping">Shopping List</TabsTrigger>
+        </TabsList>
+
+        {/* Shopping List Tab */}
+        <TabsContent value="shopping" className="space-y-6 mt-6">
+          <ShoppingListTab />
+        </TabsContent>
+
+        {/* Inventory Tab */}
+        <TabsContent value="inventory" className="space-y-6 mt-6">
+          {/* Expiring Soon Alert - Subtle and Expandable */}
       {expiringItems.length > 0 && (
         <button
           onClick={() => setShowExpiringDetails(!showExpiringDetails)}
@@ -899,9 +925,11 @@ const Groceries = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </TabsContent>
+      </Tabs>
 
-      {/* Sticky Action Bar - only show in selection mode */}
-      {isSelectionMode && (
+      {/* Sticky Action Bar - only show in selection mode on inventory tab */}
+      {isSelectionMode && activeTab === 'inventory' && (
         <StickyActionBar
           selectedCount={selectedIngredients.length}
           onCook={handleCookWithSelected}
