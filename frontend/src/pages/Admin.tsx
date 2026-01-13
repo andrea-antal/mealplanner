@@ -192,12 +192,12 @@ const Admin = () => {
     },
   });
 
-  // Calculate totals
+  // Calculate totals - use ?? 0 to handle undefined values from failed workspace stats
   const workspaces = summaryData?.workspaces || [];
-  const totalRecipes = workspaces.reduce((sum, ws) => sum + ws.recipe_count, 0);
-  const totalMealPlans = workspaces.reduce((sum, ws) => sum + ws.meal_plan_count, 0);
-  const totalMembers = workspaces.reduce((sum, ws) => sum + ws.member_count, 0);
-  const totalApiCalls = workspaces.reduce((sum, ws) => sum + ws.api_requests, 0);
+  const totalRecipes = workspaces.reduce((sum, ws) => sum + (ws.recipe_count ?? 0), 0);
+  const totalMealPlans = workspaces.reduce((sum, ws) => sum + (ws.meal_plan_count ?? 0), 0);
+  const totalMembers = workspaces.reduce((sum, ws) => sum + (ws.member_count ?? 0), 0);
+  const totalApiCalls = workspaces.reduce((sum, ws) => sum + (ws.api_requests ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-background">

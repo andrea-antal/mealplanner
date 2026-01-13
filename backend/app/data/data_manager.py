@@ -98,16 +98,16 @@ def get_workspace_stats(workspace_id: str) -> Dict:
             stats["last_meal_plan_date"] = meal_plan_response.data[0]["created_at"]
             stats["last_activity"] = meal_plan_response.data[0]["created_at"]
 
-        # Grocery count
-        grocery_response = supabase.table("groceries").select("items").eq("workspace_id", workspace_id).single().execute()
+        # Grocery count - use regular query (not .single()) to avoid exception when no rows
+        grocery_response = supabase.table("groceries").select("items").eq("workspace_id", workspace_id).execute()
         if grocery_response.data:
-            items = grocery_response.data.get("items", [])
+            items = grocery_response.data[0].get("items", [])
             stats["grocery_count"] = len(items) if items else 0
 
-        # Household member count
-        household_response = supabase.table("household_profiles").select("family_members").eq("workspace_id", workspace_id).single().execute()
+        # Household member count - use regular query (not .single()) to avoid exception when no rows
+        household_response = supabase.table("household_profiles").select("family_members").eq("workspace_id", workspace_id).execute()
         if household_response.data:
-            members = household_response.data.get("family_members", [])
+            members = household_response.data[0].get("family_members", [])
             stats["member_count"] = len(members) if members else 0
 
         return stats
