@@ -144,3 +144,26 @@ export function itemMatchesCategory(
     keyword => nameLower.includes(keyword) || canonicalLower.includes(keyword)
   );
 }
+
+/**
+ * Auto-categorize an item based on its name
+ * Returns the category name if found, otherwise undefined
+ */
+export function categorizeItem(itemName: string): string | undefined {
+  const nameLower = itemName.toLowerCase();
+
+  for (const [category, keywords] of Object.entries(GROCERY_CATEGORIES)) {
+    for (const keyword of keywords) {
+      // Check if the item name contains the keyword
+      if (nameLower.includes(keyword)) {
+        return category;
+      }
+      // Also check if the keyword contains the item name (for short names like "eggs")
+      if (keyword.includes(nameLower) && nameLower.length >= 3) {
+        return category;
+      }
+    }
+  }
+
+  return undefined;
+}

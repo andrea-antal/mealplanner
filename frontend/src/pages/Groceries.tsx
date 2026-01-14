@@ -37,6 +37,7 @@ import {
   ArrowDownAZ,
   Clock,
   ShoppingCart,
+  ArrowUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -73,6 +74,21 @@ const Groceries = () => {
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [expiryFilter, setExpiryFilter] = useState<'all' | 'expiring' | 'expired'>('all');
+
+  // Scroll state for back to top button
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Tab state with localStorage persistence
   const [activeTab, setActiveTab] = useState(() => {
@@ -113,6 +129,18 @@ const Groceries = () => {
     queryFn: () => shoppingListAPI.getAll(workspaceId),
     enabled: !!workspaceId,
   });
+
+  // Fetch favorites/templates to check which items are already favorites
+  const { data: templateList } = useQuery({
+    queryKey: ['shopping-templates', workspaceId],
+    queryFn: () => templatesAPI.getAll(workspaceId),
+    enabled: !!workspaceId,
+  });
+
+  // Create a Set of favorite names for quick lookup (case-insensitive)
+  const favoriteNames = new Set(
+    templateList?.items.map(t => t.name.toLowerCase()) || []
+  );
 
   // Nuke (clear all) functionality with undo
   const { executeNuke, isNuking } = useNukeWithUndo({ workspaceId });
@@ -194,6 +222,15 @@ const Groceries = () => {
       toast.error(`Failed to add favorite: ${error.message}`);
     },
   });
+
+  // Handler that checks for duplicates before adding to favorites
+  const handleAddToFavorites = (item: GroceryItem) => {
+    if (favoriteNames.has(item.name.toLowerCase())) {
+      toast.info(`${item.name} is already in favorites`);
+      return;
+    }
+    addToFavoritesMutation.mutate(item);
+  };
 
   // Add to shopping list mutation
   const addToShoppingListMutation = useMutation({
@@ -540,9 +577,10 @@ const Groceries = () => {
                         isSelected={selectedIngredients.includes(item.name)}
                         isSelectionMode={isSelectionMode}
                         showStorageTag={true}
+                        isFavorite={favoriteNames.has(item.name.toLowerCase())}
                         onToggleSelect={toggleIngredientSelection}
                         onOpenModal={handleOpenItemModal}
-                        onAddToFavorites={(item) => addToFavoritesMutation.mutate(item)}
+                        onAddToFavorites={handleAddToFavorites}
                         onAddToShoppingList={(item) => addToShoppingListMutation.mutate(item)}
                       />
                     ))}
@@ -560,8 +598,9 @@ const Groceries = () => {
                       selectedIngredients={selectedIngredients}
                       onToggleSelect={toggleIngredientSelection}
                       onOpenModal={handleOpenItemModal}
-                      onAddToFavorites={(item) => addToFavoritesMutation.mutate(item)}
+                      onAddToFavorites={handleAddToFavorites}
                       onAddToShoppingList={(item) => addToShoppingListMutation.mutate(item)}
+                      favoriteNames={favoriteNames}
                     />
                     <GrocerySection
                       title="Pantry"
@@ -571,8 +610,9 @@ const Groceries = () => {
                       selectedIngredients={selectedIngredients}
                       onToggleSelect={toggleIngredientSelection}
                       onOpenModal={handleOpenItemModal}
-                      onAddToFavorites={(item) => addToFavoritesMutation.mutate(item)}
+                      onAddToFavorites={handleAddToFavorites}
                       onAddToShoppingList={(item) => addToShoppingListMutation.mutate(item)}
+                      favoriteNames={favoriteNames}
                     />
                   </div>
                 )}
@@ -676,6 +716,24 @@ const Groceries = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Back to top button - positioned above bottom nav on mobile */}
+      {showBackToTop && (
+        <button
+          onClick={scrollToTop}
+          className={cn(
+            "fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50",
+            "flex items-center gap-2 px-4 py-2.5 rounded-full",
+            "bg-card border border-border shadow-lg",
+            "text-sm font-medium text-muted-foreground",
+            "hover:text-foreground hover:border-primary/50",
+            "transition-all duration-200"
+          )}
+        >
+          <ArrowUp className="h-4 w-4" />
+          Back to top
+        </button>
+      )}
     </div>
   );
 };

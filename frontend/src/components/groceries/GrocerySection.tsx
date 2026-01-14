@@ -15,6 +15,8 @@ interface GrocerySectionProps {
   // Quick action props
   onAddToFavorites?: (item: GroceryItem) => void;
   onAddToShoppingList?: (item: GroceryItem) => void;
+  // Favorite status lookup
+  favoriteNames?: Set<string>;
 }
 
 export function GrocerySection({
@@ -27,6 +29,7 @@ export function GrocerySection({
   onOpenModal,
   onAddToFavorites,
   onAddToShoppingList,
+  favoriteNames,
 }: GrocerySectionProps) {
   const itemCount = items.length;
   const isEmpty = itemCount === 0;
@@ -55,6 +58,7 @@ export function GrocerySection({
               isSelected={selectedIngredients.includes(item.name)}
               isSelectionMode={isSelectionMode}
               showStorageTag={false}
+              isFavorite={favoriteNames?.has(item.name.toLowerCase())}
               onToggleSelect={onToggleSelect}
               onOpenModal={onOpenModal}
               onAddToFavorites={onAddToFavorites}

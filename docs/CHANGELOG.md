@@ -11,6 +11,63 @@ This document tracks key decisions, changes, and learnings during development.
 
 ---
 
+## 2026-01-14 Feature: Onboarding V2 Enhancements
+
+**Status**: Complete | **Branch**: `feature/AA-162-shopping-list-v1`
+**Linear Project**: UX Customization / Onboarding V2
+
+### Summary
+Enhanced onboarding wizard with starter content generation and admin analytics dashboard. New users can now choose to have a meal plan generated or starter recipes added to their library during onboarding.
+
+### Features Implemented
+
+1. **New Onboarding Step 10: "Get Started"**
+   - Offers all new users a choice of starter content
+   - Option 1: Generate a meal plan for next week (title-only suggestions)
+   - Option 2: Add 5-6 starter recipes to library based on cuisine preferences
+   - Option 3: Start from scratch (skip)
+
+2. **Background Content Generation**
+   - Uses FastAPI BackgroundTasks for async generation
+   - Profile saves instantly, content generates in background
+   - Toast notifications inform user of background generation
+
+3. **Admin Analytics Dashboard**
+   - New "Onboarding" tab in admin panel
+   - Summary cards: completion rate, skip rate, total started
+   - Answer distribution bar charts for each question
+   - Per-workspace details table with all answers
+
+4. **Enhanced Logging**
+   - Onboarding completion now logs all answers for analytics
+   - New `get_detailed_onboarding_analytics()` function
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `backend/app/models/household.py` | Added `starter_content_choice` to OnboardingData |
+| `backend/app/routers/household.py` | Added BackgroundTasks, updated submission |
+| `backend/app/services/onboarding_logger.py` | Added analytics aggregation function |
+| `backend/app/main.py` | Added `/admin/onboarding/analytics` endpoint |
+| `frontend/src/lib/api.ts` | Added OnboardingAnalytics types and API method |
+| `frontend/src/components/onboarding/OnboardingWizard.tsx` | Added step 10, updated state |
+| `frontend/src/components/onboarding/steps/index.ts` | Added export |
+| `frontend/src/pages/Admin.tsx` | Added Onboarding tab with analytics |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/app/services/starter_content_service.py` | Meal plan and recipe generation service |
+| `frontend/src/components/onboarding/steps/StarterContentStep.tsx` | New step UI component |
+
+### API Changes
+- `POST /household/onboarding` - Now accepts `starter_content_choice` field
+- `GET /admin/onboarding/analytics` - New endpoint for detailed analytics
+
+---
+
 ## 2026-01-14 Feature: Shopping List V1 (AA-162)
 
 **Status**: Complete | **Branch**: `feature/AA-162-shopping-list-v1` (merged to main)

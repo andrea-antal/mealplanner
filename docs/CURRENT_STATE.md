@@ -25,6 +25,11 @@
 1. ✅ **Household Management**
    - Family member profiles with allergies, dislikes, individual preferences
    - Daycare rules configuration
+   - **Onboarding Wizard** - 10-step wizard for new users with:
+     - Cooking experience/frequency assessment
+     - Kitchen equipment and pantry evaluation
+     - Cuisine and dietary preferences
+     - Starter content generation (meal plan or recipes)
 
 2. ✅ **Grocery Management**
    - Manual entry with expiry date tracking
@@ -60,10 +65,17 @@
    - Automatic browser info and workspace ID collection
    - Linear issue creation via API
 
+7. ✅ **Admin Dashboard**
+   - Workspace analytics and management
+   - **Onboarding Analytics** - Answer distributions and per-workspace details
+   - Error tracking with acknowledgment system
+   - Workspace cleanup tools
+
 ### In Development
-- **Onboarding Wizard** (~70% complete): Multi-step wizard for new users collecting cooking preferences, household composition, and dietary goals
+- **Onboarding V2 Polish**: Testing and refinement of starter content generation
 
 ### Latest Features (January 2026)
+- **Onboarding V2** (Jan 14): 10-step wizard with starter content generation and admin analytics
 - **Shopping List V1** (Jan 14): Checklist UI with templates for recurring items
 - **Supabase Migration** (Jan 12): Moved from JSON to PostgreSQL with RLS
 - **Onboarding Wizard Backend**: API endpoints for status, submit, and skip

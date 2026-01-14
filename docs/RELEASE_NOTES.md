@@ -1,11 +1,38 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2026-01-06
+**Last Updated**: 2026-01-14
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.12.0 - January 14, 2026
+
+### New Features
+
+- **Shopping List** - A new tab on the Groceries page for managing your shopping trip:
+  - Add items with voice input (tap the mic icon)
+  - Check off items as you shop - optionally add them to your inventory
+  - Items are auto-organized by category (Produce, Dairy, Meat, etc.)
+
+- **Favorites** - Create a list of items you buy regularly:
+  - Tap "Add all favorites" to populate your shopping list in one click
+  - Smart duplicate detection - already-added items are skipped
+  - Manage favorites in the collapsible section at the bottom
+
+- **Quick Actions on Grocery Items** - Star and cart icons on each inventory item:
+  - Tap the star to add an item to your favorites
+  - Tap the cart to add an item to your shopping list
+  - Filled star shows items already in favorites
+
+### Improvements
+
+- **Back to Top Button** - Floating button appears when you scroll down, positioned above the nav bar on mobile
+
+- **Cleaner Expiry Badges** - Expired items now show just the warning icon (no text) to save space
+
+---
 
 ## Version 0.11.0 - January 6, 2026
 

@@ -9,6 +9,7 @@ interface GroceryListItemProps {
   isSelected: boolean;
   isSelectionMode: boolean;
   showStorageTag?: boolean;
+  isFavorite?: boolean;
   onToggleSelect: (name: string) => void;
   onOpenModal: (item: GroceryItem) => void;
   onAddToFavorites?: (item: GroceryItem) => void;
@@ -20,6 +21,7 @@ export function GroceryListItem({
   isSelected,
   isSelectionMode,
   showStorageTag = false,
+  isFavorite = false,
   onToggleSelect,
   onOpenModal,
   onAddToFavorites,
@@ -94,21 +96,20 @@ export function GroceryListItem({
           {item.name}
         </span>
 
-        {/* Expiry badge */}
-        {expiryStatus !== 'good' && (
+        {/* Expiry badge - icon only for expired, icon + days for expiring soon */}
+        {expiryStatus === 'expired' && (
           <span
-            className={cn(
-              'inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full shrink-0',
-              expiryStatus === 'expired'
-                ? 'bg-destructive/10 text-destructive'
-                : 'bg-warning/20 text-warning-foreground'
-            )}
+            className="inline-flex items-center text-destructive shrink-0"
+            title={daysText}
           >
-            {expiryStatus === 'expired' ? (
-              <AlertCircle className="h-3 w-3" />
-            ) : (
-              <Clock className="h-3 w-3" />
-            )}
+            <AlertCircle className="h-4 w-4" />
+          </span>
+        )}
+        {expiryStatus === 'soon' && (
+          <span
+            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 bg-warning/20 text-warning-foreground"
+          >
+            <Clock className="h-3 w-3" />
             {daysText}
           </span>
         )}
@@ -125,10 +126,15 @@ export function GroceryListItem({
           {onAddToFavorites && (
             <button
               onClick={() => onAddToFavorites(item)}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10 transition-colors"
-              title="Add to favorites"
+              className={cn(
+                "p-1.5 rounded-md transition-colors",
+                isFavorite
+                  ? "text-yellow-500"
+                  : "text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10"
+              )}
+              title={isFavorite ? "Already in favorites" : "Add to favorites"}
             >
-              <Star className="h-3.5 w-3.5" />
+              <Star className={cn("h-3.5 w-3.5", isFavorite && "fill-yellow-500")} />
             </button>
           )}
           {onAddToShoppingList && (
