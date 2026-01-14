@@ -1,15 +1,15 @@
 ---
 **Summary**: Quick snapshot of what's working right now (Deployed to production). Updated after each sprint. Use this to quickly understand current capabilities.
-**Last Updated**: 2026-01-02
+**Last Updated**: 2026-01-14
 **Status**: Current
 **Read This If**: You need a quick feature inventory or tech stack summary
 ---
 
 # Current State - Meal Planner
 
-**As of**: Production Deployment (2026-01-02)
+**As of**: Production Deployment (2026-01-14)
 **Branch**: `main`
-**Version**: v0.8.1 (production)
+**Version**: v0.9.0 (production)
 **Status**: 🚀 **LIVE IN PRODUCTION**
 
 ## 🌐 Production URLs
@@ -33,7 +33,14 @@
    - Visual expiry indicators (red/yellow/green badges)
    - Expiring soon warnings
 
-3. ✅ **Recipe Library**
+3. ✅ **Shopping List** (NEW - v0.9.0)
+   - Interactive checklist for shopping trips
+   - **Templates** - Save recurring items (e.g., "Weekly Essentials")
+   - Quick-add from templates to current list
+   - Optional prompt to add purchased items to inventory
+   - Tab-based UI on Groceries page (Inventory | Shopping List)
+
+4. ✅ **Recipe Library**
    - 40+ recipes with tags and ratings
    - Per-person 👍/👎 ratings
    - Filter by member favorites, all-member liked, tags
@@ -41,27 +48,29 @@
    - **Recipe URL import** - Import recipes from 50+ cooking websites
    - Recipe source display with badges and external links
 
-4. ✅ **Meal Plan Generation**
-   - AI-powered weekly meal plans using Claude Sonnet 3.5
+5. ✅ **Meal Plan Generation**
+   - AI-powered weekly meal plans using Claude Sonnet 4.5
    - Prioritizes expiring groceries
    - Respects dietary constraints and preferences
    - Considers recipe ratings
 
-5. ✅ **Beta Testing Feedback**
+6. ✅ **Beta Testing Feedback**
    - Floating bug button on all pages
    - Submit feedback, bugs, and feature requests
    - Automatic browser info and workspace ID collection
-   - Email delivery via Resend API
+   - Linear issue creation via API
 
 ### In Development
 - **Onboarding Wizard** (~70% complete): Multi-step wizard for new users collecting cooking preferences, household composition, and dietary goals
 
 ### Latest Features (January 2026)
+- **Shopping List V1** (Jan 14): Checklist UI with templates for recurring items
+- **Supabase Migration** (Jan 12): Moved from JSON to PostgreSQL with RLS
 - **Onboarding Wizard Backend**: API endpoints for status, submit, and skip
 - **Linear Integration**: Feedback now creates Linear issues automatically
 - **Receipt Import UI**: Improved item cards with excluded items recovery
 
-### Recent Features (December 30, 2025)
+### Recent Features (December 2025)
 - **Meal Plan Customization (v0.8.0)**: Swap meals with alternatives, undo functionality
 - **Recipe Editing**: Edit existing recipes in library
 - **Recipe URL Import (v0.5.0)**: Import recipes from 50+ cooking websites
@@ -77,6 +86,7 @@
 - **UI**: shadcn-ui + Tailwind CSS (custom theme)
 - **State**: TanStack Query v5
 - **Routing**: React Router v6
+- **Auth**: Supabase Auth (`@supabase/supabase-js`)
 - **Deployment**: Vercel (Global CDN)
 - **URL**: https://frontend-iota-orcin-18.vercel.app
 
@@ -84,17 +94,19 @@
 - **Framework**: FastAPI 0.104.1 (Python 3.11)
 - **Server**: Uvicorn with auto-reload
 - **Validation**: Pydantic v2
-- **Vector DB**: ChromaDB 0.4.18 (persistent)
+- **Database**: Supabase PostgreSQL with Row-Level Security
+- **Vector DB**: ChromaDB 0.4.18 (for recipe embeddings)
 - **AI**: Anthropic Claude API
-  - Claude Sonnet 4.5 (claude-sonnet-4-5-20250929) for all operations
-  - Vision capabilities for receipt OCR
+  - Claude Sonnet 4.5 (claude-sonnet-4-5-20250929) for general operations
+  - Claude Opus 4.5 for high-accuracy tasks (receipt OCR, voice parsing)
 - **Deployment**: Railway (Containerized with Docker)
 - **URL**: https://mealplanner-backend-production-3e88.up.railway.app
 
 ### Data
-- **Storage**: File-based JSON (`backend/data/`)
-- **Files**: recipes/, household_profile.json, groceries.json, recipe_ratings.json
-- **Vector Store**: ChromaDB (14 recipes indexed)
+- **Database**: Supabase PostgreSQL (https://kydcpdwdhfvwbggfqtlq.supabase.co)
+- **Tables**: household_profiles, recipes, meal_plans, groceries, recipe_ratings, shopping_lists, shopping_templates
+- **Multi-tenancy**: RLS policies filter by `workspace_id`
+- **Vector Store**: ChromaDB (recipe embeddings for similarity search)
 
 ---
 
@@ -185,11 +197,9 @@ See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for active bugs.
 ## 📈 What's Next
 
 ### Immediate (Ready to Start)
-- **Sprint 4 Phase 3**: Produce image recognition (optional)
-- **Sprint 5**: Enhanced meal plan customization
-  - Customize which days to generate
-  - Regenerate individual days
-  - Swap recipes in meal plan
+- **Shopping List V1.1** (AA-166): Integration polish, inventory bridge improvements
+- **Onboarding Wizard Completion**: Finish remaining 30%, add tests
+- **Produce Image Recognition**: AI-powered produce identification
 
 ### Future (Backlog)
 - Shopping list generation from meal plan

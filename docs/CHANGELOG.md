@@ -1,6 +1,6 @@
 ---
 **Summary**: Chronological feature history with technical implementation details, test results, and file changes. Authoritative source for "what was built when and how".
-**Last Updated**: 2026-01-02
+**Last Updated**: 2026-01-14
 **Status**: Current
 **Read This If**: You need detailed implementation notes for any feature or sprint
 ---
@@ -8,6 +8,120 @@
 # Meal Planner - Development Changelog
 
 This document tracks key decisions, changes, and learnings during development.
+
+---
+
+## 2026-01-14 Feature: Shopping List V1 (AA-162)
+
+**Status**: Complete | **Branch**: `feature/AA-162-shopping-list-v1` (merged to main)
+
+### Summary
+Shopping list feature with templates for recurring items and an interactive checklist UI. The shopping list is ephemeral (per-trip), while templates are persistent. Implemented as a new tab on the Groceries page.
+
+### Features Implemented
+
+1. **Shopping List Checklist**
+   - Interactive checklist UI for current shopping trip
+   - Check/uncheck items as you shop
+   - Optional prompt to add purchased items to inventory
+   - Manual clearing after shopping trip completes
+
+2. **Templates System**
+   - Save recurring shopping items as templates
+   - Create, edit, delete templates
+   - Quick-add template items to current shopping list
+   - Each template has name and list of items
+
+3. **Backend API**
+   - `GET/POST/PUT/DELETE /shopping/items` - Shopping list CRUD
+   - `GET/POST/PUT/DELETE /shopping/templates` - Template CRUD
+   - Supabase tables: `shopping_lists`, `shopping_templates`
+
+4. **Grocery Page Tabs**
+   - "Inventory" tab - existing grocery management
+   - "Shopping List" tab - new shopping checklist
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `backend/app/models/shopping.py` | +164 lines (new) - Pydantic models |
+| `backend/app/routers/shopping.py` | +585 lines (new) - CRUD endpoints |
+| `backend/app/data/data_manager.py` | +136 lines - Persistence functions |
+| `scripts/migrations/001_shopping_list_tables.sql` | +83 lines (new) - Supabase DDL |
+| `frontend/src/components/shopping/ShoppingListTab.tsx` | +385 lines (new) |
+| `frontend/src/components/shopping/TemplateModal.tsx` | +163 lines (new) |
+| `frontend/src/components/shopping/TemplatesManager.tsx` | +263 lines (new) |
+| `frontend/src/pages/Groceries.tsx` | Refactored - tab navigation |
+| `frontend/src/lib/api.ts` | +194 lines - Shopping API client |
+
+### Linear Issues
+- [AA-162](https://linear.app/andrea-antal/issue/AA-162) - Shopping list data model & endpoints
+- [AA-163](https://linear.app/andrea-antal/issue/AA-163) - Template data model & endpoints
+- [AA-164](https://linear.app/andrea-antal/issue/AA-164) - Shopping list tab & checklist UI
+- [AA-165](https://linear.app/andrea-antal/issue/AA-165) - Template management UI
+
+### Commits
+- `871ec2e` feat(backend): add shopping list and templates API AA-162 AA-163
+- `bce47b8` feat(frontend): add shopping list tab and API client AA-164
+- `6600a7e` feat(shopping): add template management UI (AA-165)
+- `0536821` feat(shopping): complete shopping list v1 and grocery improvements AA-162
+
+---
+
+## 2026-01-12 Infrastructure: Supabase Migration
+
+**Status**: Complete | **Branch**: main
+
+### Summary
+Major infrastructure migration from file-based JSON storage to Supabase PostgreSQL. Adds proper ACID transactions, Row-Level Security (RLS) for multi-tenant isolation, and a scalable database backend.
+
+### What Changed
+
+**Before**: File-based JSON storage in `backend/data/{workspace_id}/`
+**After**: Supabase PostgreSQL with RLS policies
+
+### Features Implemented
+
+1. **Database Tables**
+   - `household_profiles` - Family member info, cooking preferences
+   - `recipes` - Recipe library with full metadata
+   - `meal_plans` - Weekly meal plans
+   - `groceries` - Grocery items with expiry tracking
+   - `recipe_ratings` - Per-person ratings
+   - `profiles` - User profiles linked to workspace
+   - `invite_codes` / `invite_redemptions` - Beta access system
+
+2. **Backend Changes**
+   - Supabase client configuration (`SUPABASE_URL`, `SUPABASE_SECRET_KEY`)
+   - Admin client (bypasses RLS) for migrations
+   - User client (respects RLS) for authenticated requests
+   - Migration endpoint: `POST /admin/migrate-to-supabase`
+   - Debug endpoint: `GET /admin/debug-supabase`
+
+3. **Frontend Changes**
+   - Supabase JS client for auth (`@supabase/supabase-js`)
+   - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `backend/app/config.py` | +4 lines - Supabase config vars |
+| `backend/app/db/supabase_client.py` | New - Client factory |
+| `backend/scripts/migrate_to_supabase.py` | New - Migration script |
+| `frontend/src/lib/supabase.ts` | New - Frontend client |
+
+### Bug Fixes After Migration
+- `9856693` fix: admin dashboard NaN values after Supabase migration
+- `b257497` fix: list_workspaces now queries data tables, not just profiles
+- `33dde43` fix: add missing supabase.ts client file for frontend
+- `09a3d9f` fix: remove httpx pin to fix supabase compatibility
+
+### Commits
+- `d1f1ade` feat: migrate from JSON storage to Supabase
+- `0c6f2e5` debug: add /admin/debug-supabase endpoint
+- `9856693` fix: admin dashboard NaN values after Supabase migration
 
 ---
 
