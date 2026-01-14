@@ -1,18 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,67 +14,61 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { DynamicRecipeModal } from '@/components/DynamicRecipeModal';
-import { GroceryConfirmationDialog, type ProposedGroceryItem } from '@/components/GroceryConfirmationDialog';
-import { GroceryInputHero } from '@/components/groceries/GroceryInputHero';
-import { GroceryChip } from '@/components/groceries/GroceryChip';
+import { AddGroceryModal } from '@/components/groceries/AddGroceryModal';
+import { GroceryListItem } from '@/components/groceries/GroceryListItem';
 import { GrocerySection } from '@/components/groceries/GrocerySection';
 import { GroceryItemModal } from '@/components/groceries/GroceryItemModal';
 import { StickyActionBar } from '@/components/groceries/StickyActionBar';
 import { ShoppingListTab } from '@/components/shopping/ShoppingListTab';
-import { groceriesAPI, type GroceryItem, type Recipe, type ExcludedReceiptItem } from '@/lib/api';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { groceriesAPI, templatesAPI, shoppingListAPI, type GroceryItem, type Recipe } from '@/lib/api';
+import { NukeButton } from '@/components/groceries/NukeButton';
+import { useNukeWithUndo } from '@/hooks/useNukeWithUndo';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import {
-  Plus,
   X,
-  Trash2,
+  Plus,
   ShoppingBasket,
   Loader2,
-  ChefHat,
-  AlertCircle,
-  Calendar,
-  ChevronDown,
-  ChevronUp,
-  Mic,
-  MicOff,
-  Camera,
   CheckSquare,
   Snowflake,
   Package,
   Search,
+  Refrigerator,
+  ArrowDownAZ,
   Clock,
+  ShoppingCart,
 } from 'lucide-react';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { GROCERY_CATEGORIES, itemMatchesCategory } from '@/lib/groceryCategories';
+import { itemMatchesCategory } from '@/lib/groceryCategories';
 
 const Groceries = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const workspaceId = getCurrentWorkspace();
 
-  // Redirect to home if no workspace is set (defense in depth)
+  // Redirect to home if no workspace is set
   useEffect(() => {
     if (!workspaceId) {
       navigate('/');
     }
   }, [workspaceId, navigate]);
 
-  // Don't render if no workspace
   if (!workspaceId) {
     return null;
   }
 
-  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  // Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
-  const [showAdvancedForm, setShowAdvancedForm] = useState(false);
-  const [showExpiringDetails, setShowExpiringDetails] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
+
+  // Selection state
+  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,57 +79,27 @@ const Groceries = () => {
     return localStorage.getItem('mealplanner_groceries_tab') || 'inventory';
   });
 
-  // Persist tab state to localStorage
   useEffect(() => {
     localStorage.setItem('mealplanner_groceries_tab', activeTab);
   }, [activeTab]);
 
-  // Accordion state for fridge/pantry sections with localStorage persistence
-  const [accordionState, setAccordionState] = useState(() => {
-    const stored = localStorage.getItem('mealplanner_grocery_accordion_state');
-    return stored ? JSON.parse(stored) : { fridge: true, pantry: true };
+  // View mode state: 'flat' shows single list, 'split' shows Fridge/Pantry columns
+  const [viewMode, setViewMode] = useState<'flat' | 'split'>(() => {
+    return (localStorage.getItem('mealplanner_grocery_view_mode') as 'flat' | 'split') || 'flat';
   });
 
-  // Persist accordion state to localStorage
   useEffect(() => {
-    localStorage.setItem('mealplanner_grocery_accordion_state', JSON.stringify(accordionState));
-  }, [accordionState]);
+    localStorage.setItem('mealplanner_grocery_view_mode', viewMode);
+  }, [viewMode]);
 
-  // Voice language preference with localStorage persistence
-  const [voiceLanguage, setVoiceLanguage] = useState(() => {
-    return localStorage.getItem('mealplanner_voice_language') || navigator.language || 'en-US';
+  // Sort mode state: 'recent' (newest first) or 'alphabetical' (A-Z)
+  const [sortMode, setSortMode] = useState<'recent' | 'alphabetical'>(() => {
+    return (localStorage.getItem('mealplanner_grocery_sort_mode') as 'recent' | 'alphabetical') || 'recent';
   });
 
-  // Persist voice language to localStorage
   useEffect(() => {
-    localStorage.setItem('mealplanner_voice_language', voiceLanguage);
-  }, [voiceLanguage]);
-
-  // Form state for adding new grocery
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemPurchaseDate, setNewItemPurchaseDate] = useState('');
-  const [newItemExpiryType, setNewItemExpiryType] = useState<'expiry_date' | 'best_before_date' | ''>('');
-  const [newItemExpiryDate, setNewItemExpiryDate] = useState('');
-
-  // Voice input state
-  const {
-    state: voiceState,
-    transcription,
-    error: voiceError,
-    startListening,
-    stopListening,
-    reset: resetVoice,
-    isSupported: isVoiceSupported,
-  } = useVoiceInput(voiceLanguage);
-
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [proposedItems, setProposedItems] = useState<ProposedGroceryItem[]>([]);
-  const [excludedItems, setExcludedItems] = useState<ExcludedReceiptItem[]>([]);
-  const [parseWarnings, setParseWarnings] = useState<string[]>([]);
-
-  // Receipt upload state
-  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+    localStorage.setItem('mealplanner_grocery_sort_mode', sortMode);
+  }, [sortMode]);
 
   // Fetch groceries from backend
   const { data: groceryList, isLoading, error } = useQuery({
@@ -153,31 +107,15 @@ const Groceries = () => {
     queryFn: () => groceriesAPI.getAll(workspaceId),
   });
 
-  // Fetch expiring soon items
-  const { data: expiringSoon } = useQuery({
-    queryKey: ['groceries-expiring', workspaceId],
-    queryFn: () => groceriesAPI.getExpiringSoon(workspaceId, 1),
-    refetchInterval: 60000, // Refetch every minute
+  // Fetch shopping list for nuke button
+  const { data: shoppingList } = useQuery({
+    queryKey: ['shopping-list', workspaceId],
+    queryFn: () => shoppingListAPI.getAll(workspaceId),
+    enabled: !!workspaceId,
   });
 
-  // Add grocery mutation
-  const addMutation = useMutation({
-    mutationFn: (item: GroceryItem) => groceriesAPI.add(workspaceId, item),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
-      toast.success(`${newItemName} added to list`);
-      // Reset form
-      setNewItemName('');
-      setNewItemPurchaseDate('');
-      setNewItemExpiryType('');
-      setNewItemExpiryDate('');
-      setShowAdvancedForm(false);
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to add item: ${error.message}`);
-    },
-  });
+  // Nuke (clear all) functionality with undo
+  const { executeNuke, isNuking } = useNukeWithUndo({ workspaceId });
 
   // Delete grocery mutation
   const deleteMutation = useMutation({
@@ -193,21 +131,13 @@ const Groceries = () => {
     },
   });
 
-  // Update grocery mutation (delete and re-add with updates)
+  // Update grocery mutation
   const updateMutation = useMutation({
     mutationFn: async ({ name, updates }: { name: string; updates: Partial<GroceryItem> }) => {
-      // Get current item to preserve fields
       const currentItem = groceries.find(g => g.name === name);
       if (!currentItem) throw new Error('Item not found');
-
-      // Delete old item
       await groceriesAPI.delete(workspaceId, name);
-
-      // Add updated item
-      return groceriesAPI.add(workspaceId, {
-        ...currentItem,
-        ...updates,
-      } as GroceryItem);
+      return groceriesAPI.add(workspaceId, { ...currentItem, ...updates } as GroceryItem);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
@@ -219,37 +149,6 @@ const Groceries = () => {
     },
   });
 
-  // Voice parsing mutation
-  const parseVoiceMutation = useMutation({
-    mutationFn: (transcription: string) => groceriesAPI.parseVoice(workspaceId, transcription),
-    onSuccess: (response) => {
-      setProposedItems(response.proposed_items);
-      setParseWarnings(response.warnings);
-      setShowConfirmDialog(true);
-      resetVoice();
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to parse voice input: ${error.message}`);
-      resetVoice();
-    },
-  });
-
-  // Batch add mutation
-  const batchAddMutation = useMutation({
-    mutationFn: (items: GroceryItem[]) => groceriesAPI.batchAdd(workspaceId, items),
-    onSuccess: (_, items) => {
-      queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
-      toast.success(`${items.length} item${items.length !== 1 ? 's' : ''} added to list`);
-      setShowConfirmDialog(false);
-      setProposedItems([]);
-      setParseWarnings([]);
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to add items: ${error.message}`);
-    },
-  });
-
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: (itemNames: string[]) => groceriesAPI.batchDelete(workspaceId, itemNames),
@@ -257,7 +156,7 @@ const Groceries = () => {
       queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
       toast.success(`${itemNames.length} item${itemNames.length !== 1 ? 's' : ''} deleted`);
-      setSelectedIngredients([]); // Clear selection after successful delete
+      setSelectedIngredients([]);
     },
     onError: (error: Error) => {
       toast.error(`Failed to delete items: ${error.message}`);
@@ -272,59 +171,44 @@ const Groceries = () => {
       queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
       const locationLabel = storageLocation === 'fridge' ? 'Fridge/Freezer' : 'Pantry';
       toast.success(`Moved ${itemNames.length} item${itemNames.length !== 1 ? 's' : ''} to ${locationLabel}`);
-      setSelectedIngredients([]); // Clear selection after move
+      setSelectedIngredients([]);
     },
     onError: (error: Error) => {
       toast.error(`Failed to move items: ${error.message}`);
     },
   });
 
-  // Receipt parsing mutation
-  const parseReceiptMutation = useMutation({
-    mutationFn: (imageBase64: string) => groceriesAPI.parseReceipt(workspaceId, imageBase64),
-    onSuccess: (response) => {
-      setProposedItems(response.proposed_items);
-      setExcludedItems(response.excluded_items || []);
-      setParseWarnings(response.warnings);
-      setShowConfirmDialog(true);
+  // Add to favorites mutation
+  const addToFavoritesMutation = useMutation({
+    mutationFn: (item: GroceryItem) => templatesAPI.create(workspaceId, {
+      name: item.name,
+      canonical_name: item.canonical_name,
+      category: item.storage_location === 'pantry' ? 'pantry' : 'dairy',
+      is_favorite: true,
+    }),
+    onSuccess: (_, item) => {
+      queryClient.invalidateQueries({ queryKey: ['shopping-templates', workspaceId] });
+      toast.success(`${item.name} added to favorites`);
     },
     onError: (error: Error) => {
-      toast.error(`Receipt OCR failed: ${error.message}`);
+      toast.error(`Failed to add favorite: ${error.message}`);
     },
   });
 
-  const addGrocery = () => {
-    if (!newItemName.trim()) {
-      toast.error('Please enter a grocery item name');
-      return;
-    }
+  // Add to shopping list mutation
+  const addToShoppingListMutation = useMutation({
+    mutationFn: (item: GroceryItem) => shoppingListAPI.addItem(workspaceId, { name: item.name }),
+    onSuccess: (_, item) => {
+      queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId] });
+      toast.success(`${item.name} added to shopping list`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to add to shopping list: ${error.message}`);
+    },
+  });
 
-    // Check for duplicate
-    if (groceryList?.items.some((item) => item.name.toLowerCase() === newItemName.trim().toLowerCase())) {
-      toast.error('Item already in list');
-      return;
-    }
-
-    // Validate expiry fields
-    if (newItemExpiryDate && !newItemExpiryType) {
-      toast.error('Please select an expiry type');
-      return;
-    }
-
-    const newItem: GroceryItem = {
-      name: newItemName.trim(),
-      date_added: new Date().toISOString().split('T')[0],
-      purchase_date: newItemPurchaseDate || undefined,
-      expiry_type: newItemExpiryType || undefined,
-      expiry_date: newItemExpiryDate || undefined,
-    };
-
-    addMutation.mutate(newItem);
-  };
-
-  const removeGrocery = (name: string) => {
-    deleteMutation.mutate(name);
-  };
+  // Handlers
+  const removeGrocery = (name: string) => deleteMutation.mutate(name);
 
   const handleOpenItemModal = (item: GroceryItem) => {
     setSelectedItem(item);
@@ -341,9 +225,7 @@ const Groceries = () => {
 
   const toggleIngredientSelection = (name: string) => {
     setSelectedIngredients((prev) =>
-      prev.includes(name)
-        ? prev.filter((i) => i !== name)
-        : [...prev, name]
+      prev.includes(name) ? prev.filter((i) => i !== name) : [...prev, name]
     );
   };
 
@@ -365,24 +247,6 @@ const Groceries = () => {
     navigate('/cook', { state: { openRecipeId: recipe.id } });
   };
 
-  // Voice input handlers
-  const handleVoiceToggle = () => {
-    if (voiceState === 'listening') {
-      stopListening();
-      // Parse transcription when stopped
-      if (transcription.trim()) {
-        parseVoiceMutation.mutate(transcription);
-      }
-    } else {
-      startListening();
-    }
-  };
-
-  const handleConfirmItems = (items: GroceryItem[]) => {
-    batchAddMutation.mutate(items);
-  };
-
-  // Bulk delete handlers
   const handleBulkDeleteRequest = () => {
     if (selectedIngredients.length === 0) {
       toast.error('Please select at least one item to delete');
@@ -396,7 +260,6 @@ const Groceries = () => {
     setShowDeleteConfirmDialog(false);
   };
 
-  // Bulk move handlers
   const handleBulkMoveRequest = () => {
     if (selectedIngredients.length === 0) {
       toast.error('Please select at least one item to move');
@@ -408,113 +271,6 @@ const Groceries = () => {
   const handleBulkMove = (storageLocation: 'fridge' | 'pantry') => {
     updateStorageLocationMutation.mutate({ itemNames: selectedIngredients, storageLocation });
     setShowMoveDialog(false);
-  };
-
-  // Receipt upload handlers
-  const compressImage = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          // Create canvas for compression
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-
-          if (!ctx) {
-            reject(new Error('Could not get canvas context'));
-            return;
-          }
-
-          // Calculate resize ratio (max 1024px width or height)
-          const maxSize = 1024;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height && width > maxSize) {
-            height = (height / width) * maxSize;
-            width = maxSize;
-          } else if (height > maxSize) {
-            width = (width / height) * maxSize;
-            height = maxSize;
-          }
-
-          // Resize image
-          canvas.width = width;
-          canvas.height = height;
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Export as JPEG at 80% quality
-          const base64 = canvas.toDataURL('image/jpeg', 0.8);
-
-          // Strip data URL prefix (data:image/jpeg;base64,)
-          const base64Data = base64.split(',')[1];
-          resolve(base64Data);
-        };
-
-        img.onerror = () => reject(new Error('Failed to load image'));
-        img.src = e.target?.result as string;
-      };
-
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleReceiptUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.match(/^image\/(png|jpe?g)$/)) {
-      toast.error('Please upload a PNG or JPEG image');
-      return;
-    }
-
-    // Validate file size (max 10MB before compression)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image too large (max 10MB)');
-      return;
-    }
-
-    setIsUploadingReceipt(true);
-
-    try {
-      // Compress image
-      const base64Image = await compressImage(file);
-
-      // Call API to parse receipt
-      await parseReceiptMutation.mutateAsync(base64Image);
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      // Error toast handled by mutation onError
-    } finally {
-      setIsUploadingReceipt(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  // Helper to calculate days until expiry
-  const getDaysUntilExpiry = (expiryDate: string): number => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const expiry = new Date(expiryDate);
-    expiry.setHours(0, 0, 0, 0);
-    return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  };
-
-  // Helper to get expiry badge color
-  const getExpiryBadgeClass = (daysUntil: number): string => {
-    if (daysUntil < 0) return 'bg-destructive/20 text-destructive border-destructive';
-    if (daysUntil === 0) return 'bg-destructive/20 text-destructive border-destructive';
-    if (daysUntil <= 1) return 'bg-destructive/20 text-destructive border-destructive';
-    if (daysUntil <= 3) return 'bg-yellow-500/20 text-yellow-700 border-yellow-500';
-    return 'bg-green-500/20 text-green-700 border-green-500';
   };
 
   if (isLoading) {
@@ -530,320 +286,316 @@ const Groceries = () => {
       <div className="rounded-2xl bg-destructive/10 p-6 text-destructive">
         <h2 className="font-semibold mb-2">Error loading grocery list</h2>
         <p className="text-sm">{error instanceof Error ? error.message : 'Unknown error'}</p>
-        <p className="text-sm mt-2">Make sure your backend is running at http://localhost:8000</p>
       </div>
     );
   }
 
   const groceries = groceryList?.items || [];
-  const expiringItems = expiringSoon?.items || [];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">
-            Groceries
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your inventory and shopping list
-          </p>
+          <h1 className="font-display text-3xl font-bold text-foreground">Groceries</h1>
+          <p className="text-muted-foreground mt-1">Manage your inventory and shopping list</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {activeTab === 'inventory' && (
+            <Button variant="hero" onClick={() => setShowAddModal(true)}>
+              <Plus className="h-4 w-4" />
+              Add Groceries
+            </Button>
+          )}
+          <NukeButton
+            inventoryItems={groceries}
+            shoppingItems={shoppingList?.items || []}
+            onNuke={executeNuke}
+            disabled={isNuking}
+          />
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="inventory">Inventory</TabsTrigger>
-          <TabsTrigger value="shopping">Shopping List</TabsTrigger>
-        </TabsList>
-
-        {/* Shopping List Tab */}
-        <TabsContent value="shopping" className="space-y-6 mt-6">
-          <ShoppingListTab />
-        </TabsContent>
-
-        {/* Inventory Tab */}
-        <TabsContent value="inventory" className="space-y-6 mt-6">
-          {/* Expiring Soon Alert - Subtle and Expandable */}
-      {expiringItems.length > 0 && (
+      <div className="flex items-center gap-2">
         <button
-          onClick={() => setShowExpiringDetails(!showExpiringDetails)}
-          className="w-full rounded-r-2xl bg-amber-50/50 border-l-4 border-amber-400 px-6 py-3 text-left transition-all hover:bg-amber-50"
+          onClick={() => setActiveTab('inventory')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium",
+            activeTab === 'inventory'
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          )}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-              <span className="text-sm text-amber-900 font-medium">
-                {expiringItems.length} item{expiringItems.length !== 1 ? 's' : ''} expiring soon
-              </span>
-            </div>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-amber-600 transition-transform",
-                showExpiringDetails && "rotate-180"
-              )}
-            />
-          </div>
-
-          {showExpiringDetails && (
-            <div className="mt-3 pt-3 border-t border-amber-200 flex flex-wrap gap-2">
-              {expiringItems.map((item) => (
-                <span
-                  key={item.name}
-                  className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 border border-amber-300"
-                >
-                  {item.name}
-                </span>
-              ))}
-            </div>
-          )}
+          <Package className="h-4 w-4" />
+          <span>Inventory</span>
         </button>
-      )}
-
-
-      {/* Add Item Form */}
-      <GroceryInputHero
-        voiceState={voiceState}
-        transcription={transcription}
-        voiceError={voiceError}
-        isVoiceSupported={isVoiceSupported}
-        handleVoiceToggle={handleVoiceToggle}
-        parseVoiceMutationPending={parseVoiceMutation.isPending}
-        voiceLanguage={voiceLanguage}
-        onLanguageChange={setVoiceLanguage}
-        fileInputRef={fileInputRef}
-        handleReceiptUpload={handleReceiptUpload}
-        isUploadingReceipt={isUploadingReceipt}
-        newItemName={newItemName}
-        setNewItemName={setNewItemName}
-        newItemPurchaseDate={newItemPurchaseDate}
-        setNewItemPurchaseDate={setNewItemPurchaseDate}
-        newItemExpiryType={newItemExpiryType}
-        setNewItemExpiryType={setNewItemExpiryType}
-        newItemExpiryDate={newItemExpiryDate}
-        setNewItemExpiryDate={setNewItemExpiryDate}
-        addGrocery={addGrocery}
-        addMutationPending={addMutation.isPending}
-      />
-
-      {/* Search and Filter Bar - only show when there are groceries */}
-      {groceries.length > 0 && (
-        <div className="rounded-2xl bg-card shadow-soft p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-            {/* Text Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search groceries..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Expiry Filter */}
-            <ToggleGroup
-              type="single"
-              value={expiryFilter}
-              onValueChange={(value) => value && setExpiryFilter(value as 'all' | 'expiring' | 'expired')}
-              className="justify-start"
-            >
-              <ToggleGroupItem value="all" aria-label="Show all items" className="text-xs px-3">
-                All
-              </ToggleGroupItem>
-              <ToggleGroupItem value="expiring" aria-label="Expiring soon" className="text-xs px-3">
-                <Clock className="h-3 w-3 mr-1" />
-                Expiring
-              </ToggleGroupItem>
-              <ToggleGroupItem value="expired" aria-label="Expired" className="text-xs px-3">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Expired
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
-          {/* Helper text for category search */}
-          {!searchQuery && (
-            <p className="text-xs text-muted-foreground">
-              Tip: Search by category like "dairy", "meat", or "produce"
-            </p>
+        <button
+          onClick={() => setActiveTab('shopping')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium",
+            activeTab === 'shopping'
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
+        >
+          <ShoppingCart className="h-4 w-4" />
+          <span>Shopping List</span>
+        </button>
+      </div>
+
+      {/* Shopping List Tab */}
+      {activeTab === 'shopping' && (
+        <div className="space-y-6">
+          <ShoppingListTab />
         </div>
       )}
 
-      {/* Storage Location Help Text - only show when there are groceries */}
-      {groceries.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Tap an item to move it between Fridge/Freezer and Pantry, or select multiple items to move them together.
-        </p>
+      {/* Inventory Tab */}
+      {activeTab === 'inventory' && (
+        <div className="space-y-4">
+
+          {/* Grocery List */}
+          {(() => {
+            const getExpiryStatus = (item: GroceryItem): 'expired' | 'expiring' | 'good' => {
+              if (!item.expiry_date) return 'good';
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const expiryDate = new Date(item.expiry_date);
+              expiryDate.setHours(0, 0, 0, 0);
+              const daysUntilExpiry = Math.floor(
+                (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+              );
+              if (daysUntilExpiry <= 0) return 'expired';
+              if (daysUntilExpiry <= 3) return 'expiring';
+              return 'good';
+            };
+
+            const filteredGroceries = groceries
+              .filter(item => {
+                const searchLower = searchQuery.toLowerCase().trim();
+                const matchesText = searchLower === '' ||
+                  item.name.toLowerCase().includes(searchLower) ||
+                  (item.canonical_name?.toLowerCase().includes(searchLower) ?? false);
+                const matchesCategory = searchLower !== '' &&
+                  itemMatchesCategory(item.name, item.canonical_name, searchLower);
+                const matchesSearch = matchesText || matchesCategory;
+                const status = getExpiryStatus(item);
+                const matchesExpiry = expiryFilter === 'all' ||
+                  (expiryFilter === 'expired' && status === 'expired') ||
+                  (expiryFilter === 'expiring' && (status === 'expired' || status === 'expiring'));
+                return matchesSearch && matchesExpiry;
+              })
+              .sort((a, b) => {
+                if (sortMode === 'alphabetical') {
+                  return a.name.localeCompare(b.name);
+                }
+                // 'recent' - sort by date_added descending (newest first)
+                return new Date(b.date_added).getTime() - new Date(a.date_added).getTime();
+              });
+
+            const fridgeItems = filteredGroceries.filter(g => (g.storage_location ?? 'fridge') === 'fridge');
+            const pantryItems = filteredGroceries.filter(g => g.storage_location === 'pantry');
+            const isFiltering = searchQuery !== '' || expiryFilter !== 'all';
+
+            if (groceries.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
+                  <ShoppingBasket className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-2">Your grocery list is empty</p>
+                  <p className="text-sm text-muted-foreground">
+                    Add items to help generate better meal plans
+                  </p>
+                </div>
+              );
+            }
+
+            if (filteredGroceries.length === 0 && isFiltering) {
+              return (
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-12 text-center shadow-soft">
+                  <Search className="h-10 w-10 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-2">No items match your search</p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setExpiryFilter('all');
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                </div>
+              );
+            }
+
+            return (
+              <div className="rounded-2xl bg-card shadow-soft p-4 space-y-3">
+                {/* Search and filter row */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 pr-8 h-9"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    value={expiryFilter}
+                    onChange={(e) => setExpiryFilter(e.target.value as 'all' | 'expiring' | 'expired')}
+                    className="h-9 px-2 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="all">All</option>
+                    <option value="expiring">Expiring</option>
+                    <option value="expired">Expired</option>
+                  </select>
+                  <div className="flex items-center gap-1 border-l border-border pl-2 ml-1">
+                    <button
+                      onClick={() => setSortMode('alphabetical')}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors shrink-0",
+                        sortMode === 'alphabetical'
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}
+                      title="Sort A-Z"
+                    >
+                      <ArrowDownAZ className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setSortMode('recent')}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors shrink-0",
+                        sortMode === 'recent'
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}
+                      title="Sort by recently added"
+                    >
+                      <Clock className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode(viewMode === 'flat' ? 'split' : 'flat')}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors shrink-0",
+                        viewMode === 'split'
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}
+                      title={viewMode === 'flat' ? 'Show Fridge/Pantry split' : 'Show flat list'}
+                    >
+                      <Refrigerator className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Count and selection row */}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {isFiltering
+                      ? `${filteredGroceries.length} of ${groceries.length} items`
+                      : `${groceries.length} item${groceries.length !== 1 ? 's' : ''}`
+                    }
+                    {isSelectionMode && selectedIngredients.length > 0 && (
+                      <span className="text-primary ml-1">
+                        ({selectedIngredients.length} selected)
+                      </span>
+                    )}
+                  </p>
+                  {isSelectionMode ? (
+                    <button
+                      onClick={handleCancelSelection}
+                      className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setIsSelectionMode(true)}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <CheckSquare className="h-3.5 w-3.5" />
+                      Select
+                    </button>
+                  )}
+                </div>
+
+                {/* Flat view */}
+                {viewMode === 'flat' && (
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    {filteredGroceries.map((item) => (
+                      <GroceryListItem
+                        key={item.name}
+                        item={item}
+                        isSelected={selectedIngredients.includes(item.name)}
+                        isSelectionMode={isSelectionMode}
+                        showStorageTag={true}
+                        onToggleSelect={toggleIngredientSelection}
+                        onOpenModal={handleOpenItemModal}
+                        onAddToFavorites={(item) => addToFavoritesMutation.mutate(item)}
+                        onAddToShoppingList={(item) => addToShoppingListMutation.mutate(item)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Split view */}
+                {viewMode === 'split' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <GrocerySection
+                      title="Fridge / Freezer"
+                      icon={Snowflake}
+                      items={fridgeItems}
+                      isSelectionMode={isSelectionMode}
+                      selectedIngredients={selectedIngredients}
+                      onToggleSelect={toggleIngredientSelection}
+                      onOpenModal={handleOpenItemModal}
+                      onAddToFavorites={(item) => addToFavoritesMutation.mutate(item)}
+                      onAddToShoppingList={(item) => addToShoppingListMutation.mutate(item)}
+                    />
+                    <GrocerySection
+                      title="Pantry"
+                      icon={Package}
+                      items={pantryItems}
+                      isSelectionMode={isSelectionMode}
+                      selectedIngredients={selectedIngredients}
+                      onToggleSelect={toggleIngredientSelection}
+                      onOpenModal={handleOpenItemModal}
+                      onAddToFavorites={(item) => addToFavoritesMutation.mutate(item)}
+                      onAddToShoppingList={(item) => addToShoppingListMutation.mutate(item)}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       )}
 
-      {/* Grocery List - Split View (Fridge/Pantry) */}
-      {(() => {
-        // Helper function to get expiry status
-        const getExpiryStatus = (item: GroceryItem): 'expired' | 'expiring' | 'good' => {
-          if (!item.expiry_date) return 'good';
+      {/* Sticky Action Bar */}
+      {isSelectionMode && activeTab === 'inventory' && (
+        <StickyActionBar
+          selectedCount={selectedIngredients.length}
+          onCook={handleCookWithSelected}
+          onPlan={() => navigate('/plan', { state: { selectedIngredients } })}
+          onMove={handleBulkMoveRequest}
+          onDelete={handleBulkDeleteRequest}
+        />
+      )}
 
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const expiryDate = new Date(item.expiry_date);
-          expiryDate.setHours(0, 0, 0, 0);
+      {/* Modals */}
+      <AddGroceryModal open={showAddModal} onOpenChange={setShowAddModal} />
 
-          const daysUntilExpiry = Math.floor(
-            (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-          );
-
-          if (daysUntilExpiry <= 0) return 'expired';
-          if (daysUntilExpiry <= 3) return 'expiring';
-          return 'good';
-        };
-
-        // Filter groceries by search query and expiry status
-        const filteredGroceries = groceries.filter(item => {
-          const searchLower = searchQuery.toLowerCase().trim();
-
-          // 1. Direct text match (name or canonical_name)
-          const matchesText = searchLower === '' ||
-            item.name.toLowerCase().includes(searchLower) ||
-            (item.canonical_name?.toLowerCase().includes(searchLower) ?? false);
-
-          // 2. Category match (search "dairy" finds "milk")
-          const matchesCategory = searchLower !== '' &&
-            itemMatchesCategory(item.name, item.canonical_name, searchLower);
-
-          const matchesSearch = matchesText || matchesCategory;
-
-          // Expiry filter
-          const status = getExpiryStatus(item);
-          const matchesExpiry = expiryFilter === 'all' ||
-            (expiryFilter === 'expired' && status === 'expired') ||
-            (expiryFilter === 'expiring' && (status === 'expired' || status === 'expiring'));
-
-          return matchesSearch && matchesExpiry;
-        });
-
-        // Split filtered groceries by storage location
-        const fridgeItems = filteredGroceries.filter(g => (g.storage_location ?? 'fridge') === 'fridge');
-        const pantryItems = filteredGroceries.filter(g => g.storage_location === 'pantry');
-        const isFiltering = searchQuery !== '' || expiryFilter !== 'all';
-
-        // No groceries at all
-        if (groceries.length === 0) {
-          return (
-            <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
-              <ShoppingBasket className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-2">Your grocery list is empty</p>
-              <p className="text-sm text-muted-foreground">
-                Add items to help generate better meal plans
-              </p>
-            </div>
-          );
-        }
-
-        // No matches for current filter/search
-        if (filteredGroceries.length === 0 && isFiltering) {
-          return (
-            <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-12 text-center shadow-soft">
-              <Search className="h-10 w-10 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-2">No items match your search</p>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setSearchQuery('');
-                  setExpiryFilter('all');
-                }}
-              >
-                Clear filters
-              </Button>
-            </div>
-          );
-        }
-
-        return (
-          <div className="rounded-2xl bg-card shadow-soft p-6 space-y-4">
-            {/* Header with count and selection toggle */}
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">
-                {isFiltering
-                  ? `${filteredGroceries.length} of ${groceries.length} item${groceries.length !== 1 ? 's' : ''}`
-                  : `${groceries.length} item${groceries.length !== 1 ? 's' : ''} on hand`
-                }
-                {isSelectionMode && selectedIngredients.length > 0 && (
-                  <span className="text-primary ml-2">
-                    ({selectedIngredients.length} selected)
-                  </span>
-                )}
-              </p>
-              {isSelectionMode ? (
-                <button
-                  onClick={handleCancelSelection}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Cancel
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsSelectionMode(true)}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <CheckSquare className="h-4 w-4" />
-                  Select
-                </button>
-              )}
-            </div>
-
-            {/* Responsive Layout: Stacked on mobile, side-by-side on desktop */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Fridge/Freezer Section */}
-              <GrocerySection
-                title="Fridge / Freezer"
-                icon={Snowflake}
-                items={fridgeItems}
-                isOpen={accordionState.fridge}
-                onOpenChange={(open) => setAccordionState(s => ({ ...s, fridge: open }))}
-                isSelectionMode={isSelectionMode}
-                selectedIngredients={selectedIngredients}
-                onToggleSelect={toggleIngredientSelection}
-                onOpenModal={handleOpenItemModal}
-              />
-
-              {/* Pantry Section */}
-              <GrocerySection
-                title="Pantry"
-                icon={Package}
-                items={pantryItems}
-                isOpen={accordionState.pantry}
-                onOpenChange={(open) => setAccordionState(s => ({ ...s, pantry: open }))}
-                isSelectionMode={isSelectionMode}
-                selectedIngredients={selectedIngredients}
-                onToggleSelect={toggleIngredientSelection}
-                onOpenModal={handleOpenItemModal}
-              />
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Tip */}
-      <div className="rounded-xl bg-secondary/50 p-4">
-        <p className="text-sm text-secondary-foreground">
-          <strong>Tip:</strong> Add expiry dates to your groceries so the meal planner can prioritize
-          ingredients that need to be used soon, reducing food waste!
-        </p>
-      </div>
-
-      {/* Dynamic Recipe Modal */}
       <DynamicRecipeModal
         open={showRecipeModal}
         onOpenChange={setShowRecipeModal}
@@ -851,18 +603,17 @@ const Groceries = () => {
         onRecipeGenerated={handleRecipeGenerated}
       />
 
-      {/* Grocery Confirmation Dialog */}
-      <GroceryConfirmationDialog
-        open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
-        proposedItems={proposedItems}
-        excludedItems={excludedItems}
-        warnings={parseWarnings}
-        onConfirm={handleConfirmItems}
-        isLoading={batchAddMutation.isPending}
+      <GroceryItemModal
+        item={selectedItem}
+        open={showItemModal}
+        onOpenChange={setShowItemModal}
+        onUpdate={handleUpdateItem}
+        onDelete={removeGrocery}
+        onMove={handleMoveItem}
+        onAddToFavorites={(item) => addToFavoritesMutation.mutate(item)}
       />
 
-      {/* Bulk Delete Confirmation Dialog */}
+      {/* Bulk Delete Dialog */}
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -870,7 +621,7 @@ const Groceries = () => {
               Delete {selectedIngredients.length} item{selectedIngredients.length !== 1 ? 's' : ''}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the selected grocery items. This action cannot be undone.
+              This will permanently delete the selected grocery items.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -925,29 +676,6 @@ const Groceries = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-        </TabsContent>
-      </Tabs>
-
-      {/* Sticky Action Bar - only show in selection mode on inventory tab */}
-      {isSelectionMode && activeTab === 'inventory' && (
-        <StickyActionBar
-          selectedCount={selectedIngredients.length}
-          onCook={handleCookWithSelected}
-          onPlan={() => navigate('/plan', { state: { selectedIngredients } })}
-          onMove={handleBulkMoveRequest}
-          onDelete={handleBulkDeleteRequest}
-        />
-      )}
-
-      {/* Grocery Item Modal */}
-      <GroceryItemModal
-        item={selectedItem}
-        open={showItemModal}
-        onOpenChange={setShowItemModal}
-        onUpdate={handleUpdateItem}
-        onDelete={removeGrocery}
-        onMove={handleMoveItem}
-      />
     </div>
   );
 };

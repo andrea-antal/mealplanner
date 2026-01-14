@@ -1,21 +1,15 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import {
   Mic,
   MicOff,
   Camera,
   Loader2,
   AlertCircle,
-  ChevronDown,
   Plus,
-  Globe,
+  PenLine,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,17 +19,6 @@ const LANGUAGE_OPTIONS = [
   { code: 'hu-HU', label: 'HU', name: 'Magyar' },
   { code: 'yue-Hant-HK', label: '粵', name: '廣東話' },
 ];
-
-// Get display label for a language code (supports partial matches like "en" -> "EN")
-function getLanguageLabel(code: string): string {
-  const exact = LANGUAGE_OPTIONS.find(opt => opt.code === code);
-  if (exact) return exact.label;
-
-  // Try matching just the language part (e.g., "en" matches "en-US")
-  const langPart = code.split('-')[0].toLowerCase();
-  const partial = LANGUAGE_OPTIONS.find(opt => opt.code.toLowerCase().startsWith(langPart));
-  return partial?.label || code.substring(0, 2).toUpperCase();
-}
 
 interface GroceryInputHeroProps {
   // Voice input props
@@ -89,110 +72,243 @@ export function GroceryInputHero({
   addGrocery,
   addMutationPending,
 }: GroceryInputHeroProps) {
-  const [showManualInput, setShowManualInput] = useState(false);
+  const [inputMode, setInputMode] = useState<'none' | 'manual'>('none');
   const [showAdvancedFields, setShowAdvancedFields] = useState(false);
 
-  return (
-    <div className="rounded-3xl bg-gradient-to-br from-primary/5 to-secondary/5 p-6 space-y-4">
-      {/* Voice Language Selector - only show if voice is supported */}
-      {isVoiceSupported && (
-        <div className="flex items-center justify-center gap-1">
-          <Globe className="h-3.5 w-3.5 text-muted-foreground mr-1" />
-          {LANGUAGE_OPTIONS.map((opt) => (
-            <button
-              key={opt.code}
-              type="button"
-              onClick={() => onLanguageChange(opt.code)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-                voiceLanguage === opt.code
-                  ? "bg-amber-100 text-amber-900 border border-amber-300"
-                  : "bg-background text-muted-foreground border border-border hover:bg-amber-50 hover:text-foreground"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
+  const isVoiceActive = voiceState === 'listening';
+  const isProcessing = parseVoiceMutationPending || isUploadingReceipt;
 
-      {/* Primary Actions - Large Touch Targets */}
-      <div className="grid grid-cols-2 gap-3">
-        {isVoiceSupported && (
-          <Button
-            variant={voiceState === 'listening' ? 'destructive' : 'hero'}
-            size="xl"
-            className="h-24 flex flex-col gap-2"
-            onClick={handleVoiceToggle}
-            disabled={parseVoiceMutationPending}
-          >
-            {parseVoiceMutationPending ? (
-              <Loader2 className="h-8 w-8 animate-spin" />
-            ) : voiceState === 'listening' ? (
-              <MicOff className="h-8 w-8" />
+  // Hidden file input for receipt upload
+  const triggerReceiptUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg"
+        onChange={handleReceiptUpload}
+        style={{ display: 'none' }}
+      />
+
+      {/* Compact Add Section */}
+      <div className="rounded-xl border border-border bg-card p-3">
+        {/* Default state: show all input options inline */}
+        {voiceState !== 'listening' && inputMode === 'none' && (
+          <div className="flex items-center gap-2">
+            {/* Primary action: Voice (if supported) or Manual (if not) */}
+            {isVoiceSupported ? (
+              <Button
+                variant="default"
+                className="flex-1 h-12"
+                onClick={handleVoiceToggle}
+                disabled={isProcessing}
+              >
+                {parseVoiceMutationPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                ) : (
+                  <Mic className="h-5 w-5 mr-2" />
+                )}
+                Add by Voice
+              </Button>
             ) : (
-              <Mic className="h-8 w-8" />
+              <Button
+                variant="default"
+                className="flex-1 h-12"
+                onClick={() => setInputMode('manual')}
+              >
+                <PenLine className="h-5 w-5 mr-2" />
+                Add Item
+              </Button>
             )}
-            <span className="text-sm font-medium">
-              {voiceState === 'listening' ? 'Stop' : 'Add by Voice'}
-            </span>
-          </Button>
+
+            {/* Receipt scan - icon only */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-12 w-12 shrink-0"
+              onClick={triggerReceiptUpload}
+              disabled={isUploadingReceipt}
+              title="Scan Receipt"
+            >
+              {isUploadingReceipt ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Camera className="h-5 w-5" />
+              )}
+            </Button>
+
+            {/* Manual input - icon only (only when voice is supported) */}
+            {isVoiceSupported && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 shrink-0"
+                onClick={() => setInputMode('manual')}
+                title="Type Manually"
+              >
+                <PenLine className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
         )}
 
-        {/* Hidden file input for receipt upload */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/jpg"
-          onChange={handleReceiptUpload}
-          style={{ display: 'none' }}
-        />
-
-        <Button
-          variant="outline"
-          size="xl"
-          className={cn(
-            "h-24 flex flex-col gap-2 border-2",
-            !isVoiceSupported && "col-span-2"
-          )}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploadingReceipt}
-        >
-          {isUploadingReceipt ? (
-            <Loader2 className="h-8 w-8 animate-spin" />
-          ) : (
-            <Camera className="h-8 w-8" />
-          )}
-          <span className="text-sm font-medium">Snap Receipt</span>
-        </Button>
-      </div>
-
-      {/* Voice State Indicator with Live Transcription */}
-      {voiceState === 'listening' && (
-        <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 bg-destructive rounded-full animate-pulse" />
-            <span className="text-sm font-medium text-foreground">Listening...</span>
-            <span className="text-xs text-muted-foreground">
-              Speak clearly, then click stop
-            </span>
-          </div>
-
-          {/* Live Transcription Display */}
-          {transcription && (
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground italic">
-                Don't worry if this isn't perfect - AI will interpret it
+        {/* Voice Listening State */}
+        {voiceState === 'listening' && (
+          <div className="space-y-3">
+            {/* Language selector + Stop button */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.code}
+                    type="button"
+                    onClick={() => onLanguageChange(opt.code)}
+                    className={cn(
+                      "px-2.5 py-1 text-xs font-medium rounded-md transition-colors",
+                      voiceLanguage === opt.code
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
-              <div className="bg-card rounded-lg p-3 border border-border">
-                <p className="text-sm text-foreground min-h-[1.5rem]">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleVoiceToggle}
+                className="h-9"
+              >
+                <MicOff className="h-4 w-4 mr-2" />
+                Stop
+              </Button>
+            </div>
+
+            {/* Live indicator + Transcription */}
+            <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-2.5 w-2.5 bg-destructive rounded-full animate-pulse" />
+                <span className="text-sm font-medium">Listening...</span>
+              </div>
+              {transcription ? (
+                <p className="text-sm text-foreground bg-background rounded p-2 border">
                   {transcription}
                 </p>
-              </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">
+                  Speak clearly, AI will interpret your words
+                </p>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+
+        {/* Manual Input Mode */}
+        {inputMode === 'manual' && voiceState !== 'listening' && (
+          <div className="space-y-3">
+            {/* Item name input */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Item name..."
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !showAdvancedFields && addGrocery()}
+                className="flex-1 h-11"
+                autoFocus
+              />
+              <Button
+                onClick={addGrocery}
+                disabled={!newItemName.trim() || addMutationPending}
+                className="h-11 px-4"
+              >
+                {addMutationPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
+            {/* Footer: advanced toggle + back button */}
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedFields(!showAdvancedFields)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showAdvancedFields ? 'Hide dates' : 'Add dates (optional)'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInputMode('none');
+                  setShowAdvancedFields(false);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Advanced Fields */}
+            {showAdvancedFields && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border">
+                <div className="space-y-1.5">
+                  <Label htmlFor="purchase-date" className="text-xs">
+                    Purchase Date
+                  </Label>
+                  <Input
+                    id="purchase-date"
+                    type="date"
+                    value={newItemPurchaseDate}
+                    onChange={(e) => setNewItemPurchaseDate(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="h-10"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="expiry-type" className="text-xs">
+                    Expiry Type
+                  </Label>
+                  <select
+                    id="expiry-type"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    value={newItemExpiryType}
+                    onChange={(e) => setNewItemExpiryType(e.target.value as 'expiry_date' | 'best_before_date' | '')}
+                  >
+                    <option value="">None</option>
+                    <option value="expiry_date">Use by</option>
+                    <option value="best_before_date">Best before</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="expiry-date" className="text-xs">
+                    {newItemExpiryType === 'expiry_date' ? 'Use By' :
+                     newItemExpiryType === 'best_before_date' ? 'Best Before' :
+                     'Date'}
+                  </Label>
+                  <Input
+                    id="expiry-date"
+                    type="date"
+                    value={newItemExpiryDate}
+                    onChange={(e) => setNewItemExpiryDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    disabled={!newItemExpiryType}
+                    className="h-10"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Voice Error Display */}
       {voiceError && (
@@ -203,111 +319,6 @@ export function GroceryInputHero({
           </div>
         </div>
       )}
-
-      {/* Secondary: Manual Input (collapsible) */}
-      <Collapsible open={showManualInput} onOpenChange={setShowManualInput}>
-        <div className="flex justify-center">
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              <Plus className="h-4 w-4 mr-2" />
-              Add manually
-              <ChevronDown className={cn(
-                "h-4 w-4 ml-2 transition-transform",
-                showManualInput && "rotate-180"
-              )} />
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-
-        <CollapsibleContent className="space-y-4 pt-4">
-          {/* Simple name input */}
-          <div className="flex gap-2">
-            <Input
-              placeholder="Item name..."
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !showAdvancedFields && addGrocery()}
-              className="flex-1 h-12"
-            />
-            <Button
-              onClick={addGrocery}
-              disabled={!newItemName.trim() || addMutationPending}
-              className="h-12 px-6"
-            >
-              {addMutationPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
-              Add
-            </Button>
-          </div>
-
-          {/* Advanced fields toggle */}
-          <div className="flex justify-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAdvancedFields(!showAdvancedFields)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              {showAdvancedFields ? 'Hide' : 'Show'} dates (optional)
-            </Button>
-          </div>
-
-          {/* Advanced Fields */}
-          {showAdvancedFields && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
-              <div className="space-y-2">
-                <Label htmlFor="purchase-date" className="text-sm">
-                  Purchase Date
-                </Label>
-                <Input
-                  id="purchase-date"
-                  type="date"
-                  value={newItemPurchaseDate}
-                  onChange={(e) => setNewItemPurchaseDate(e.target.value)}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="h-12"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="expiry-type" className="text-sm">
-                  Expiry Type
-                </Label>
-                <select
-                  id="expiry-type"
-                  className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={newItemExpiryType}
-                  onChange={(e) => setNewItemExpiryType(e.target.value as 'expiry_date' | 'best_before_date' | '')}
-                >
-                  <option value="">None</option>
-                  <option value="expiry_date">Expiry Date</option>
-                  <option value="best_before_date">Best Before Date</option>
-                </select>
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="expiry-date" className="text-sm">
-                  {newItemExpiryType === 'expiry_date' ? 'Expiry Date' :
-                   newItemExpiryType === 'best_before_date' ? 'Best Before Date' :
-                   'Expiry/Best Before Date'}
-                </Label>
-                <Input
-                  id="expiry-date"
-                  type="date"
-                  value={newItemExpiryDate}
-                  onChange={(e) => setNewItemExpiryDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  disabled={!newItemExpiryType}
-                  className="h-12"
-                />
-              </div>
-            </div>
-          )}
-        </CollapsibleContent>
-      </Collapsible>
     </div>
   );
 }

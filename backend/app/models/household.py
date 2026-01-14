@@ -101,6 +101,10 @@ class OnboardingData(BaseModel):
         default_factory=list,
         description="Dietary patterns: keto, high_protein, low_carb, vegetarian, etc."
     )
+    starter_content_choice: Optional[str] = Field(
+        default=None,
+        description="Starter content choice: meal_plan, starter_recipes, or skip"
+    )
 
 
 class HouseholdProfile(BaseModel):

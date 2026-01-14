@@ -14,6 +14,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -22,7 +28,6 @@ import {
   shoppingListAPI,
   templatesAPI,
   type ShoppingListItem,
-  type TemplateItem,
 } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import { TemplatesManager } from './TemplatesManager';
@@ -33,12 +38,11 @@ import {
   Star,
   ShoppingCart,
   Package,
-  Bookmark,
   ChevronDown,
+  MoreHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { GROCERY_CATEGORIES } from '@/lib/groceryCategories';
 
 interface ShoppingListTabProps {
   onAddToInventory?: (item: ShoppingListItem) => void;
@@ -177,58 +181,69 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ShoppingCart className="w-5 h-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {uncheckedCount} of {totalCount} items remaining
-          </span>
-        </div>
-        <div className="flex gap-2">
+      {/* Add item form - now prominent at top */}
+      <div className="rounded-xl border border-border bg-card p-3">
+        <form onSubmit={handleAddItem} className="flex gap-2">
+          <Input
+            placeholder="Add item..."
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            className="flex-1 h-11"
+          />
+          <Button
+            type="submit"
+            disabled={!newItemName.trim() || addItemMutation.isPending}
+            className="h-11 px-4"
+          >
+            {addItemMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+          </Button>
           {favoriteCount > 0 && (
             <Button
+              type="button"
               variant="outline"
-              size="sm"
               onClick={() => addFromFavoritesMutation.mutate()}
               disabled={addFromFavoritesMutation.isPending}
+              className="h-11 px-3"
+              title={`Add ${favoriteCount} favorite${favoriteCount !== 1 ? 's' : ''} to list`}
             >
-              <Star className="w-4 h-4 mr-1" />
-              Add Favorites ({favoriteCount})
+              {addFromFavoritesMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Star className="w-4 h-4" />
+              )}
             </Button>
           )}
-          {totalCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowClearDialog(true)}
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Clear List
-            </Button>
-          )}
-        </div>
+        </form>
       </div>
 
-      {/* Add item form */}
-      <form onSubmit={handleAddItem} className="flex gap-2">
-        <Input
-          placeholder="Add item to shopping list..."
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          className="flex-1"
-        />
-        <Button
-          type="submit"
-          disabled={!newItemName.trim() || addItemMutation.isPending}
-        >
-          {addItemMutation.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Plus className="w-4 h-4" />
-          )}
-        </Button>
-      </form>
+      {/* List header with count and overflow menu */}
+      {totalCount > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {uncheckedCount} of {totalCount} items remaining
+          </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setShowClearDialog(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear List
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
       {/* Loading state */}
       {isLoading && (
@@ -260,7 +275,7 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
                     key={item.id}
                     className={cn(
                       'flex items-center gap-3 p-3 rounded-lg border bg-card group',
-                      'hover:bg-accent/50 transition-colors',
+                      'hover:bg-muted/50 transition-colors',
                       item.is_checked && 'opacity-60'
                     )}
                   >
@@ -308,8 +323,8 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
             className="w-full justify-between"
           >
             <div className="flex items-center gap-2">
-              <Bookmark className="w-4 h-4" />
-              <span>Manage Templates</span>
+              <Star className="w-4 h-4" />
+              <span>Manage Favorites</span>
             </div>
             <ChevronDown
               className={cn(

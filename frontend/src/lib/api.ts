@@ -70,6 +70,7 @@ export interface OnboardingSubmission {
   dietary_goals: 'meal_prep' | 'cook_fresh' | 'mixed';
   dietary_patterns: string[];
   household_members: FamilyMember[];
+  starter_content_choice?: 'meal_plan' | 'starter_recipes' | 'skip';
 }
 
 export interface HouseholdProfile {
@@ -828,6 +829,33 @@ export interface WorkspaceErrorsResponse {
   errors: ErrorLogEntry[];
 }
 
+// Onboarding Analytics types
+export interface OnboardingWorkspaceDetail {
+  workspace_id: string;
+  completed_at: string | null;
+  answers: {
+    skill_level: string | null;
+    cooking_frequency: string | null;
+    kitchen_equipment_level: string | null;
+    pantry_stock_level: string | null;
+    primary_goal: string | null;
+    cuisine_preferences: string[];
+    dietary_goals: string | null;
+    dietary_patterns: string[];
+    starter_content_choice: string | null;
+  };
+}
+
+export interface OnboardingAnalytics {
+  total_completions: number;
+  total_started: number;
+  total_skipped: number;
+  completion_rate: number;
+  skip_rate: number;
+  answer_distributions: Record<string, Record<string, number>>;
+  workspace_details: OnboardingWorkspaceDetail[];
+}
+
 // Admin API (workspace analytics and management)
 // All admin endpoints require X-Admin-Key header
 export const adminAPI = {
@@ -896,6 +924,18 @@ export const adminAPI = {
     const response = await fetch(
       `${API_BASE_URL}/logs/errors/${encodeURIComponent(workspaceId)}/clear`,
       { method: 'POST', headers: { 'X-Admin-Key': getAdminKey() || '' } }
+    );
+    return handleResponse(response);
+  },
+
+  async getOnboardingAnalytics(startDate?: string, endDate?: string): Promise<OnboardingAnalytics> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
+    const queryString = params.toString();
+    const response = await fetch(
+      `${API_BASE_URL}/admin/onboarding/analytics${queryString ? `?${queryString}` : ''}`,
+      { headers: { 'X-Admin-Key': getAdminKey() || '' } }
     );
     return handleResponse(response);
   },

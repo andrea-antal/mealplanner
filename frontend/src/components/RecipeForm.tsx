@@ -17,12 +17,13 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, AlertTriangle, ChevronDown, RotateCcw } from 'lucide-react';
+import { Loader2, AlertTriangle, ChevronDown, RotateCcw, Mic, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Recipe, OCRFromPhotoResponse } from '@/lib/api';
 import { recipesAPI } from '@/lib/api';
 import { PhotoUploadInput } from './recipe/PhotoUploadInput';
 import { OCRReviewStep } from './recipe/OCRReviewStep';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 // Valid meal types matching backend validation
 const MEAL_TYPES = [
@@ -79,6 +80,35 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [showOcrReview, setShowOcrReview] = useState(false);
 
+  // Voice input for recipe text
+  const {
+    state: voiceState,
+    transcription,
+    startListening,
+    stopListening,
+    reset: resetVoice,
+    isSupported: isVoiceSupported,
+  } = useVoiceInput();
+
+  // Append voice transcription to recipe input
+  useEffect(() => {
+    if (transcription && voiceState === 'idle') {
+      setRecipeInput((prev) => {
+        const separator = prev.trim() ? '\n' : '';
+        return prev + separator + transcription;
+      });
+      resetVoice();
+    }
+  }, [transcription, voiceState, resetVoice]);
+
+  const handleVoiceToggle = () => {
+    if (voiceState === 'listening') {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
   // Populate form when opening in edit mode (useEffect watches the open prop)
   useEffect(() => {
     if (open && mode === 'edit' && initialRecipe) {
@@ -112,8 +142,10 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
       setCorrectedText('');
       setIsOcrProcessing(false);
       setShowOcrReview(false);
+      // Reset voice state
+      resetVoice();
     }
-  }, [open, mode, initialRecipe]);
+  }, [open, mode, initialRecipe, resetVoice]);
 
   // Detect if input is a URL
   const isUrl = (text: string) => /^https?:\/\//i.test(text.trim());
@@ -516,11 +548,12 @@ export function RecipeForm({ open, onOpenChange, onSubmit, workspaceId, mode = '
               <p className="text-sm text-muted-foreground mb-2">
                 Paste a recipe URL or recipe text to automatically extract recipe data
               </p>
-              <Textarea
-                id="recipe-input"
-                value={recipeInput}
-                onChange={(e) => setRecipeInput(e.target.value)}
-                placeholder="Paste a recipe URL (https://...) or recipe text here...
+              <div className="relative">
+                <Textarea
+                  id="recipe-input"
+                  value={recipeInput}
+                  onChange={(e) => setRecipeInput(e.target.value)}
+                  placeholder="Paste a recipe URL (https://...) or recipe text here...
 
 Example text:
 Chocolate Chip Cookies
@@ -534,10 +567,36 @@ Instructions:
 1. Preheat oven to 350°F
 2. Mix ingredients
 3. Bake for 12 minutes"
-                disabled={isParsing || isOcrProcessing}
-                rows={8}
-                className="font-mono text-sm"
-              />
+                  disabled={isParsing || isOcrProcessing || voiceState === 'listening'}
+                  rows={8}
+                  className="font-mono text-sm pr-12"
+                />
+                {isVoiceSupported && (
+                  <div className="absolute right-2 top-2">
+                    <Button
+                      type="button"
+                      variant={voiceState === 'listening' ? 'destructive' : 'ghost'}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={handleVoiceToggle}
+                      disabled={isParsing || isOcrProcessing}
+                      title={voiceState === 'listening' ? 'Stop recording' : 'Dictate recipe'}
+                    >
+                      {voiceState === 'listening' ? (
+                        <MicOff className="h-4 w-4" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+                {voiceState === 'listening' && (
+                  <div className="absolute bottom-2 left-2 right-12 flex items-center gap-2 bg-destructive/10 rounded px-2 py-1">
+                    <div className="h-2 w-2 bg-destructive rounded-full animate-pulse" />
+                    <span className="text-xs text-destructive font-medium">Listening...</span>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center justify-between mt-2">
                 <span className="text-xs text-muted-foreground">
                   {inputLength.toLocaleString()} / {MAX_TEXT_LENGTH.toLocaleString()} characters

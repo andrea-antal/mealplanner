@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Package, Calendar, Trash2, AlertCircle, Clock, Snowflake } from 'lucide-react';
+import { Package, Calendar, Trash2, AlertCircle, Clock, Snowflake, Star } from 'lucide-react';
 import type { GroceryItem } from '@/lib/api';
 
 interface GroceryItemModalProps {
@@ -29,6 +29,7 @@ interface GroceryItemModalProps {
   onUpdate: (name: string, updates: Partial<GroceryItem>) => void;
   onDelete: (name: string) => void;
   onMove?: (name: string, storageLocation: 'fridge' | 'pantry') => void;
+  onAddToFavorites?: (item: GroceryItem) => void;
 }
 
 export function GroceryItemModal({
@@ -38,6 +39,7 @@ export function GroceryItemModal({
   onUpdate,
   onDelete,
   onMove,
+  onAddToFavorites,
 }: GroceryItemModalProps) {
   const [isEditingAmount, setIsEditingAmount] = useState(false);
   const [isEditingDates, setIsEditingDates] = useState(false);
@@ -209,6 +211,26 @@ export function GroceryItemModal({
                     </div>
                   </>
                 )}
+              </Button>
+            )}
+
+            {/* Add to Favorites */}
+            {onAddToFavorites && (
+              <Button
+                variant="outline"
+                className="w-full h-14 justify-start text-left"
+                onClick={() => {
+                  onAddToFavorites(item);
+                  onOpenChange(false);
+                }}
+              >
+                <Star className="h-5 w-5 mr-3 shrink-0 text-yellow-500" />
+                <div>
+                  <div className="font-medium">Add to Favorites</div>
+                  <div className="text-xs text-muted-foreground">
+                    Quick-add to shopping list next time
+                  </div>
+                </div>
               </Button>
             )}
 

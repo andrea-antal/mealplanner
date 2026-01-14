@@ -7,3 +7,4 @@ export { PrimaryGoalStep } from './PrimaryGoalStep';
 export { CuisinePreferencesStep } from './CuisinePreferencesStep';
 export { DietaryGoalsStep } from './DietaryGoalsStep';
 export { HouseholdMembersStep } from './HouseholdMembersStep';
+export { StarterContentStep } from './StarterContentStep';

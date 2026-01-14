@@ -1,8 +1,10 @@
 """Pytest fixtures for isolated test data"""
+import sys
 import pytest
 import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 
 
@@ -221,11 +223,23 @@ def mock_supabase(monkeypatch):
 
     mock_client = MockSupabaseClient(store)
 
-    # Patch the client getter in data_manager
-    monkeypatch.setattr(
-        "app.data.data_manager._get_client",
-        lambda: mock_client
-    )
+    # Mock the supabase module BEFORE any app imports
+    # This prevents import errors when supabase package isn't installed
+    mock_supabase_module = MagicMock()
+    mock_supabase_module.create_client = MagicMock(return_value=mock_client)
+    mock_supabase_module.Client = MagicMock
+
+    # Insert mock into sys.modules before importing app modules
+    sys.modules['supabase'] = mock_supabase_module
+
+    # Clear any cached imports of app modules that depend on supabase
+    modules_to_clear = [k for k in sys.modules.keys() if k.startswith('app.')]
+    for mod in modules_to_clear:
+        del sys.modules[mod]
+
+    # Now import and patch the data_manager
+    from app.data import data_manager
+    monkeypatch.setattr(data_manager, "_get_client", lambda: mock_client)
 
     return store
 

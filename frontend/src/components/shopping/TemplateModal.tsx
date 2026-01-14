@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { type TemplateItem, type CreateTemplateRequest } from '@/lib/api';
-import { GROCERY_CATEGORIES } from '@/lib/groceryCategories';
-import { Star, Loader2 } from 'lucide-react';
+import { CATEGORY_NAMES } from '@/lib/groceryCategories';
+import { Loader2 } from 'lucide-react';
 
 interface TemplateModalProps {
   open: boolean;
@@ -40,7 +39,6 @@ export const TemplateModal = ({
   const [category, setCategory] = useState('');
   const [defaultQuantity, setDefaultQuantity] = useState('');
   const [frequency, setFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'as_needed' | ''>('');
-  const [isFavorite, setIsFavorite] = useState(false);
 
   // Reset form when modal opens with template data
   useEffect(() => {
@@ -50,13 +48,11 @@ export const TemplateModal = ({
         setCategory(template.category);
         setDefaultQuantity(template.default_quantity || '');
         setFrequency(template.frequency || '');
-        setIsFavorite(template.is_favorite);
       } else {
         setName('');
         setCategory('');
         setDefaultQuantity('');
         setFrequency('');
-        setIsFavorite(false);
       }
     }
   }, [open, template]);
@@ -70,7 +66,7 @@ export const TemplateModal = ({
       category,
       default_quantity: defaultQuantity.trim() || undefined,
       frequency: frequency || undefined,
-      is_favorite: isFavorite,
+      is_favorite: true, // Always true since this is the favorites manager
     });
   };
 
@@ -81,7 +77,7 @@ export const TemplateModal = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Edit Template' : 'Create Template'}
+            {isEditing ? 'Edit Favorite' : 'Add Favorite'}
           </DialogTitle>
         </DialogHeader>
 
@@ -106,9 +102,9 @@ export const TemplateModal = ({
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {GROCERY_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat.name} value={cat.name.toLowerCase()}>
-                    {cat.name}
+                {CATEGORY_NAMES.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -142,19 +138,6 @@ export const TemplateModal = ({
             </Select>
           </div>
 
-          {/* Favorite Toggle */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="favorite"
-              checked={isFavorite}
-              onCheckedChange={(checked) => setIsFavorite(checked === true)}
-            />
-            <Label htmlFor="favorite" className="flex items-center gap-2 cursor-pointer">
-              <Star className="w-4 h-4 text-yellow-500" />
-              Mark as favorite (quick-add to shopping list)
-            </Label>
-          </div>
-
           <DialogFooter>
             <Button
               type="button"
@@ -170,7 +153,7 @@ export const TemplateModal = ({
               {isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : null}
-              {isEditing ? 'Save Changes' : 'Create Template'}
+              {isEditing ? 'Save Changes' : 'Add Favorite'}
             </Button>
           </DialogFooter>
         </form>

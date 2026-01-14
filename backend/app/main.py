@@ -8,6 +8,7 @@ This is the main application file that sets up:
 - API routes
 """
 import logging
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
@@ -355,6 +356,51 @@ async def debug_supabase(_: bool = Depends(verify_admin)):
         debug_info["error"] = str(e)
 
     return debug_info
+
+
+@app.get("/admin/onboarding/stats", tags=["admin"])
+async def get_onboarding_stats(_: bool = Depends(verify_admin)):
+    """
+    Get onboarding funnel statistics.
+    Requires X-Admin-Key header.
+
+    Returns funnel stats including:
+    - total_started: Number of users who saw the onboarding wizard
+    - total_completed: Number of users who completed onboarding
+    - total_skipped: Number of users who skipped onboarding
+    - completion_rate: Ratio of completed to started
+    - skip_rate: Ratio of skipped to started
+    - step_views: Breakdown of how many users reached each step
+    - recent_events: Last 10 onboarding events
+    """
+    from app.services.onboarding_logger import get_onboarding_funnel_stats
+    return get_onboarding_funnel_stats()
+
+
+@app.get("/admin/onboarding/analytics", tags=["admin"])
+async def get_onboarding_analytics(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    _: bool = Depends(verify_admin)
+):
+    """
+    Get detailed onboarding analytics with answer distributions.
+    Requires X-Admin-Key header.
+
+    Args:
+        start_date: Optional ISO date string to filter from (inclusive)
+        end_date: Optional ISO date string to filter to (inclusive)
+
+    Returns:
+        Detailed analytics including:
+        - total_completions: Number of completed onboardings
+        - completion_rate: Ratio of completed to started
+        - skip_rate: Ratio of skipped to started
+        - answer_distributions: Percentage breakdown for each question
+        - workspace_details: Per-workspace onboarding answers
+    """
+    from app.services.onboarding_logger import get_detailed_onboarding_analytics
+    return get_detailed_onboarding_analytics(start_date, end_date)
 
 
 @app.post("/admin/migrate-to-supabase", tags=["admin"])

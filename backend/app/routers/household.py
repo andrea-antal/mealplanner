@@ -6,7 +6,7 @@ Provides REST API for managing household profile and groceries.
 import logging
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel, Field
 from app.models.household import (
     HouseholdProfile,
@@ -20,6 +20,11 @@ from app.data.data_manager import (
     save_household_profile,
     load_groceries,
     save_groceries
+)
+from app.services.onboarding_logger import (
+    log_onboarding_completed,
+    log_onboarding_skipped,
+    log_onboarding_error
 )
 
 logger = logging.getLogger(__name__)
@@ -161,6 +166,7 @@ class OnboardingSubmission(BaseModel):
     dietary_goals: str = Field(..., description="Meal approach: meal_prep, cook_fresh, mixed")
     dietary_patterns: List[str] = Field(default_factory=list, description="Dietary patterns like keto, high_protein")
     household_members: List[FamilyMember] = Field(..., min_length=1, description="At least one household member required")
+    starter_content_choice: Optional[str] = Field(default=None, description="Starter content: meal_plan, starter_recipes, or skip")
 
 
 @router.get("/onboarding-status", response_model=OnboardingStatus)
@@ -183,13 +189,15 @@ async def get_onboarding_status(workspace_id: str = Query(..., description="Work
 @router.post("/onboarding", response_model=HouseholdProfile)
 async def submit_onboarding(
     submission: OnboardingSubmission,
-    workspace_id: str = Query(..., description="Workspace identifier")
+    workspace_id: str = Query(..., description="Workspace identifier"),
+    background_tasks: BackgroundTasks = None
 ):
     """
     Submit completed onboarding data.
 
     Creates or updates household profile with onboarding responses.
     Maps equipment level to specific appliances.
+    Optionally triggers starter content generation in the background.
     """
     # Load existing profile or create new one
     existing_profile = load_household_profile(workspace_id)
@@ -218,7 +226,8 @@ async def submit_onboarding(
         primary_goal=submission.primary_goal,
         cuisine_preferences=submission.cuisine_preferences,
         dietary_goals=submission.dietary_goals,
-        dietary_patterns=submission.dietary_patterns
+        dietary_patterns=submission.dietary_patterns,
+        starter_content_choice=submission.starter_content_choice
     )
 
     # Build onboarding status
@@ -251,7 +260,46 @@ async def submit_onboarding(
         )
 
     save_household_profile(workspace_id, profile)
+
+    # Log onboarding completion for funnel analytics with all answers
+    log_onboarding_completed(
+        workspace_id,
+        onboarding_answers={
+            "skill_level": submission.skill_level,
+            "cooking_frequency": submission.cooking_frequency,
+            "kitchen_equipment_level": submission.kitchen_equipment_level,
+            "pantry_stock_level": submission.pantry_stock_level,
+            "primary_goal": submission.primary_goal,
+            "cuisine_preferences": submission.cuisine_preferences,
+            "dietary_goals": submission.dietary_goals,
+            "dietary_patterns": submission.dietary_patterns,
+            "starter_content_choice": submission.starter_content_choice,
+        }
+    )
+
     logger.info(f"Completed onboarding for workspace '{workspace_id}'")
+
+    # Trigger starter content generation if requested
+    if background_tasks and submission.starter_content_choice:
+        from app.services.starter_content_service import (
+            generate_starter_meal_plan,
+            generate_starter_recipes
+        )
+
+        if submission.starter_content_choice == "meal_plan":
+            logger.info(f"Queueing starter meal plan generation for workspace '{workspace_id}'")
+            background_tasks.add_task(
+                generate_starter_meal_plan,
+                workspace_id,
+                profile
+            )
+        elif submission.starter_content_choice == "starter_recipes":
+            logger.info(f"Queueing starter recipe generation for workspace '{workspace_id}'")
+            background_tasks.add_task(
+                generate_starter_recipes,
+                workspace_id,
+                onboarding_data
+            )
 
     return profile
 
@@ -282,6 +330,14 @@ async def skip_onboarding(
         profile.onboarding_status.permanently_dismissed = True
 
     save_household_profile(workspace_id, profile)
+
+    # Log skip event for funnel analytics
+    log_onboarding_skipped(
+        workspace_id,
+        skip_count=profile.onboarding_status.skipped_count,
+        permanent=permanent
+    )
+
     logger.info(f"Skipped onboarding for workspace '{workspace_id}' (permanent={permanent}, count={profile.onboarding_status.skipped_count})")
 
     return profile.onboarding_status

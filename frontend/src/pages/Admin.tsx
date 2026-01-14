@@ -44,7 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { adminAPI, type WorkspaceSummary, type InactiveWorkspace, type ErrorLogEntry } from '@/lib/api';
+import { adminAPI, type WorkspaceSummary, type InactiveWorkspace, type ErrorLogEntry, type OnboardingAnalytics, type OnboardingWorkspaceDetail } from '@/lib/api';
 import { toast } from 'sonner';
 import {
   Database,
@@ -61,6 +61,9 @@ import {
   CheckCircle2,
   ChevronRight,
   Lock,
+  ClipboardList,
+  TrendingUp,
+  SkipForward,
 } from 'lucide-react';
 
 // Format relative time
@@ -140,6 +143,12 @@ const Admin = () => {
   const { data: inactiveData, isLoading: inactiveLoading } = useQuery({
     queryKey: ['admin', 'workspaces', 'inactive', inactiveDays],
     queryFn: () => adminAPI.getInactiveWorkspaces(inactiveDays),
+  });
+
+  // Fetch onboarding analytics
+  const { data: onboardingData, isLoading: onboardingLoading } = useQuery({
+    queryKey: ['admin', 'onboarding', 'analytics'],
+    queryFn: () => adminAPI.getOnboardingAnalytics(),
   });
 
   // Delete workspace mutation
@@ -292,6 +301,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="inactive">
               Inactive ({inactiveData?.count || 0})
+            </TabsTrigger>
+            <TabsTrigger value="onboarding">
+              Onboarding
             </TabsTrigger>
           </TabsList>
 
@@ -473,6 +485,169 @@ const Admin = () => {
                   </div>
                 </CardContent>
               </Card>
+            )}
+          </TabsContent>
+
+          {/* Onboarding Analytics Tab */}
+          <TabsContent value="onboarding" className="mt-4">
+            {onboardingLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : !onboardingData ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <ClipboardList className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No onboarding data available</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <ClipboardList className="h-4 w-4" />
+                        Completions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{onboardingData.total_completions}</div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Completion Rate
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {(onboardingData.completion_rate * 100).toFixed(1)}%
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <SkipForward className="h-4 w-4" />
+                        Skip Rate
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {(onboardingData.skip_rate * 100).toFixed(1)}%
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Total Started
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{onboardingData.total_started}</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Answer Distributions */}
+                {Object.keys(onboardingData.answer_distributions).length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Answer Distributions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {Object.entries(onboardingData.answer_distributions).map(([field, distribution]) => (
+                        <div key={field} className="space-y-2">
+                          <h4 className="text-sm font-medium capitalize">
+                            {field.replace(/_/g, ' ')}
+                          </h4>
+                          <div className="space-y-1">
+                            {Object.entries(distribution)
+                              .sort(([, a], [, b]) => b - a)
+                              .map(([option, percentage]) => (
+                                <div key={option} className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground w-32 truncate capitalize">
+                                    {option.replace(/_/g, ' ')}
+                                  </span>
+                                  <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary transition-all"
+                                      style={{ width: `${percentage * 100}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-sm font-medium w-12 text-right">
+                                    {(percentage * 100).toFixed(0)}%
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Per-Workspace Details */}
+                {onboardingData.workspace_details.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        Workspace Details ({onboardingData.workspace_details.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[400px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Workspace</TableHead>
+                              <TableHead>Skill</TableHead>
+                              <TableHead>Goal</TableHead>
+                              <TableHead>Cuisines</TableHead>
+                              <TableHead>Starter</TableHead>
+                              <TableHead>Completed</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {onboardingData.workspace_details.map((detail: OnboardingWorkspaceDetail) => (
+                              <TableRow key={detail.workspace_id}>
+                                <TableCell className="font-medium">
+                                  {detail.workspace_id}
+                                </TableCell>
+                                <TableCell className="capitalize">
+                                  {detail.answers.skill_level?.replace(/_/g, ' ') || '-'}
+                                </TableCell>
+                                <TableCell className="capitalize">
+                                  {detail.answers.primary_goal?.replace(/_/g, ' ') || '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {detail.answers.cuisine_preferences?.length > 0
+                                    ? detail.answers.cuisine_preferences.slice(0, 2).join(', ') +
+                                      (detail.answers.cuisine_preferences.length > 2 ? '...' : '')
+                                    : '-'}
+                                </TableCell>
+                                <TableCell className="capitalize">
+                                  {detail.answers.starter_content_choice?.replace(/_/g, ' ') || '-'}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {formatRelativeTime(detail.completed_at)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             )}
           </TabsContent>
         </Tabs>

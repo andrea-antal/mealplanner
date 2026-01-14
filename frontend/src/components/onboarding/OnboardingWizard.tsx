@@ -35,6 +35,7 @@ import {
   CuisinePreferencesStep,
   DietaryGoalsStep,
   HouseholdMembersStep,
+  StarterContentStep,
 } from './steps';
 
 interface OnboardingWizardProps {
@@ -56,6 +57,7 @@ export interface OnboardingState {
   dietaryGoals: 'meal_prep' | 'cook_fresh' | 'mixed';
   dietaryPatterns: string[];
   householdMembers: FamilyMember[];
+  starterContentChoice: 'meal_plan' | 'starter_recipes' | 'skip' | null;
 }
 
 const INITIAL_STATE: OnboardingState = {
@@ -68,6 +70,7 @@ const INITIAL_STATE: OnboardingState = {
   dietaryGoals: 'mixed',
   dietaryPatterns: [],
   householdMembers: [],
+  starterContentChoice: null,
 };
 
 const STEP_TITLES = [
@@ -80,6 +83,7 @@ const STEP_TITLES = [
   'Cuisine Preferences',
   'Dietary Preferences',
   'Household Members',
+  'Get Started',
 ];
 
 const TOTAL_STEPS = STEP_TITLES.length;
@@ -99,10 +103,19 @@ export function OnboardingWizard({
 
   const submitMutation = useMutation({
     mutationFn: (data: OnboardingSubmission) => onboardingAPI.submit(workspaceId, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['onboardingStatus', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['householdProfile', workspaceId] });
-      toast.success('Welcome! Your profile has been set up.');
+
+      // Show appropriate toast based on starter content choice
+      if (variables.starter_content_choice === 'meal_plan') {
+        toast.success('Welcome! Generating your meal plan in the background...');
+      } else if (variables.starter_content_choice === 'starter_recipes') {
+        toast.success('Welcome! Adding starter recipes to your library...');
+      } else {
+        toast.success('Welcome! Your profile has been set up.');
+      }
+
       onComplete();
     },
     onError: (error) => {
@@ -148,6 +161,7 @@ export function OnboardingWizard({
         dietary_goals: state.dietaryGoals,
         dietary_patterns: state.dietaryPatterns,
         household_members: state.householdMembers,
+        starter_content_choice: state.starterContentChoice || 'skip',
       };
       submitMutation.mutate(submission);
     }
@@ -238,6 +252,13 @@ export function OnboardingWizard({
             onChange={(value) => updateField('householdMembers', value)}
           />
         );
+      case 9:
+        return (
+          <StarterContentStep
+            value={state.starterContentChoice}
+            onChange={(value) => updateField('starterContentChoice', value)}
+          />
+        );
       default:
         return null;
     }
@@ -246,7 +267,10 @@ export function OnboardingWizard({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent
+          className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col"
+          data-testid="onboarding-wizard"
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ChefHat className="h-5 w-5 text-primary" />

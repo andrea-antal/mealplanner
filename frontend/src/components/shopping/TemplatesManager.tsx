@@ -2,16 +2,6 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   templatesAPI,
   type TemplateItem,
   type CreateTemplateRequest,
@@ -19,14 +9,10 @@ import {
 import { getCurrentWorkspace } from '@/lib/workspace';
 import { TemplateModal } from './TemplateModal';
 import {
-  Plus,
-  Trash2,
-  Edit2,
   Loader2,
   Star,
   Clock,
   ListPlus,
-  Bookmark,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,8 +27,6 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
 
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateItem | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [templateToDelete, setTemplateToDelete] = useState<TemplateItem | null>(null);
 
   // Fetch templates
   const { data: templateList, isLoading } = useQuery({
@@ -58,10 +42,10 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shopping-templates', workspaceId] });
       setShowModal(false);
-      toast.success('Template created');
+      toast.success('Favorite added');
     },
     onError: () => {
-      toast.error('Failed to create template');
+      toast.error('Failed to add favorite');
     },
   });
 
@@ -72,25 +56,42 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
       queryClient.invalidateQueries({ queryKey: ['shopping-templates', workspaceId] });
       setShowModal(false);
       setEditingTemplate(null);
-      toast.success('Template updated');
+      toast.success('Favorite updated');
     },
     onError: () => {
-      toast.error('Failed to update template');
+      toast.error('Failed to update favorite');
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => templatesAPI.delete(workspaceId!, id),
-    onSuccess: () => {
+    mutationFn: (template: TemplateItem) => templatesAPI.delete(workspaceId!, template.id),
+    onSuccess: (_, deletedTemplate) => {
       queryClient.invalidateQueries({ queryKey: ['shopping-templates', workspaceId] });
-      setShowDeleteDialog(false);
-      setTemplateToDelete(null);
-      toast.success('Template deleted');
+      toast.success('Removed from favorites', {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            // Recreate the template with the same data
+            createMutation.mutate({
+              name: deletedTemplate.name,
+              canonical_name: deletedTemplate.canonical_name,
+              category: deletedTemplate.category,
+              default_quantity: deletedTemplate.default_quantity,
+              frequency: deletedTemplate.frequency,
+              is_favorite: deletedTemplate.is_favorite,
+            });
+          },
+        },
+      });
     },
     onError: () => {
-      toast.error('Failed to delete template');
+      toast.error('Failed to remove favorite');
     },
   });
+
+  const handleRemoveFromFavorites = (template: TemplateItem) => {
+    deleteMutation.mutate(template);
+  };
 
   const handleSave = async (data: CreateTemplateRequest) => {
     if (editingTemplate) {
@@ -103,17 +104,6 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
   const handleEdit = (template: TemplateItem) => {
     setEditingTemplate(template);
     setShowModal(true);
-  };
-
-  const handleDeleteRequest = (template: TemplateItem) => {
-    setTemplateToDelete(template);
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDelete = () => {
-    if (templateToDelete) {
-      deleteMutation.mutate(templateToDelete.id);
-    }
   };
 
   // Group templates by category
@@ -145,12 +135,9 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Bookmark className="w-5 h-5 text-muted-foreground" />
+          <Star className="w-5 h-5 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
-            {totalCount} template{totalCount !== 1 ? 's' : ''}
-            {favoriteCount > 0 && (
-              <span className="ml-1">({favoriteCount} favorite{favoriteCount !== 1 ? 's' : ''})</span>
-            )}
+            {totalCount} favorite{totalCount !== 1 ? 's' : ''}
           </span>
         </div>
         <Button
@@ -161,8 +148,7 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
             setShowModal(true);
           }}
         >
-          <Plus className="w-4 h-4 mr-1" />
-          New Template
+          ⭐️ Add Favorite
         </Button>
       </div>
 
@@ -176,9 +162,9 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
       {/* Empty state */}
       {!isLoading && totalCount === 0 && (
         <div className="text-center py-12 text-muted-foreground border rounded-lg">
-          <Bookmark className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">No templates yet</p>
-          <p className="text-sm mt-1 mb-4">Create templates for items you buy regularly</p>
+          <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">No favorites yet</p>
+          <p className="text-sm mt-1 mb-4">Add items you buy regularly for quick access</p>
           <Button
             variant="outline"
             onClick={() => {
@@ -186,8 +172,7 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
               setShowModal(true);
             }}
           >
-            <Plus className="w-4 h-4 mr-1" />
-            Create First Template
+            ⭐️ Add First Favorite
           </Button>
         </div>
       )}
@@ -206,15 +191,22 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
                   {templates.map((template) => (
                     <div
                       key={template.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors group"
+                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
                     >
-                      {/* Favorite indicator */}
-                      {template.is_favorite && (
-                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 shrink-0" />
-                      )}
+                      {/* Star toggle - clickable to remove from favorites */}
+                      <button
+                        onClick={() => handleRemoveFromFavorites(template)}
+                        className="shrink-0 hover:scale-110 transition-transform"
+                        title="Remove from favorites"
+                      >
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      </button>
 
-                      {/* Template info */}
-                      <div className="flex-1 min-w-0">
+                      {/* Template info - clickable to edit */}
+                      <button
+                        onClick={() => handleEdit(template)}
+                        className="flex-1 min-w-0 text-left"
+                      >
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium truncate">
                             {template.name}
@@ -233,35 +225,20 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
                             </span>
                           </div>
                         )}
-                      </div>
+                      </button>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {onAddToList && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onAddToList([template.id])}
-                            title="Add to shopping list"
-                          >
-                            <ListPlus className="w-4 h-4" />
-                          </Button>
-                        )}
+                      {/* Add to list button (only if callback provided) */}
+                      {onAddToList && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEdit(template)}
+                          onClick={() => onAddToList([template.id])}
+                          title="Add to shopping list"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <ListPlus className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteRequest(template)}
-                        >
-                          <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                        </Button>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -281,29 +258,6 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
         onSave={handleSave}
         isPending={createMutation.isPending || updateMutation.isPending}
       />
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{templateToDelete?.name}"?
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
