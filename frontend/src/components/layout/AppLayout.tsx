@@ -39,7 +39,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               onClick={() => setShowFeedback(true)}
               size="icon"
               variant="ghost"
-              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 rounded-full bg-destructive/90 text-destructive-foreground hover:bg-destructive"
               aria-label="Help and feedback"
             >
               <HelpCircle className="h-4 w-4" />
