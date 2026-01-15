@@ -31,7 +31,7 @@ export function InsufficientRecipesModal({
   // Smart routing: household setup is more impactful for new users
   const handlePrimaryAction = () => {
     onOpenChange(false);
-    navigate(householdSetUp ? '/cook' : '/household');
+    navigate(householdSetUp ? '/recipes' : '/household');
   };
 
   const handleGenerateAnyway = () => {
