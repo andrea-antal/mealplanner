@@ -23,7 +23,14 @@ import { RecipeRating } from './RecipeRating';
 import type { Recipe } from '@/lib/api';
 import { householdAPI, recipesAPI } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Clock, Users, Trash2, RefreshCw, ExternalLink, Pencil, StickyNote } from 'lucide-react';
+import { Clock, Users, Trash2, RefreshCw, ExternalLink, Pencil, StickyNote, MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { RecipeForm } from './RecipeForm';
 import { toast } from 'sonner';
 
@@ -156,7 +163,43 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
+        {/* Actions menu - positioned to align with close button */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="absolute right-12 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Recipe actions</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setShowEditForm(true)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </DropdownMenuItem>
+            {recipe.is_generated && (
+              <DropdownMenuItem onClick={() => setShowRegenerateDialog(true)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Regenerate
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleDelete}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DialogHeader className="px-6 pt-6 pb-4 pr-20 shrink-0">
           <DialogTitle className="font-display text-2xl">{recipe.title}</DialogTitle>
         </DialogHeader>
 
@@ -273,53 +316,18 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
           )}
         </div>
 
-        {/* Bottom Half: Ratings & Actions (Fixed/Scrollable) */}
-        <div className="shrink-0 border-t border-border bg-muted/30">
-          <div className="max-h-[40vh] overflow-y-auto px-6 py-6 space-y-6">
-            {/* Recipe Ratings */}
-            {household && ratings && (
-              <RecipeRating
-                recipeId={recipe.id}
-                currentRatings={ratings}
-                householdMembers={household.family_members}
-                onRate={handleRate}
-                disabled={rateMutation.isPending}
-              />
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2">
-              {/* Edit button - always show */}
-              <Button
-                variant="outline"
-                onClick={() => setShowEditForm(true)}
-              >
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-              {recipe.is_generated && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowRegenerateDialog(true)}
-                  className="text-primary hover:text-primary hover:bg-primary/10"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Regenerate
-                </Button>
-              )}
-              {onDelete && (
-                <Button
-                  variant="outline"
-                  onClick={handleDelete}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              )}
-            </div>
+        {/* Bottom: Ratings Only (Fixed) */}
+        {household && ratings && (
+          <div className="shrink-0 border-t border-border bg-muted/30 px-6 py-4">
+            <RecipeRating
+              recipeId={recipe.id}
+              currentRatings={ratings}
+              householdMembers={household.family_members}
+              onRate={handleRate}
+              disabled={rateMutation.isPending}
+            />
           </div>
-        </div>
+        )}
       </DialogContent>
 
       {/* Regenerate Confirmation Dialog */}

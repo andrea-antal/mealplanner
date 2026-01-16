@@ -35,11 +35,11 @@ export function RecipeRating({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <Label className="text-sm font-semibold">Household Ratings</Label>
 
-      {/* Horizontal grid of rating cards */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Compact inline layout */}
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
         {householdMembers.map((member) => {
           const rating = currentRatings[member.name];
           const isLiked = rating === 'like';
@@ -48,48 +48,40 @@ export function RecipeRating({
           return (
             <div
               key={member.name}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg bg-muted/30 border border-border"
+              className="flex items-center gap-1.5"
+              title="Click to rate, click again to remove"
             >
-              {/* Member name at top */}
-              <span className="text-sm font-medium text-center">
+              <span className="text-sm text-muted-foreground">
                 {member.name}
               </span>
-
-              {/* Icon-only buttons side-by-side */}
-              <div className="flex gap-2">
-                <Button
-                  variant={isLiked ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleRating(member.name, 'like')}
-                  disabled={disabled}
-                  className={`w-10 h-10 p-0 ${
-                    isLiked
-                      ? 'bg-green-600 hover:bg-green-600 border-green-600 text-white'
-                      : 'hover:bg-green-600 hover:text-white hover:border-green-600'
-                  }`}
-                >
-                  <ThumbsUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={isDisliked ? 'destructive' : 'outline'}
-                  size="sm"
-                  onClick={() => handleRating(member.name, 'dislike')}
-                  disabled={disabled}
-                  className={`w-10 h-10 p-0 ${
-                    !isDisliked ? 'hover:bg-destructive hover:text-destructive-foreground hover:border-destructive' : ''
-                  }`}
-                >
-                  <ThumbsDown className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button
+                variant={isLiked ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleRating(member.name, 'like')}
+                disabled={disabled}
+                className={`w-7 h-7 p-0 ${
+                  isLiked
+                    ? 'bg-green-600 hover:bg-green-600 border-green-600 text-white'
+                    : 'hover:bg-green-600 hover:text-white hover:border-green-600'
+                }`}
+              >
+                <ThumbsUp className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={isDisliked ? 'destructive' : 'outline'}
+                size="sm"
+                onClick={() => handleRating(member.name, 'dislike')}
+                disabled={disabled}
+                className={`w-7 h-7 p-0 ${
+                  !isDisliked ? 'hover:bg-destructive hover:text-destructive-foreground hover:border-destructive' : ''
+                }`}
+              >
+                <ThumbsDown className="h-3.5 w-3.5" />
+              </Button>
             </div>
           );
         })}
       </div>
-
-      <p className="text-xs text-muted-foreground mt-2">
-        Ratings help personalize your meal plans. Click the same button again to remove your rating.
-      </p>
     </div>
   );
 }
