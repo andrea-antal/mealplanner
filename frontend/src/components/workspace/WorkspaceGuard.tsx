@@ -1,19 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentWorkspace } from '@/lib/workspace';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 interface WorkspaceGuardProps {
   children: React.ReactNode;
 }
 
 /**
- * WorkspaceGuard protects routes that require a workspace to be set.
+ * WorkspaceGuard protects routes that require authentication.
  *
- * If no workspace is found in localStorage, it redirects to the home page (/)
- * where the WorkspaceSelector modal will prompt the user to select a workspace.
- *
- * This prevents users from accessing protected pages via direct links or
- * bookmarks without first setting a workspace.
+ * If the user is not authenticated, redirects to /login.
+ * Uses the authenticated user's UUID as workspace_id.
  *
  * @example
  * <Route path="/groceries" element={
@@ -24,21 +22,26 @@ interface WorkspaceGuardProps {
  */
 export function WorkspaceGuard({ children }: WorkspaceGuardProps) {
   const navigate = useNavigate();
-  const [isChecking, setIsChecking] = useState(true);
-  const workspaceId = getCurrentWorkspace();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   useEffect(() => {
-    if (!workspaceId) {
-      // No workspace set - redirect to home page where WorkspaceSelector will appear
-      navigate('/');
-    } else {
-      // Workspace is set - allow rendering
-      setIsChecking(false);
+    // Only redirect after auth check completes
+    if (!isLoading && !isAuthenticated) {
+      navigate('/login');
     }
-  }, [workspaceId, navigate]);
+  }, [isLoading, isAuthenticated, navigate]);
 
-  // Don't render children during redirect or if no workspace
-  if (isChecking || !workspaceId) {
+  // Show loading spinner while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Don't render children if not authenticated (will redirect)
+  if (!isAuthenticated || !user?.workspace_id) {
     return null;
   }
 
