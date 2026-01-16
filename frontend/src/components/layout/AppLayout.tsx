@@ -1,9 +1,18 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Carrot, ShoppingBasket, UtensilsCrossed, HelpCircle, Calendar, ChefHat } from 'lucide-react';
+import { Carrot, ShoppingBasket, UtensilsCrossed, HelpCircle, Calendar, ChefHat, Menu, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FeedbackModal } from '@/components/FeedbackModal';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -20,12 +29,19 @@ const navigation = [
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const [showFeedback, setShowFeedback] = useState(false);
+  const { isAuthenticated, user, logout } = useAuth();
+
+  const handleSignOut = async () => {
+    await logout();
+    window.location.href = '/login';
+  };
 
   return (
     <div className="min-h-dvh bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-card">
         <div className="container flex h-16 items-center justify-between">
+          {/* Left: Logo + Feedback */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-soft">
@@ -46,27 +62,57 @@ export function AppLayout({ children }: AppLayoutProps) {
             </Button>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={cn(
-                    'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-soft'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Right: Desktop Nav + Hamburger Menu */}
+          <div className="flex items-center gap-2">
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-1">
+              {navigation.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-soft'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Hamburger menu - always far right */}
+            {isAuthenticated && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-full"
+                    aria-label="Menu"
+                  >
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <p className="text-xs text-muted-foreground">Signed in as</p>
+                    <p className="text-sm font-medium truncate">{user?.email}</p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
       </header>
 

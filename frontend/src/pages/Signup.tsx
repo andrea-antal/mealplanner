@@ -1,23 +1,27 @@
 /**
- * Login page for returning users.
- * Google OAuth as primary, magic link as fallback.
- * New users are directed to /signup.
+ * Signup page with invite code gate and OAuth.
+ * Step 1: Validate invite code
+ * Step 2: Choose auth method (Google or magic link)
  */
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { signInWithGoogle } from '@/lib/auth';
+import { validateInviteCode, signInWithGoogle } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Loader2, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Ticket, Loader2, Mail, ArrowLeft } from 'lucide-react';
 
-export default function Login() {
+type Step = 'invite' | 'auth';
+
+export default function Signup() {
+  const [step, setStep] = useState<Step>('invite');
+  const [inviteCode, setInviteCode] = useState('');
   const [email, setEmail] = useState('');
-  const [showEmailForm, setShowEmailForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -27,11 +31,28 @@ export default function Login() {
     return null;
   }
 
-  const handleGoogleLogin = async () => {
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
     setIsSubmitting(true);
 
-    const result = await signInWithGoogle();
+    // Validate invite code (email is placeholder since we don't have it yet)
+    const result = await validateInviteCode(inviteCode, 'pending@signup.com');
+
+    setIsSubmitting(false);
+
+    if (result.valid) {
+      setStep('auth');
+    } else {
+      setError(result.message);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setError(null);
+    setIsSubmitting(true);
+
+    const result = await signInWithGoogle(inviteCode);
 
     if (!result.success) {
       setError(result.error || 'Failed to start Google sign-in');
@@ -45,29 +66,34 @@ export default function Login() {
     setError(null);
     setIsSubmitting(true);
 
-    // For returning users, no invite code needed
-    const result = await login(email);
+    // Re-validate invite code with actual email
+    const validation = await validateInviteCode(inviteCode, email);
+    if (!validation.valid) {
+      setError(validation.message);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Send magic link
+    const result = await login(email, inviteCode);
 
     setIsSubmitting(false);
 
     if (result.success) {
-      setSent(true);
-    } else if (result.needsInviteCode) {
-      // New user - redirect to signup
-      setError("No account found with that email. Need to sign up?");
+      setEmailSent(true);
     } else {
       setError(result.message);
     }
   };
 
   // Email sent confirmation
-  if (sent) {
+  if (emailSent) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+              <Mail className="w-6 h-6 text-green-600" />
             </div>
             <CardTitle>Check your email</CardTitle>
             <CardDescription className="text-base">
@@ -76,12 +102,12 @@ export default function Login() {
           </CardHeader>
           <CardContent className="text-center text-muted-foreground">
             <p className="mb-4">
-              Click the link in the email to sign in. The link expires in 15 minutes.
+              Click the link in the email to create your account. The link expires in 15 minutes.
             </p>
             <Button
               variant="ghost"
               onClick={() => {
-                setSent(false);
+                setEmailSent(false);
                 setEmail('');
               }}
             >
@@ -96,24 +122,78 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
       <Card className="w-full max-w-md">
-        {showEmailForm ? (
+        {step === 'invite' ? (
           <>
-            <CardHeader className="text-center relative">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Join Meal Planner</CardTitle>
+              <CardDescription>
+                Enter your invite code to get started.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleInviteSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="MEAL-XXXXXX"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                      className="pl-10 uppercase"
+                      required
+                      disabled={isSubmitting}
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Don't have an invite code? Ask the person who told you about Meal Planner!
+                  </p>
+                </div>
+
+                {error && (
+                  <p className="text-sm text-destructive">{error}</p>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isSubmitting || !inviteCode}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Validating...
+                    </>
+                  ) : (
+                    'Continue'
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-6 text-center text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <Link to="/login" className="text-primary hover:underline">
+                  Log in
+                </Link>
+              </div>
+            </CardContent>
+          </>
+        ) : showEmailForm ? (
+          <>
+            <CardHeader className="text-center">
               <Button
                 variant="ghost"
                 size="sm"
                 className="absolute left-4 top-4"
-                onClick={() => {
-                  setShowEmailForm(false);
-                  setError(null);
-                }}
+                onClick={() => setShowEmailForm(false)}
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
-              <CardTitle className="text-2xl">Sign in with email</CardTitle>
+              <CardTitle className="text-2xl">Sign up with email</CardTitle>
               <CardDescription>
-                We'll send you a magic link to sign in.
+                We'll send you a magic link to create your account.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -135,14 +215,7 @@ export default function Login() {
                 </div>
 
                 {error && (
-                  <div className="text-sm">
-                    <p className="text-destructive">{error}</p>
-                    {error.includes("No account found") && (
-                      <Link to="/signup" className="text-primary hover:underline">
-                        Sign up with an invite code
-                      </Link>
-                    )}
-                  </div>
+                  <p className="text-sm text-destructive">{error}</p>
                 )}
 
                 <Button
@@ -165,9 +238,21 @@ export default function Login() {
         ) : (
           <>
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Welcome back</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute left-4 top-4"
+                onClick={() => {
+                  setStep('invite');
+                  setError(null);
+                }}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+              <CardTitle className="text-2xl">Create your account</CardTitle>
               <CardDescription>
-                Sign in to your Meal Planner account.
+                Choose how you'd like to sign up.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -176,7 +261,7 @@ export default function Login() {
               )}
 
               <Button
-                onClick={handleGoogleLogin}
+                onClick={handleGoogleSignup}
                 className="w-full"
                 disabled={isSubmitting}
                 variant="outline"
@@ -203,7 +288,7 @@ export default function Login() {
                     />
                   </svg>
                 )}
-                Sign in with Google
+                Continue with Google
               </Button>
 
               <div className="relative">
@@ -225,9 +310,9 @@ export default function Login() {
               </Button>
 
               <div className="text-center text-sm text-muted-foreground">
-                New here?{' '}
-                <Link to="/signup" className="text-primary hover:underline">
-                  Sign up with an invite code
+                Already have an account?{' '}
+                <Link to="/login" className="text-primary hover:underline">
+                  Log in
                 </Link>
               </div>
             </CardContent>

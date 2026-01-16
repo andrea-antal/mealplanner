@@ -1,6 +1,6 @@
 ---
 **Summary**: Chronological feature history with technical implementation details, test results, and file changes. Authoritative source for "what was built when and how".
-**Last Updated**: 2026-01-14
+**Last Updated**: 2026-01-16
 **Status**: Current
 **Read This If**: You need detailed implementation notes for any feature or sprint
 ---
@@ -8,6 +8,71 @@
 # Meal Planner - Development Changelog
 
 This document tracks key decisions, changes, and learnings during development.
+
+---
+
+## 2026-01-16 Feature: Google OAuth Authentication (v0.10.0)
+
+**Status**: Complete | **Branch**: `main`
+
+### Summary
+Implemented user authentication with Google OAuth as the primary sign-in method and magic link as fallback. New users require an invite code (beta access). Changed workspace_id from email-derived strings to Supabase UUIDs to prevent collisions. Added workspace migration for existing beta users.
+
+### Features Implemented
+
+1. **Google OAuth Sign-in**
+   - Primary authentication method (one-tap, reduced friction)
+   - Uses Supabase Auth's built-in Google provider
+   - Falls back to magic link for users who prefer email
+
+2. **Separate Signup/Login Flows**
+   - `/signup` - Two-step flow: validate invite code, then choose auth method
+   - `/login` - Returning users only, no invite code required
+   - Security check: new users without invite code are rejected in callback
+
+3. **UUID-based workspace_id**
+   - Changed from email-derived IDs to Supabase user UUIDs
+   - Prevents collisions (e.g., andrea.chan@gmail.com and andrea.chan@me.com)
+   - Backend and frontend both updated to use UUID
+
+4. **Workspace Migration**
+   - `/auth/complete-migration` endpoint for existing beta users
+   - Pre-register migration via `workspace_migrations` table
+   - Automatically transfers data on first login with registered email
+
+5. **Hamburger Menu**
+   - Shows user email when signed in
+   - Sign out option with redirect to login
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `frontend/src/lib/auth.ts` | Added `signInWithGoogle()`, changed to UUID workspace_id |
+| `frontend/src/pages/Login.tsx` | Google OAuth primary, magic link fallback, link to signup |
+| `frontend/src/pages/Index.tsx` | Removed WorkspaceSelector, uses auth context |
+| `frontend/src/pages/AuthCallback.tsx` | Invite code redemption, migration, security check |
+| `frontend/src/App.tsx` | Added `/signup` route |
+| `frontend/src/components/layout/AppLayout.tsx` | Added hamburger menu with sign out |
+| `backend/app/dependencies.py` | Use user.id (UUID) as workspace_id |
+| `backend/app/routers/auth.py` | Added `/complete-migration` endpoint |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/pages/Signup.tsx` | Two-step signup with invite code validation |
+
+### API Changes
+- `POST /auth/complete-migration` - New endpoint for workspace data migration
+
+### Database Changes
+- `workspace_migrations` table created in Supabase for pre-registered migrations
+
+### Key Decisions
+- **UUID over email-derived IDs**: Eliminates collision bugs without breaking existing patterns
+- **Pre-registration migration**: Admin registers email→workspace mapping before user signs up
+- **OAuth bypass protection**: New users attempting /login without invite are signed out
 
 ---
 

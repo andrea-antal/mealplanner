@@ -11,6 +11,7 @@ import { shouldShowReleaseNotes, markReleaseNotesAsSeen } from "@/lib/releaseNot
 import { ReleaseNotesModal } from "@/components/ReleaseNotesModal";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import AuthVerify from "./pages/AuthVerify";
 import AuthCallback from "./pages/AuthCallback";
 import MealPlans from "./pages/MealPlans";
@@ -58,6 +59,7 @@ const App = () => {
 
               {/* Auth routes */}
               <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
               <Route path="/auth/verify" element={<AuthVerify />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
 

@@ -1,15 +1,15 @@
 ---
 **Summary**: Quick snapshot of what's working right now (Deployed to production). Updated after each sprint. Use this to quickly understand current capabilities.
-**Last Updated**: 2026-01-14
+**Last Updated**: 2026-01-16
 **Status**: Current
 **Read This If**: You need a quick feature inventory or tech stack summary
 ---
 
 # Current State - Meal Planner
 
-**As of**: Production Deployment (2026-01-14)
+**As of**: Production Deployment (2026-01-16)
 **Branch**: `main`
-**Version**: v0.9.0 (production)
+**Version**: v0.10.0 (production)
 **Status**: 🚀 **LIVE IN PRODUCTION**
 
 ## 🌐 Production URLs
@@ -22,7 +22,16 @@
 ## 🎯 What's Working Now
 
 ### Core Features (Production Ready)
-1. ✅ **Household Management**
+
+1. ✅ **User Authentication** (NEW - v0.10.0)
+   - **Google OAuth** as primary sign-in method (one-tap, fast)
+   - **Magic link** fallback for users who prefer email
+   - **Invite code gate** for new signups (beta access control)
+   - Separate `/signup` (new users) and `/login` (returning users) flows
+   - **Hamburger menu** with user email and sign-out option
+   - **Workspace migration** for existing beta users to new accounts
+
+2. ✅ **Household Management**
    - Family member profiles with allergies, dislikes, individual preferences
    - Daycare rules configuration
    - **Onboarding Wizard** - 10-step wizard for new users with:
@@ -31,21 +40,21 @@
      - Cuisine and dietary preferences
      - Starter content generation (meal plan or recipes)
 
-2. ✅ **Grocery Management**
+3. ✅ **Grocery Management**
    - Manual entry with expiry date tracking
    - **Voice input** - Speak groceries, Claude parses them
    - **Receipt OCR** - Upload receipt photo, Claude Vision extracts items
    - Visual expiry indicators (red/yellow/green badges)
    - Expiring soon warnings
 
-3. ✅ **Shopping List** (NEW - v0.9.0)
+4. ✅ **Shopping List** (v0.9.0)
    - Interactive checklist for shopping trips
    - **Templates** - Save recurring items (e.g., "Weekly Essentials")
    - Quick-add from templates to current list
    - Optional prompt to add purchased items to inventory
    - Tab-based UI on Groceries page (Inventory | Shopping List)
 
-4. ✅ **Recipe Library**
+5. ✅ **Recipe Library**
    - 40+ recipes with tags and ratings
    - Per-person 👍/👎 ratings
    - Filter by member favorites, all-member liked, tags
@@ -53,19 +62,19 @@
    - **Recipe URL import** - Import recipes from 50+ cooking websites
    - Recipe source display with badges and external links
 
-5. ✅ **Meal Plan Generation**
+6. ✅ **Meal Plan Generation**
    - AI-powered weekly meal plans using Claude Sonnet 4.5
    - Prioritizes expiring groceries
    - Respects dietary constraints and preferences
    - Considers recipe ratings
 
-6. ✅ **Beta Testing Feedback**
+7. ✅ **Beta Testing Feedback**
    - Floating bug button on all pages
    - Submit feedback, bugs, and feature requests
    - Automatic browser info and workspace ID collection
    - Linear issue creation via API
 
-7. ✅ **Admin Dashboard**
+8. ✅ **Admin Dashboard**
    - Workspace analytics and management
    - **Onboarding Analytics** - Answer distributions and per-workspace details
    - Error tracking with acknowledgment system
@@ -75,6 +84,7 @@
 - **Onboarding V2 Polish**: Testing and refinement of starter content generation
 
 ### Latest Features (January 2026)
+- **Google OAuth Auth** (Jan 16): User accounts with Google sign-in, invite code gate, workspace migration
 - **Onboarding V2** (Jan 14): 10-step wizard with starter content generation and admin analytics
 - **Shopping List V1** (Jan 14): Checklist UI with templates for recurring items
 - **Supabase Migration** (Jan 12): Moved from JSON to PostgreSQL with RLS
@@ -198,9 +208,8 @@ pytest  # Run all 69 tests
 
 1. **Voice input**: Requires Chrome/Edge (Web Speech API not in Firefox/Safari)
 2. **Receipt OCR**: Works best with grocery receipts, not restaurant receipts
-3. **Data storage**: File-based JSON (not scalable, no transactions)
-4. **Daycare rules**: Hardcoded, not user-editable
-5. **No multi-user auth**: Single household per deployment
+3. **Daycare rules**: Hardcoded, not user-editable
+4. **Beta access**: New signups require invite code
 
 See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for active bugs.
 

@@ -1,36 +1,43 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { householdAPI, onboardingAPI, groceriesAPI, recipesAPI, mealPlansAPI } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Calendar, UtensilsCrossed, Users, ShoppingBasket, Sparkles, ChefHat, Loader2, Smile, Baby, Laugh } from 'lucide-react';
-import { getCurrentWorkspace } from '@/lib/workspace';
-import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector';
+import { Calendar, UtensilsCrossed, ShoppingBasket, Sparkles, ChefHat, Loader2, Smile, Baby, Laugh } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { ReleaseNotesModal } from '@/components/ReleaseNotesModal';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 
 const Index = () => {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [showWorkspaceSelector, setShowWorkspaceSelector] = useState(false);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
-  // Check for workspace on mount
+  // Get workspace from authenticated user (UUID)
+  const workspaceId = user?.workspace_id || null;
+
+  // Redirect to login if not authenticated (after auth check completes)
   useEffect(() => {
-    const currentWorkspace = getCurrentWorkspace();
-    if (currentWorkspace) {
-      setWorkspaceId(currentWorkspace);
-    } else {
-      setShowWorkspaceSelector(true);
+    if (!isAuthLoading && !isAuthenticated) {
+      navigate('/login');
     }
-  }, []);
+  }, [isAuthLoading, isAuthenticated, navigate]);
 
-  // Handle workspace selection
-  const handleWorkspaceSelected = (selectedWorkspaceId: string) => {
-    setWorkspaceId(selectedWorkspaceId);
-    setShowWorkspaceSelector(false);
-  };
+  // Show loading state while checking auth
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated || !workspaceId) {
+    return null;
+  }
 
   // Fetch household profile from backend (only when workspace is set)
   const { data: householdProfile, isLoading: isLoadingProfile, error: profileError } = useQuery({
@@ -107,12 +114,12 @@ const Index = () => {
     return true;
   }, [onboardingStatus, householdProfile, isLoadingProfile]);
 
-  // Show onboarding when appropriate (after workspace is selected, not already showing)
+  // Show onboarding when appropriate
   useEffect(() => {
-    if (shouldShowOnboarding && !showWorkspaceSelector) {
+    if (shouldShowOnboarding) {
       setShowOnboarding(true);
     }
-  }, [shouldShowOnboarding, showWorkspaceSelector]);
+  }, [shouldShowOnboarding]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -126,13 +133,7 @@ const Index = () => {
 
   return (
     <>
-      {/* Workspace Selector Modal (for first-time users) */}
-      <WorkspaceSelector
-        open={showWorkspaceSelector}
-        onWorkspaceSelected={handleWorkspaceSelected}
-      />
-
-      {/* Onboarding Wizard Modal (for new users after workspace selection) */}
+      {/* Onboarding Wizard Modal (for new users without household data) */}
       {workspaceId && (
         <OnboardingWizard
           open={showOnboarding}

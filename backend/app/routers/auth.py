@@ -163,3 +163,96 @@ async def use_invite(request: InviteValidateRequest):
     except Exception as e:
         logger.error(f"Error using invite code: {e}")
         raise HTTPException(status_code=500, detail="Error redeeming invite code")
+
+
+class MigrationRequest(BaseModel):
+    """Request to complete workspace migration."""
+    email: str
+    new_workspace_id: str
+
+
+class MigrationResponse(BaseModel):
+    """Response from workspace migration."""
+    migrated: bool
+    from_workspace: Optional[str] = None
+    to_workspace: Optional[str] = None
+
+
+@router.post("/complete-migration", response_model=MigrationResponse)
+async def complete_migration(request: MigrationRequest):
+    """
+    Complete workspace migration for existing beta users.
+
+    Called by frontend after successful signup to transfer data from
+    old workspace_id to new UUID-based workspace_id.
+
+    The workspace_migrations table must have a pre-registered migration
+    for this email address.
+
+    Args:
+        request: Contains email and new_workspace_id (UUID)
+
+    Returns:
+        Migration result including old and new workspace IDs
+    """
+    try:
+        supabase = get_supabase_admin_client()
+
+        # Check for pending migration for this email
+        migration_response = supabase.table("workspace_migrations")\
+            .select("*")\
+            .eq("expected_email", request.email.lower())\
+            .is_("migrated_at", None)\
+            .execute()
+
+        if not migration_response.data or len(migration_response.data) == 0:
+            # No pending migration - this is normal for new users
+            return MigrationResponse(migrated=False)
+
+        migration = migration_response.data[0]
+        old_workspace_id = migration["old_workspace_id"]
+        new_workspace_id = request.new_workspace_id
+
+        # Tables to migrate
+        # Each table has a workspace_id column that needs updating
+        tables_to_migrate = [
+            "recipes",
+            "meal_plans",
+            "groceries",
+            "shopping_lists",
+            "shopping_templates",
+            "household_profiles",
+        ]
+
+        migrated_tables = []
+        for table in tables_to_migrate:
+            try:
+                result = supabase.table(table)\
+                    .update({"workspace_id": new_workspace_id})\
+                    .eq("workspace_id", old_workspace_id)\
+                    .execute()
+                if result.data:
+                    migrated_tables.append(f"{table}: {len(result.data)} rows")
+            except Exception as table_error:
+                # Log but continue - some tables might not have data
+                logger.warning(f"Migration skipped for table {table}: {table_error}")
+
+        # Mark migration as complete
+        from datetime import datetime
+        supabase.table("workspace_migrations")\
+            .update({"migrated_at": datetime.utcnow().isoformat()})\
+            .eq("id", migration["id"])\
+            .execute()
+
+        logger.info(f"Migration complete: {old_workspace_id} -> {new_workspace_id}. Tables: {migrated_tables}")
+
+        return MigrationResponse(
+            migrated=True,
+            from_workspace=old_workspace_id,
+            to_workspace=new_workspace_id
+        )
+
+    except Exception as e:
+        logger.error(f"Error completing migration: {e}")
+        # Don't fail the login flow - just return not migrated
+        return MigrationResponse(migrated=False)

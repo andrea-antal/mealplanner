@@ -38,19 +38,16 @@ export async function getAccessToken(): Promise<string | null> {
 
 /**
  * Convert Supabase User to our AuthUser format.
- * Fetches workspace_id from the profiles table.
+ * Uses Supabase user UUID as workspace_id (guaranteed unique, no collisions).
  */
 async function userToAuthUser(user: User): Promise<AuthUser> {
-  // Get workspace_id from profiles table
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('workspace_id')
-    .eq('id', user.id)
-    .single();
+  // Use Supabase user ID as workspace_id (UUID, guaranteed unique)
+  // This avoids email-derived collisions like:
+  //   andrea.chan@gmail.com → "andrea-chan"
+  //   andrea.chan@me.com    → "andrea-chan" ← would collide!
+  const workspace_id = user.id;
 
-  const workspace_id = profile?.workspace_id || emailToWorkspaceId(user.email || '');
-
-  // Store workspace for backwards compatibility
+  // Store workspace for backwards compatibility with existing code
   localStorage.setItem('mealplanner_current_workspace', workspace_id);
 
   return {
@@ -61,11 +58,43 @@ async function userToAuthUser(user: User): Promise<AuthUser> {
 }
 
 /**
- * Convert email to workspace_id (same logic as backend).
+ * Sign in with Google OAuth.
+ * Stores invite code in sessionStorage to redeem after callback.
  */
-function emailToWorkspaceId(email: string): string {
-  const username = email.split('@')[0];
-  return username.toLowerCase().replace(/[^a-z0-9]/g, '-');
+export async function signInWithGoogle(inviteCode?: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    // Store invite code for redemption after OAuth callback
+    if (inviteCode) {
+      sessionStorage.setItem('pending_invite_code', inviteCode);
+    }
+
+    const redirectTo = window.location.origin + '/auth/callback';
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+
+    if (error) {
+      console.error('Google OAuth error:', error);
+      return { success: false, error: error.message };
+    }
+
+    // OAuth redirects, so we won't reach here on success
+    return { success: true };
+  } catch (error) {
+    console.error('Google sign-in failed:', error);
+    return { success: false, error: 'Failed to start Google sign-in' };
+  }
 }
 
 /**

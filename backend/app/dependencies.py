@@ -79,16 +79,11 @@ async def get_current_user(
 
         user = user_response.user
 
-        # Get the user's profile to get workspace_id
-        profile_response = supabase.table("profiles").select("workspace_id").eq("id", user.id).single().execute()
-
-        if not profile_response.data:
-            # Profile doesn't exist yet - this shouldn't happen if trigger worked
-            # But handle gracefully by creating workspace_id from email
-            workspace_id = _email_to_workspace_id(user.email)
-            logger.warning(f"No profile found for user {user.id}, using derived workspace_id: {workspace_id}")
-        else:
-            workspace_id = profile_response.data["workspace_id"]
+        # Use Supabase user UUID as workspace_id (guaranteed unique, no collisions)
+        # This is cleaner than email-derived IDs which can collide:
+        #   andrea.chan@gmail.com → "andrea-chan"
+        #   andrea.chan@me.com    → "andrea-chan" ← collision!
+        workspace_id = str(user.id)
 
         return {
             "user_id": str(user.id),
