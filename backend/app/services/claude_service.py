@@ -1501,7 +1501,8 @@ def _parse_recipe_photo_ocr_response(response_text: str) -> dict:
 async def parse_recipe_from_url(
     url: str,
     html_content: str,
-    model: str = None
+    model: str = None,
+    used_print_version: bool = False
 ) -> tuple[Recipe, str, list[str], list[str]]:
     """
     Parse recipe from HTML content using Claude AI.
@@ -1510,6 +1511,7 @@ async def parse_recipe_from_url(
         url: Source URL of the recipe
         html_content: Raw HTML content from the recipe page
         model: Optional Claude model name override (defaults to MODEL_NAME for cost-effectiveness)
+        used_print_version: If True, indicates HTML is from a print-friendly page with cleaner structure
 
     Returns:
         Tuple of (recipe, confidence, missing_fields, warnings)
@@ -1542,7 +1544,7 @@ async def parse_recipe_from_url(
         model = settings.MODEL_NAME
 
     # Build prompt for recipe parsing
-    prompt = _build_recipe_parse_prompt(url, html_content)
+    prompt = _build_recipe_parse_prompt(url, html_content, used_print_version)
 
     try:
         # Call Claude API
@@ -1626,13 +1628,14 @@ IMPORTANT:
 - Generate recipe IDs from titles (lowercase, hyphenated, alphanumeric only)"""
 
 
-def _build_recipe_parse_prompt(url: str, html_content: str) -> str:
+def _build_recipe_parse_prompt(url: str, html_content: str, used_print_version: bool = False) -> str:
     """
     Build the user prompt for recipe parsing from HTML.
 
     Args:
         url: Source URL
         html_content: Raw HTML
+        used_print_version: If True, HTML is from print-friendly page
 
     Returns:
         Formatted prompt string
@@ -1643,7 +1646,16 @@ def _build_recipe_parse_prompt(url: str, html_content: str) -> str:
         html_content = html_content[:max_html_length] + "\n[... HTML truncated ...]"
         logger.warning(f"HTML content truncated from {len(html_content)} to {max_html_length} chars")
 
-    return f"""Extract recipe information from this HTML content.
+    # Add context about print version if applicable
+    print_version_note = ""
+    if used_print_version:
+        print_version_note = """
+NOTE: This is a print-friendly version of the recipe page, which should contain clean,
+structured content with minimal ads or navigation. The recipe data should be well-organized.
+
+"""
+
+    return f"""{print_version_note}Extract recipe information from this HTML content.
 
 SOURCE URL: {url}
 

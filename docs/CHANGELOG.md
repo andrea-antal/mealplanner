@@ -11,6 +11,42 @@ This document tracks key decisions, changes, and learnings during development.
 
 ---
 
+## 2026-01-16 Feature: Print Recipe URL Detection
+
+**Status**: Complete | **Branch**: `main`
+
+### Summary
+Enhanced recipe URL import to automatically detect and use print-friendly versions of recipe pages. This reduces hallucination risk when parsing recipes from cluttered blog posts by using cleaner HTML with structured recipe data.
+
+### Features Implemented
+
+1. **Print URL Detection**
+   - Detects `?print_recipe=true`, `?print=true`, `/print/` patterns in links
+   - Also matches link text like "Print Recipe", "Printer Friendly"
+   - Falls back gracefully if print version fetch fails
+
+2. **Tracking Parameter Cleaning**
+   - Strips UTM, fbclid, gclid, and other tracking junk from URLs
+   - Cleaner URLs improve caching and deduplication
+
+3. **Security**
+   - Same-domain validation prevents open redirect attacks
+   - Rejects cross-domain print URLs
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `backend/app/services/url_fetcher.py` | Added `FetchResult`, `clean_tracking_params()`, `find_print_recipe_url()`, `fetch_recipe_html()` |
+| `backend/app/routers/recipes.py` | Updated to use `fetch_recipe_html()`, pass print version flag |
+| `backend/app/services/claude_service.py` | Added `used_print_version` param, adds context to prompt |
+| `backend/tests/test_url_fetcher.py` | Added 18 unit tests for new functionality |
+
+### Test Results
+- 30 tests passing in `test_url_fetcher.py`
+
+---
+
 ## 2026-01-16 Feature: Google OAuth Authentication (v0.10.0)
 
 **Status**: Complete | **Branch**: `main`

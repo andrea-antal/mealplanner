@@ -21,7 +21,7 @@ from app.services.claude_service import (
     generate_recipe_from_ingredients, generate_recipe_from_title,
     parse_recipe_from_url, parse_recipe_from_text, extract_text_from_recipe_photo
 )
-from app.services.url_fetcher import fetch_html_from_url
+from app.services.url_fetcher import fetch_recipe_html
 from app.dependencies import verify_admin
 
 logger = logging.getLogger(__name__)
@@ -527,10 +527,16 @@ async def import_recipe_from_url(
         # Validate URL format first (will raise ValueError if invalid)
         logger.info(f"Importing recipe from URL: {request.url}")
 
-        # Fetch HTML from URL
+        # Fetch HTML from URL (auto-detects print-friendly versions)
         try:
-            html_content, source_name = await fetch_html_from_url(request.url)
-            logger.info(f"Successfully fetched HTML from {source_name}")
+            fetch_result = await fetch_recipe_html(request.url)
+            html_content = fetch_result.html_content
+            source_name = fetch_result.source_name
+            used_print_version = fetch_result.used_print_version
+            if used_print_version:
+                logger.info(f"Using print-friendly version from {fetch_result.fetched_url}")
+            else:
+                logger.info(f"Successfully fetched HTML from {source_name}")
         except ValueError as e:
             # Invalid URL format
             logger.warning(f"Invalid URL format: {e}")
@@ -547,7 +553,8 @@ async def import_recipe_from_url(
         try:
             recipe, confidence, missing_fields, warnings = await parse_recipe_from_url(
                 request.url,
-                html_content
+                html_content,
+                used_print_version=used_print_version
             )
             logger.info(f"Successfully parsed recipe '{recipe.title}' with {confidence} confidence")
         except ValueError as e:
