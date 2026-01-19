@@ -98,13 +98,15 @@ async def workspaces_summary(_: bool = Depends(verify_admin)):
         List of workspace stats including recipe count, meal plan count,
         grocery count, member count, and last activity.
     """
-    from app.data.data_manager import list_workspaces as get_workspaces, get_workspace_stats
+    from app.data.data_manager import list_workspaces as get_workspaces, get_workspace_stats, get_user_email_map
     from app.middleware.request_logger import get_workspace_request_stats
     workspaces = get_workspaces()
+    email_map = get_user_email_map()
 
     summaries = []
     for ws in workspaces:
         stats = get_workspace_stats(ws)
+        stats["email"] = email_map.get(ws)
         request_stats = get_workspace_request_stats(ws)
         stats["api_requests"] = request_stats["total_requests"]
         stats["api_errors"] = request_stats["unacknowledged_error_count"]

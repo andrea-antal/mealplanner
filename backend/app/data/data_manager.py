@@ -118,6 +118,25 @@ def get_workspace_stats(workspace_id: str) -> Dict:
         return {"error": str(e), "workspace_id": workspace_id}
 
 
+def get_user_email_map() -> Dict[str, Optional[str]]:
+    """
+    Map workspace_id (user UUID) to email address.
+
+    Uses Supabase Admin API to fetch all users in one call,
+    avoiding N+1 queries when displaying workspace summaries.
+
+    Returns:
+        Dict mapping user UUID to email address, empty dict on error
+    """
+    try:
+        supabase = _get_client()
+        response = supabase.auth.admin.list_users()
+        return {user.id: user.email for user in response}
+    except Exception as e:
+        logger.error(f"Error fetching user emails: {e}")
+        return {}
+
+
 def is_workspace_empty(workspace_id: str) -> bool:
     """
     Check if a workspace has no meaningful data.

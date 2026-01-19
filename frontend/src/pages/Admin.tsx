@@ -49,7 +49,6 @@ import { toast } from 'sonner';
 import {
   Database,
   Trash2,
-  RefreshCw,
   Users,
   UtensilsCrossed,
   Calendar,
@@ -165,19 +164,6 @@ const Admin = () => {
     },
   });
 
-  // Sync all workspaces mutation
-  const syncAllMutation = useMutation({
-    mutationFn: () => adminAPI.syncAllWorkspaces(),
-    onSuccess: (data) => {
-      const workspaceCount = Object.keys(data.results || {}).length;
-      toast.success(`Synced ${workspaceCount} workspaces`);
-      queryClient.invalidateQueries({ queryKey: ['admin'] });
-    },
-    onError: (error) => {
-      toast.error(`Sync failed: ${error.message}`);
-    },
-  });
-
   // Fetch workspace errors when sheet is open
   const { data: errorsData, isLoading: errorsLoading } = useQuery({
     queryKey: ['admin', 'errors', errorSheetWorkspace, showAcknowledged],
@@ -222,18 +208,6 @@ const Admin = () => {
                 Workspace analytics and management
               </p>
             </div>
-            <Button
-              onClick={() => syncAllMutation.mutate()}
-              disabled={syncAllMutation.isPending}
-              variant="outline"
-            >
-              {syncAllMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Sync All Workspaces
-            </Button>
           </div>
         </div>
       </div>
@@ -336,7 +310,12 @@ const Admin = () => {
                     {workspaces.map((ws: WorkspaceSummary) => (
                       <TableRow key={ws.workspace_id}>
                         <TableCell className="font-medium">
-                          {ws.workspace_id}
+                          <div className="flex flex-col">
+                            <span>{ws.email || 'Unknown'}</span>
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {ws.workspace_id.slice(0, 8)}...
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">{ws.recipe_count}</TableCell>
                         <TableCell className="text-center">{ws.meal_plan_count}</TableCell>

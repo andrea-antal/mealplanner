@@ -519,6 +519,18 @@ export const shoppingListAPI = {
     });
     return handleResponse<ShoppingList>(response);
   },
+
+  async batchAdd(workspaceId: string, items: AddShoppingItemRequest[]): Promise<ShoppingList> {
+    const response = await fetch(
+      `${API_BASE_URL}/shopping-list/items/batch?workspace_id=${encodeURIComponent(workspaceId)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      }
+    );
+    return handleResponse<ShoppingList>(response);
+  },
 };
 
 // Shopping Templates API (Shopping List V1)
@@ -788,6 +800,7 @@ export const onboardingAPI = {
 // Admin API types
 export interface WorkspaceSummary {
   workspace_id: string;
+  email: string | null;
   recipe_count: number;
   meal_plan_count: number;
   grocery_count: number;
