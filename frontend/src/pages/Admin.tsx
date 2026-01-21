@@ -193,6 +193,8 @@ const Admin = () => {
   const totalMealPlans = workspaces.reduce((sum, ws) => sum + (ws.meal_plan_count ?? 0), 0);
   const totalMembers = workspaces.reduce((sum, ws) => sum + (ws.member_count ?? 0), 0);
   const totalApiCalls = workspaces.reduce((sum, ws) => sum + (ws.api_requests ?? 0), 0);
+  const totalClaudeCalls = workspaces.reduce((sum, ws) => sum + (ws.claude_calls ?? 0), 0);
+  const totalOpenAICalls = workspaces.reduce((sum, ws) => sum + (ws.openai_calls ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -260,6 +262,9 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalApiCalls.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Claude: {totalClaudeCalls} · OpenAI: {totalOpenAICalls}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -302,7 +307,9 @@ const Admin = () => {
                       <TableHead className="text-center">Members</TableHead>
                       <TableHead className="text-center">Groceries</TableHead>
                       <TableHead>Last API Call</TableHead>
-                      <TableHead className="text-center">API Calls</TableHead>
+                      <TableHead className="text-center">HTTP</TableHead>
+                      <TableHead className="text-center">Claude</TableHead>
+                      <TableHead className="text-center">OpenAI</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -337,6 +344,8 @@ const Admin = () => {
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell className="text-center">{ws.claude_calls ?? 0}</TableCell>
+                        <TableCell className="text-center">{ws.openai_calls ?? 0}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"

@@ -100,6 +100,7 @@ async def workspaces_summary(_: bool = Depends(verify_admin)):
     """
     from app.data.data_manager import list_workspaces as get_workspaces, get_workspace_stats, get_user_email_map
     from app.middleware.request_logger import get_workspace_request_stats
+    from app.middleware.api_call_tracker import get_workspace_api_stats
     workspaces = get_workspaces()
     email_map = get_user_email_map()
 
@@ -111,6 +112,10 @@ async def workspaces_summary(_: bool = Depends(verify_admin)):
         stats["api_requests"] = request_stats["total_requests"]
         stats["api_errors"] = request_stats["unacknowledged_error_count"]
         stats["last_api_call"] = request_stats["last_request"]
+        # Add external API call stats (Claude/OpenAI)
+        api_stats = get_workspace_api_stats(ws)
+        stats["claude_calls"] = api_stats["claude_calls"]
+        stats["openai_calls"] = api_stats["openai_calls"]
         summaries.append(stats)
 
     return {

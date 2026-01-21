@@ -75,7 +75,8 @@ def generate_meal_plan(
         workspace_id=workspace_id,
         household=household,
         available_groceries=groceries,
-        num_recipes=num_recipes
+        num_recipes=num_recipes,
+        week_context=week_context  # Include user's intent in search
     )
 
     if not recipes:
@@ -101,7 +102,8 @@ def generate_meal_plan(
     logger.info("Calling Claude API to generate meal plan...")
     meal_plan = generate_meal_plan_with_claude(
         context=context,
-        week_start_date=week_start_date.isoformat()
+        week_start_date=week_start_date.isoformat(),
+        workspace_id=workspace_id
     )
 
     if not meal_plan:

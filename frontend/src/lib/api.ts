@@ -810,6 +810,8 @@ export interface WorkspaceSummary {
   api_requests: number;
   api_errors: number;
   last_api_call: string | null;
+  claude_calls: number;
+  openai_calls: number;
 }
 
 export interface InactiveWorkspace {

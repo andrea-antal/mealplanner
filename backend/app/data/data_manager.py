@@ -15,6 +15,7 @@ from app.models.grocery import GroceryItem, GroceryList
 from app.models.shopping import ShoppingListItem, ShoppingList, TemplateItem, TemplateList
 from app.models.meal_plan import MealPlan
 from app.db.supabase_client import get_supabase_admin_client
+from app.middleware.api_call_tracker import log_api_call
 
 logger = logging.getLogger(__name__)
 
@@ -660,7 +661,7 @@ def save_recipe(workspace_id: str, recipe: Recipe) -> None:
         data.pop("description", None)
 
         # Generate embedding for the recipe
-        embedding = _generate_recipe_embedding(recipe)
+        embedding = _generate_recipe_embedding(recipe, workspace_id=workspace_id)
         if embedding:
             data["embedding"] = embedding
 
@@ -860,12 +861,13 @@ def delete_meal_plan(workspace_id: str, meal_plan_id: str) -> bool:
 
 # ===== Recipe Embedding & Search =====
 
-def _generate_recipe_embedding(recipe: Recipe) -> Optional[List[float]]:
+def _generate_recipe_embedding(recipe: Recipe, workspace_id: Optional[str] = None) -> Optional[List[float]]:
     """
     Generate embedding vector for a recipe using OpenAI.
 
     Args:
         recipe: Recipe to generate embedding for
+        workspace_id: Optional workspace ID for tracking API usage
 
     Returns:
         List of floats (1536-dimensional vector) or None if generation fails
@@ -899,9 +901,25 @@ def _generate_recipe_embedding(recipe: Recipe) -> Optional[List[float]]:
             input=text
         )
 
+        # Track API call
+        log_api_call(
+            provider="openai",
+            workspace_id=workspace_id,
+            operation="recipe_embedding",
+            model="text-embedding-3-small"
+        )
+
         return response.data[0].embedding
 
     except Exception as e:
+        # Track failed API call
+        log_api_call(
+            provider="openai",
+            workspace_id=workspace_id,
+            operation="recipe_embedding",
+            model="text-embedding-3-small",
+            error=str(e)
+        )
         logger.error(f"Error generating embedding for recipe {recipe.id}: {e}")
         return None
 
@@ -939,6 +957,14 @@ def query_recipes(
             input=query_text
         )
         query_embedding = response.data[0].embedding
+
+        # Track API call
+        log_api_call(
+            provider="openai",
+            workspace_id=workspace_id,
+            operation="query_embedding",
+            model="text-embedding-3-small"
+        )
 
         # Query Supabase with vector similarity using RPC
         supabase = _get_client()

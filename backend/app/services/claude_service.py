@@ -17,6 +17,7 @@ from app.config import settings
 from app.models.meal_plan import MealPlan
 from app.models.recipe import Recipe, VALID_MEAL_TYPES
 from app.services.storage_categories import suggest_storage_location
+from app.middleware.api_call_tracker import log_api_call
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,8 @@ client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 def generate_meal_plan_with_claude(
     context: Dict,
     week_start_date: str,
-    model: str = None
+    model: str = None,
+    workspace_id: Optional[str] = None
 ) -> Optional[MealPlan]:
     """
     Generate a weekly meal plan using Claude API.
@@ -39,6 +41,7 @@ def generate_meal_plan_with_claude(
             - candidate_recipes: List of recipe dicts with full details
         week_start_date: ISO date string (e.g., "2025-12-03") for the week start
         model: Claude model to use (default: uses MODEL_NAME from settings)
+        workspace_id: Optional workspace ID for tracking API usage
 
     Returns:
         MealPlan object if successful, None if generation fails
@@ -67,6 +70,16 @@ def generate_meal_plan_with_claude(
             ]
         )
 
+        # Track API call
+        log_api_call(
+            provider="claude",
+            workspace_id=workspace_id,
+            operation="meal_plan_generation",
+            model=model,
+            input_tokens=response.usage.input_tokens if hasattr(response, 'usage') else None,
+            output_tokens=response.usage.output_tokens if hasattr(response, 'usage') else None
+        )
+
         # Extract response text
         response_text = response.content[0].text
         logger.debug(f"Claude response: {response_text[:200]}...")
@@ -82,6 +95,14 @@ def generate_meal_plan_with_claude(
             return None
 
     except Exception as e:
+        # Track failed API call
+        log_api_call(
+            provider="claude",
+            workspace_id=workspace_id,
+            operation="meal_plan_generation",
+            model=model,
+            error=str(e)
+        )
         logger.error(f"Error calling Claude API: {e}", exc_info=True)
         return None
 

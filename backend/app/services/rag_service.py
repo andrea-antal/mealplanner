@@ -22,7 +22,8 @@ def retrieve_relevant_recipes(
     workspace_id: str,
     household: HouseholdProfile,
     available_groceries: List[GroceryItem],
-    num_recipes: int = 15
+    num_recipes: int = 15,
+    week_context: Optional[str] = None
 ) -> List[Recipe]:
     """
     Retrieve relevant recipes based on household constraints and available groceries.
@@ -35,6 +36,7 @@ def retrieve_relevant_recipes(
         household: Household profile with dietary constraints, preferences, cooking gear
         available_groceries: List of GroceryItem objects currently available
         num_recipes: Maximum number of recipes to return (default: 15)
+        week_context: Optional user description of their week (e.g., "busy week, need quick meals")
 
     Returns:
         List of Recipe objects, sorted by relevance
@@ -47,8 +49,8 @@ def retrieve_relevant_recipes(
     """
     logger.info(f"Retrieving recipes for household with {len(household.family_members)} members in workspace '{workspace_id}'")
 
-    # Build query text from household constraints and groceries
-    query_text = _build_query_text(household, available_groceries)
+    # Build query text from household constraints, groceries, and user context
+    query_text = _build_query_text(household, available_groceries, week_context)
     logger.info(f"Query text: {query_text}")
 
     # Build metadata filters for hard constraints
@@ -67,11 +69,16 @@ def retrieve_relevant_recipes(
     return recipes
 
 
-def _build_query_text(household: HouseholdProfile, groceries: List[GroceryItem]) -> str:
+def _build_query_text(
+    household: HouseholdProfile,
+    groceries: List[GroceryItem],
+    week_context: Optional[str] = None
+) -> str:
     """
     Build natural language query text for semantic search.
 
     Combines:
+    - User's week context (e.g., "busy week, need quick meals")
     - Available groceries (prioritize using what's on hand)
     - Dietary preferences (e.g., "toddler-friendly", "quick")
     - Cooking preferences (e.g., "one-pot", "minimal-prep")
@@ -79,11 +86,18 @@ def _build_query_text(household: HouseholdProfile, groceries: List[GroceryItem])
     Args:
         household: Household profile
         groceries: List of GroceryItem objects
+        week_context: Optional user description of their week
 
     Returns:
         Query string for semantic search
     """
     query_parts = []
+
+    # Add user's week context first (highest priority for intent)
+    if week_context:
+        # Extract key intent words, limit length to avoid overwhelming other signals
+        context_snippet = week_context[:150].strip()
+        query_parts.append(context_snippet)
 
     # Add groceries - extract names from GroceryItem objects
     if groceries:
