@@ -131,7 +131,8 @@ You always:
 - Consider dietary preferences when selecting recipes (e.g., more fish/seafood for pescetarians)
 - Consider cooking time constraints (weeknights vs weekends)
 - Provide practical, realistic meal plans that busy families can execute
-- Only use recipes from the provided candidate list
+- MUST use recipes from the provided candidate list - NEVER invent new recipes
+- recipe_id: null is ONLY for simple snacks (fruit, crackers), NEVER for main meals
 
 RECIPE RATING GUIDELINES:
 - Each recipe may have household member ratings: "like", "dislike", or null (not rated)
@@ -273,9 +274,13 @@ def _build_meal_plan_prompt(context: Dict, week_start_date: str) -> str:
     # Format recipes section based on whether we have any
     if recipes:
         recipes_json = json.dumps(recipes, indent=2)
-        recipes_section = f"""CANDIDATE RECIPES (use these recipes when possible):
-{recipes_json}"""
-        recipes_instruction = "8. Uses recipes from the candidate list when available - use recipe_id: null for meals without a matching recipe"
+        recipes_section = f"""CANDIDATE RECIPES (YOU MUST USE THESE - DO NOT INVENT NEW RECIPES):
+{recipes_json}
+
+CRITICAL: Every breakfast, lunch, and dinner MUST use a recipe_id from this list above.
+You may ONLY use recipe_id: null for simple snacks like "apple slices" or "crackers with cheese".
+If a candidate recipe doesn't perfectly match, adapt it or choose the closest option - but ALWAYS use the recipe_id."""
+        recipes_instruction = "8. **MUST use recipe_id from candidate list** for ALL breakfasts, lunches, and dinners - recipe_id: null is ONLY allowed for simple snacks"
         meal_type_guidance = ""
         meal_type_matching = "2. **Match recipes to meal types** - use each recipe's \"meal_types\" field to assign it to appropriate meals"
     else:
@@ -383,8 +388,9 @@ Return your response as valid JSON matching this exact schema:
 
 IMPORTANT:
 - Return ONLY valid JSON, no other text
-- Use recipe IDs and titles exactly as provided in candidate recipes
-- For simple snacks (e.g., "Apple slices", "Banana"), use recipe_id: null
+- CRITICAL: Use recipe IDs and titles EXACTLY as provided in candidate recipes - DO NOT invent new recipes
+- recipe_id: null is ONLY for simple snacks (apple slices, crackers, etc.) - NEVER for breakfast, lunch, or dinner
+- If no candidate recipe fits perfectly, choose the closest match and note in "notes" field
 - Include 7 consecutive days starting from {week_start_date} (Monday through Sunday)
 {important_weekday}
 {important_weekend}
