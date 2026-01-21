@@ -356,7 +356,8 @@ const Admin = () => {
                 No workspaces found
               </div>
             ) : (
-              <Card>
+              <Card className="overflow-hidden">
+                <div className="max-h-[600px] overflow-auto">
                 <Table>
                   <TableHeader className="sticky top-0 bg-card z-10">
                     <TableRow>
@@ -462,6 +463,7 @@ const Admin = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </Card>
             )}
           </TabsContent>

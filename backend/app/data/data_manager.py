@@ -192,9 +192,13 @@ def delete_workspace(workspace_id: str) -> bool:
         supabase.table("household_profiles").delete().eq("workspace_id", workspace_id).execute()
 
         # Clean up Chroma vector DB entries to prevent orphaned embeddings
-        from app.data.chroma_manager import delete_workspace_from_chroma
-        chroma_deleted = delete_workspace_from_chroma(workspace_id)
-        logger.info(f"Cleaned up {chroma_deleted} Chroma entries for workspace '{workspace_id}'")
+        # (chromadb may not be installed in production if using pgvector instead)
+        try:
+            from app.data.chroma_manager import delete_workspace_from_chroma
+            chroma_deleted = delete_workspace_from_chroma(workspace_id)
+            logger.info(f"Cleaned up {chroma_deleted} Chroma entries for workspace '{workspace_id}'")
+        except ImportError:
+            logger.debug("Chroma not available, skipping Chroma cleanup")
 
         logger.info(f"Deleted all data for workspace '{workspace_id}'")
         return True
