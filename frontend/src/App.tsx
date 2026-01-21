@@ -3,10 +3,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { WorkspaceGuard } from "@/components/workspace/WorkspaceGuard";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { shouldShowReleaseNotes, markReleaseNotesAsSeen } from "@/lib/releaseNotes";
 import { ReleaseNotesModal } from "@/components/ReleaseNotesModal";
 import Index from "./pages/Index";
@@ -25,12 +25,30 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+// Auth routes where release notes should NOT show
+const AUTH_ROUTES = ['/login', '/signup', '/auth/callback', '/auth/verify'];
+
+/**
+ * Handles release notes display logic.
+ * Only shows when user is authenticated and NOT on auth routes.
+ */
+function ReleaseNotesHandler() {
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
+    // Don't show on auth routes
+    if (AUTH_ROUTES.some(route => location.pathname.startsWith(route))) {
+      return;
+    }
+
+    // Don't show while auth is loading or if not authenticated
+    if (isLoading || !isAuthenticated) {
+      return;
+    }
+
     // Check if we should show release notes after a short delay
-    // Delay ensures workspace is loaded first
     const timer = setTimeout(() => {
       if (shouldShowReleaseNotes()) {
         setShowReleaseNotes(true);
@@ -38,12 +56,22 @@ const App = () => {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAuthenticated, isLoading, location.pathname]);
 
-  const handleReleaseNotesClose = () => {
+  const handleClose = () => {
     markReleaseNotesAsSeen();
     setShowReleaseNotes(false);
   };
+
+  return (
+    <ReleaseNotesModal
+      open={showReleaseNotes}
+      onOpenChange={handleClose}
+    />
+  );
+}
+
+const App = () => {
 
   return (
   <QueryClientProvider client={queryClient}>
@@ -81,13 +109,10 @@ const App = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
-        </BrowserRouter>
 
-        {/* Release notes modal - shows automatically after version updates */}
-        <ReleaseNotesModal
-          open={showReleaseNotes}
-          onOpenChange={handleReleaseNotesClose}
-        />
+          {/* Release notes - only shows when authenticated and not on auth routes */}
+          <ReleaseNotesHandler />
+        </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
