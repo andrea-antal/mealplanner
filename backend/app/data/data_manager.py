@@ -972,6 +972,9 @@ def _text_search_recipes(
     """
     Fallback text-based recipe search.
 
+    Matches individual words from the query against recipe titles, tags,
+    and ingredients. Falls back to returning all recipes if no matches.
+
     Args:
         workspace_id: Workspace identifier
         query_text: Text to search for
@@ -984,30 +987,49 @@ def _text_search_recipes(
     try:
         all_recipes = list_all_recipes(workspace_id)
 
-        # Simple text matching
-        query_lower = query_text.lower()
+        if not all_recipes:
+            return []
+
+        # Tokenize query into individual words (skip common words)
+        stop_words = {'recipes', 'using', 'with', 'and', 'or', 'the', 'a', 'an', 'for', 'to'}
+        query_words = [
+            word.lower().strip('.,!?')
+            for word in query_text.split()
+            if word.lower() not in stop_words and len(word) > 2
+        ]
+
         matched = []
 
         for recipe in all_recipes:
             score = 0
-            if query_lower in recipe.title.lower():
-                score += 10
-            if recipe.tags:
-                for tag in recipe.tags:
-                    if query_lower in tag.lower():
-                        score += 5
-            if recipe.ingredients:
-                for ing in recipe.ingredients:
-                    ing_text = ing if isinstance(ing, str) else str(ing)
-                    if query_lower in ing_text.lower():
-                        score += 1
+            title_lower = recipe.title.lower()
+
+            # Check each query word against recipe
+            for word in query_words:
+                if word in title_lower:
+                    score += 10
+                if recipe.tags:
+                    for tag in recipe.tags:
+                        if word in tag.lower():
+                            score += 5
+                if recipe.ingredients:
+                    for ing in recipe.ingredients:
+                        ing_text = ing if isinstance(ing, str) else str(ing)
+                        if word in ing_text.lower():
+                            score += 1
 
             if score > 0:
                 matched.append((recipe, score))
 
         # Sort by score and return top results
-        matched.sort(key=lambda x: x[1], reverse=True)
-        return [r for r, _ in matched[:n_results]]
+        if matched:
+            matched.sort(key=lambda x: x[1], reverse=True)
+            return [r for r, _ in matched[:n_results]]
+
+        # Fallback: if no matches, return most recent recipes
+        # This ensures meal plan generation always has recipes to work with
+        logger.info(f"Text search found no matches, returning {n_results} most recent recipes")
+        return all_recipes[:n_results]
 
     except Exception as e:
         logger.error(f"Error in text search for workspace '{workspace_id}': {e}")
