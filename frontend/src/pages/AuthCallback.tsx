@@ -47,17 +47,20 @@ export default function AuthCallback() {
         const metadataInviteCode = session.user.user_metadata?.invite_code;
         const hasInviteCode = pendingInviteCode || metadataInviteCode;
 
-        // Check if this is a new user by examining when their auth account was created
-        // Note: We can't use profile existence because the Supabase trigger creates it immediately
-        // Instead, check if the auth user was created within the last 60 seconds
-        const userCreatedAt = new Date(session.user.created_at);
-        const now = new Date();
-        const secondsSinceCreation = (now.getTime() - userCreatedAt.getTime()) / 1000;
-        const isNewlyCreatedUser = secondsSinceCreation < 60;
+        // Check if this user has completed signup (has a profile with signup_completed = true)
+        // The Supabase trigger creates profiles with signup_completed = false
+        // Only after invite code redemption do we set it to true
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('signup_completed')
+          .eq('id', session.user.id)
+          .single();
 
-        // SECURITY: New users MUST come through /signup with an invite code
-        // If they used /login (no invite code), reject them
-        if (isNewlyCreatedUser && !hasInviteCode) {
+        const hasCompletedSignup = profile?.signup_completed === true;
+
+        // SECURITY: Users who haven't completed signup MUST have an invite code
+        // This catches both new users and users who previously tried to bypass signup
+        if (!hasCompletedSignup && !hasInviteCode) {
           // Sign them out and redirect to signup
           await supabase.auth.signOut();
           setStatus('error');
@@ -65,14 +68,29 @@ export default function AuthCallback() {
           return;
         }
 
-        // Redeem invite code if present
+        // Redeem invite code and mark signup as completed
         if (pendingInviteCode) {
           setMessage('Redeeming invite code...');
           await useInviteCode(pendingInviteCode, session.user.email || '');
           sessionStorage.removeItem('pending_invite_code');
+
+          // Mark signup as completed in the profile
+          await supabase
+            .from('profiles')
+            .update({ signup_completed: true })
+            .eq('id', session.user.id);
         }
 
-        if (isNewlyCreatedUser) {
+        // Also mark as completed if they came with metadata invite code (magic link signup)
+        if (metadataInviteCode && !hasCompletedSignup) {
+          await supabase
+            .from('profiles')
+            .update({ signup_completed: true })
+            .eq('id', session.user.id);
+        }
+
+        const isNewUser = !hasCompletedSignup;
+        if (isNewUser) {
           setIsNewUser(true);
         }
 
