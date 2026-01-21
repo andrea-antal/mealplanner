@@ -17,6 +17,7 @@ const Index = () => {
 
   // Get workspace from authenticated user (UUID)
   const workspaceId = user?.workspace_id || null;
+  const isReady = isAuthenticated && !!workspaceId;
 
   // Redirect to login if not authenticated (after auth check completes)
   useEffect(() => {
@@ -24,6 +25,45 @@ const Index = () => {
       navigate('/login');
     }
   }, [isAuthLoading, isAuthenticated, navigate]);
+
+  // IMPORTANT: All hooks must be called unconditionally (React Rules of Hooks)
+  // Use `enabled` to control when queries actually run
+
+  // Fetch household profile from backend (only when workspace is set)
+  const { data: householdProfile, isLoading: isLoadingProfile, error: profileError } = useQuery({
+    queryKey: ['householdProfile', workspaceId],
+    queryFn: () => householdAPI.getProfile(workspaceId!),
+    enabled: isReady,
+    retry: false, // Don't retry on 404 - just means no profile yet
+  });
+
+  // Fetch onboarding status (only when workspace is set)
+  const { data: onboardingStatus } = useQuery({
+    queryKey: ['onboardingStatus', workspaceId],
+    queryFn: () => onboardingAPI.getStatus(workspaceId!),
+    enabled: isReady,
+  });
+
+  // Fetch groceries for tally
+  const { data: groceryList } = useQuery({
+    queryKey: ['groceries', workspaceId],
+    queryFn: () => groceriesAPI.getAll(workspaceId!),
+    enabled: isReady,
+  });
+
+  // Fetch recipes for tally
+  const { data: recipes } = useQuery({
+    queryKey: ['recipes', workspaceId],
+    queryFn: () => recipesAPI.getAll(workspaceId!),
+    enabled: isReady,
+  });
+
+  // Fetch meal plans to show current week
+  const { data: mealPlans } = useQuery({
+    queryKey: ['mealPlans', workspaceId],
+    queryFn: () => mealPlansAPI.getAll(workspaceId!),
+    enabled: isReady,
+  });
 
   // Show loading state while checking auth
   if (isAuthLoading) {
@@ -35,45 +75,9 @@ const Index = () => {
   }
 
   // Don't render if not authenticated (will redirect)
-  if (!isAuthenticated || !workspaceId) {
+  if (!isReady) {
     return null;
   }
-
-  // Fetch household profile from backend (only when workspace is set)
-  const { data: householdProfile, isLoading: isLoadingProfile, error: profileError } = useQuery({
-    queryKey: ['householdProfile', workspaceId],
-    queryFn: () => householdAPI.getProfile(workspaceId!),
-    enabled: !!workspaceId, // Only run query when workspace is set
-    retry: false, // Don't retry on 404 - just means no profile yet
-  });
-
-  // Fetch onboarding status (only when workspace is set)
-  const { data: onboardingStatus } = useQuery({
-    queryKey: ['onboardingStatus', workspaceId],
-    queryFn: () => onboardingAPI.getStatus(workspaceId!),
-    enabled: !!workspaceId,
-  });
-
-  // Fetch groceries for tally
-  const { data: groceryList } = useQuery({
-    queryKey: ['groceries', workspaceId],
-    queryFn: () => groceriesAPI.getAll(workspaceId!),
-    enabled: !!workspaceId,
-  });
-
-  // Fetch recipes for tally
-  const { data: recipes } = useQuery({
-    queryKey: ['recipes', workspaceId],
-    queryFn: () => recipesAPI.getAll(workspaceId!),
-    enabled: !!workspaceId,
-  });
-
-  // Fetch meal plans to show current week
-  const { data: mealPlans } = useQuery({
-    queryKey: ['mealPlans', workspaceId],
-    queryFn: () => mealPlansAPI.getAll(workspaceId!),
-    enabled: !!workspaceId,
-  });
 
   // Get the most recent meal plan
   const currentMealPlan = useMemo(() => {
