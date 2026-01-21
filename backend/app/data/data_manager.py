@@ -940,23 +940,38 @@ def query_recipes(
         )
         query_embedding = response.data[0].embedding
 
-        # Query Supabase with vector similarity
+        # Query Supabase with vector similarity using RPC
         supabase = _get_client()
 
-        # Use RPC for vector similarity search
-        # Note: This requires a database function - we'll use a simple approach for now
-        # For full vector search, you'd create a Postgres function
+        # Call the match_recipes Postgres function
+        response = supabase.rpc('match_recipes', {
+            'query_embedding': query_embedding,
+            'match_workspace_id': workspace_id,
+            'match_count': n_results,
+            'similarity_threshold': 0.0
+        }).execute()
 
-        # Fallback: Get all recipes and sort by embedding similarity in Python
-        all_recipes = list_all_recipes(workspace_id)
+        if not response.data:
+            logger.info(f"No vector matches for query '{query_text}', falling back to text search")
+            return _text_search_recipes(workspace_id, query_text, n_results, filters)
 
-        if not all_recipes:
-            return []
+        # Get matched recipe IDs
+        matched_ids = [r['id'] for r in response.data]
+        logger.info(f"Vector search found {len(matched_ids)} recipes for query '{query_text[:50]}...'")
 
-        # For now, return all recipes (proper vector search requires DB function)
-        # TODO: Implement proper pgvector similarity search via RPC
-        logger.info(f"Returning {len(all_recipes)} recipes for query '{query_text}' (vector search pending)")
-        return all_recipes[:n_results]
+        # Fetch full recipe objects for matched IDs
+        recipes = []
+        for recipe_id in matched_ids:
+            recipe = load_recipe(workspace_id, recipe_id)
+            if recipe:
+                recipes.append(recipe)
+
+        # If vector search returned results but we couldn't load them, fall back
+        if not recipes and matched_ids:
+            logger.warning("Vector search matched IDs but failed to load recipes, falling back to text search")
+            return _text_search_recipes(workspace_id, query_text, n_results, filters)
+
+        return recipes
 
     except Exception as e:
         logger.error(f"Error querying recipes for workspace '{workspace_id}': {e}")
