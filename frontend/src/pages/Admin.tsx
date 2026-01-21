@@ -358,34 +358,34 @@ const Admin = () => {
             ) : (
               <Card className="overflow-hidden">
                 <div className="max-h-[600px] overflow-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-card z-10">
+                <Table className="relative">
+                  <TableHeader>
                     <TableRow>
                       <TableHead
-                        className="cursor-pointer hover:bg-muted/50 select-none bg-card"
+                        className="cursor-pointer hover:bg-muted/50 select-none bg-card sticky top-0 z-10"
                         onClick={() => handleSort('email')}
                       >
                         Workspace {sortColumn === 'email' && (sortDirection === 'desc' ? '↓' : '↑')}
                       </TableHead>
                       <TableHead
-                        className="text-center cursor-pointer hover:bg-muted/50 select-none bg-card"
+                        className="text-center cursor-pointer hover:bg-muted/50 select-none bg-card sticky top-0 z-10"
                         onClick={() => handleSort('recipe_count')}
                       >
                         Recipes {sortColumn === 'recipe_count' && (sortDirection === 'desc' ? '↓' : '↑')}
                       </TableHead>
-                      <TableHead className="text-center bg-card">Meal Plans</TableHead>
-                      <TableHead className="text-center bg-card">Members</TableHead>
-                      <TableHead className="text-center bg-card">Groceries</TableHead>
+                      <TableHead className="text-center bg-card sticky top-0 z-10">Meal Plans</TableHead>
+                      <TableHead className="text-center bg-card sticky top-0 z-10">Members</TableHead>
+                      <TableHead className="text-center bg-card sticky top-0 z-10">Groceries</TableHead>
                       <TableHead
-                        className="cursor-pointer hover:bg-muted/50 select-none bg-card"
+                        className="cursor-pointer hover:bg-muted/50 select-none bg-card sticky top-0 z-10"
                         onClick={() => handleSort('last_api_call')}
                       >
                         Last API Call {sortColumn === 'last_api_call' && (sortDirection === 'desc' ? '↓' : '↑')}
                       </TableHead>
-                      <TableHead className="text-center bg-card">HTTP</TableHead>
-                      <TableHead className="text-center bg-card">Claude</TableHead>
-                      <TableHead className="text-center bg-card">OpenAI</TableHead>
-                      <TableHead className="text-right bg-card">Actions</TableHead>
+                      <TableHead className="text-center bg-card sticky top-0 z-10">HTTP</TableHead>
+                      <TableHead className="text-center bg-card sticky top-0 z-10">Claude</TableHead>
+                      <TableHead className="text-center bg-card sticky top-0 z-10">OpenAI</TableHead>
+                      <TableHead className="text-right bg-card sticky top-0 z-10">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
