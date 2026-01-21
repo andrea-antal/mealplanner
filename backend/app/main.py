@@ -340,6 +340,44 @@ async def admin_delete_workspace(workspace_id: str, _: bool = Depends(verify_adm
         raise HTTPException(status_code=500, detail=f"Failed to delete workspace: {str(e)}")
 
 
+@app.delete("/admin/accounts/{workspace_id}", tags=["admin"])
+async def admin_delete_account(workspace_id: str, _: bool = Depends(verify_admin)):
+    """
+    Admin endpoint to completely delete a user account and all workspace data.
+    Requires X-Admin-Key header.
+
+    This permanently removes:
+    - All workspace data (recipes, meal plans, groceries, household profile, ratings)
+    - Chroma DB entries
+    - The auth user from Supabase Auth (user will no longer be able to log in)
+
+    WARNING: This operation is irreversible!
+
+    Args:
+        workspace_id: Workspace/user identifier to delete
+
+    Returns:
+        Success message with deletion summary
+
+    Raises:
+        404: If workspace doesn't exist
+        500: If deletion fails
+    """
+    from app.data.data_manager import delete_account
+
+    try:
+        result = delete_account(workspace_id)
+        return {
+            "message": f"Account '{workspace_id}' deleted successfully",
+            "details": result
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to delete account '{workspace_id}': {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
+
+
 @app.get("/admin/debug-supabase", tags=["admin"])
 async def debug_supabase(_: bool = Depends(verify_admin)):
     """Debug endpoint to check Supabase connection."""

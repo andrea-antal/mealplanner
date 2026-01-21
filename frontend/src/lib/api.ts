@@ -847,6 +847,7 @@ export interface WorkspaceErrorsResponse {
 // Onboarding Analytics types
 export interface OnboardingWorkspaceDetail {
   workspace_id: string;
+  email?: string | null;  // User email for display
   completed_at: string | null;
   answers: {
     skill_level: string | null;
@@ -897,6 +898,14 @@ export const adminAPI = {
 
   async deleteWorkspace(workspaceId: string): Promise<{ message: string }> {
     const response = await fetch(`${API_BASE_URL}/admin/workspaces/${encodeURIComponent(workspaceId)}`, {
+      method: 'DELETE',
+      headers: { 'X-Admin-Key': getAdminKey() || '' },
+    });
+    return handleResponse(response);
+  },
+
+  async deleteAccount(workspaceId: string): Promise<{ message: string; details: { workspace_deleted: boolean; auth_user_deleted: boolean } }> {
+    const response = await fetch(`${API_BASE_URL}/admin/accounts/${encodeURIComponent(workspaceId)}`, {
       method: 'DELETE',
       headers: { 'X-Admin-Key': getAdminKey() || '' },
     });

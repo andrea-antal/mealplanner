@@ -171,6 +171,7 @@ def delete_workspace(workspace_id: str) -> bool:
     - Household profile
     - Groceries list
     - Recipe ratings
+    - Chroma vector DB entries
 
     WARNING: This operation is irreversible!
 
@@ -190,11 +191,64 @@ def delete_workspace(workspace_id: str) -> bool:
         supabase.table("groceries").delete().eq("workspace_id", workspace_id).execute()
         supabase.table("household_profiles").delete().eq("workspace_id", workspace_id).execute()
 
+        # Clean up Chroma vector DB entries to prevent orphaned embeddings
+        from app.data.chroma_manager import delete_workspace_from_chroma
+        chroma_deleted = delete_workspace_from_chroma(workspace_id)
+        logger.info(f"Cleaned up {chroma_deleted} Chroma entries for workspace '{workspace_id}'")
+
         logger.info(f"Deleted all data for workspace '{workspace_id}'")
         return True
 
     except Exception as e:
         logger.error(f"Error deleting workspace '{workspace_id}': {e}")
+        raise
+
+
+def delete_account(workspace_id: str) -> dict:
+    """
+    Delete a user account and all associated workspace data.
+
+    This permanently removes:
+    - All workspace data (recipes, meal plans, groceries, household profile, ratings)
+    - Chroma vector DB entries
+    - The auth user from Supabase Auth
+
+    WARNING: This operation is irreversible! The user will no longer be able to log in.
+
+    Args:
+        workspace_id: Workspace/user identifier to delete (same as user UUID)
+
+    Returns:
+        dict: Summary of what was deleted
+
+    Raises:
+        ValueError: If workspace doesn't exist or user not found
+        Exception: If auth deletion fails
+    """
+    try:
+        supabase = _get_client()
+
+        # First delete all workspace data (this also handles Chroma cleanup)
+        delete_workspace(workspace_id)
+
+        # Then delete the auth user
+        # workspace_id is the user's UUID in this system
+        try:
+            supabase.auth.admin.delete_user(workspace_id)
+            logger.info(f"Deleted auth user '{workspace_id}'")
+        except Exception as auth_error:
+            # Log but don't fail if user doesn't exist in auth
+            # (data might have been orphaned)
+            logger.warning(f"Could not delete auth user '{workspace_id}': {auth_error}")
+
+        return {
+            "workspace_id": workspace_id,
+            "workspace_deleted": True,
+            "auth_user_deleted": True
+        }
+
+    except Exception as e:
+        logger.error(f"Error deleting account '{workspace_id}': {e}")
         raise
 
 

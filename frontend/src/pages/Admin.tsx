@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,7 @@ import {
   ClipboardList,
   TrendingUp,
   SkipForward,
+  UserMinus,
 } from 'lucide-react';
 
 // Format relative time
@@ -87,10 +88,18 @@ const Admin = () => {
   const queryClient = useQueryClient();
   const [inactiveDays, setInactiveDays] = useState(30);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
   const [errorSheetWorkspace, setErrorSheetWorkspace] = useState<string | null>(null);
   const [showAcknowledged, setShowAcknowledged] = useState(false);
   const [hasAdminKey, setHasAdminKey] = useState(() => !!sessionStorage.getItem('adminKey'));
+
+  // Sort state for workspace table
+  const [sortColumn, setSortColumn] = useState<'last_api_call' | 'recipe_count' | 'email' | null>('last_api_call');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Track expanded workspace IDs
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   // Handle admin key from URL parameter
   useEffect(() => {
@@ -164,6 +173,20 @@ const Admin = () => {
     },
   });
 
+  // Delete account mutation (workspace + auth user)
+  const deleteAccountMutation = useMutation({
+    mutationFn: (workspaceId: string) => adminAPI.deleteAccount(workspaceId),
+    onSuccess: (_, workspaceId) => {
+      toast.success(`Account "${workspaceId}" deleted (workspace + auth user)`);
+      // Invalidate all admin queries
+      queryClient.invalidateQueries({ queryKey: ['admin'] });
+      setAccountToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete account: ${error.message}`);
+    },
+  });
+
   // Fetch workspace errors when sheet is open
   const { data: errorsData, isLoading: errorsLoading } = useQuery({
     queryKey: ['admin', 'errors', errorSheetWorkspace, showAcknowledged],
@@ -195,6 +218,42 @@ const Admin = () => {
   const totalApiCalls = workspaces.reduce((sum, ws) => sum + (ws.api_requests ?? 0), 0);
   const totalClaudeCalls = workspaces.reduce((sum, ws) => sum + (ws.claude_calls ?? 0), 0);
   const totalOpenAICalls = workspaces.reduce((sum, ws) => sum + (ws.openai_calls ?? 0), 0);
+
+  // Sort handler for table headers
+  const handleSort = (column: 'last_api_call' | 'recipe_count' | 'email') => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking same column
+      setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
+    } else {
+      // New column: default to desc for dates/numbers, asc for text
+      setSortColumn(column);
+      setSortDirection(column === 'email' ? 'asc' : 'desc');
+    }
+  };
+
+  // Sorted workspaces array
+  const sortedWorkspaces = useMemo(() => {
+    if (!sortColumn) return workspaces;
+    return [...workspaces].sort((a, b) => {
+      let aVal: string | number | null = null;
+      let bVal: string | number | null = null;
+
+      if (sortColumn === 'last_api_call') {
+        aVal = a.last_api_call ? new Date(a.last_api_call).getTime() : 0;
+        bVal = b.last_api_call ? new Date(b.last_api_call).getTime() : 0;
+      } else if (sortColumn === 'recipe_count') {
+        aVal = a.recipe_count ?? 0;
+        bVal = b.recipe_count ?? 0;
+      } else if (sortColumn === 'email') {
+        aVal = (a.email || '').toLowerCase();
+        bVal = (b.email || '').toLowerCase();
+      }
+
+      if (aVal === null || bVal === null) return 0;
+      const cmp = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      return sortDirection === 'desc' ? -cmp : cmp;
+    });
+  }, [workspaces, sortColumn, sortDirection]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -299,28 +358,59 @@ const Admin = () => {
             ) : (
               <Card>
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 bg-card z-10">
                     <TableRow>
-                      <TableHead>Workspace</TableHead>
-                      <TableHead className="text-center">Recipes</TableHead>
-                      <TableHead className="text-center">Meal Plans</TableHead>
-                      <TableHead className="text-center">Members</TableHead>
-                      <TableHead className="text-center">Groceries</TableHead>
-                      <TableHead>Last API Call</TableHead>
-                      <TableHead className="text-center">HTTP</TableHead>
-                      <TableHead className="text-center">Claude</TableHead>
-                      <TableHead className="text-center">OpenAI</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none bg-card"
+                        onClick={() => handleSort('email')}
+                      >
+                        Workspace {sortColumn === 'email' && (sortDirection === 'desc' ? '↓' : '↑')}
+                      </TableHead>
+                      <TableHead
+                        className="text-center cursor-pointer hover:bg-muted/50 select-none bg-card"
+                        onClick={() => handleSort('recipe_count')}
+                      >
+                        Recipes {sortColumn === 'recipe_count' && (sortDirection === 'desc' ? '↓' : '↑')}
+                      </TableHead>
+                      <TableHead className="text-center bg-card">Meal Plans</TableHead>
+                      <TableHead className="text-center bg-card">Members</TableHead>
+                      <TableHead className="text-center bg-card">Groceries</TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none bg-card"
+                        onClick={() => handleSort('last_api_call')}
+                      >
+                        Last API Call {sortColumn === 'last_api_call' && (sortDirection === 'desc' ? '↓' : '↑')}
+                      </TableHead>
+                      <TableHead className="text-center bg-card">HTTP</TableHead>
+                      <TableHead className="text-center bg-card">Claude</TableHead>
+                      <TableHead className="text-center bg-card">OpenAI</TableHead>
+                      <TableHead className="text-right bg-card">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {workspaces.map((ws: WorkspaceSummary) => (
+                    {sortedWorkspaces.map((ws: WorkspaceSummary) => (
                       <TableRow key={ws.workspace_id}>
                         <TableCell className="font-medium">
                           <div className="flex flex-col">
                             <span>{ws.email || 'Unknown'}</span>
-                            <span className="text-xs text-muted-foreground font-mono">
-                              {ws.workspace_id.slice(0, 8)}...
+                            <span
+                              className="text-xs text-muted-foreground font-mono cursor-pointer hover:text-foreground transition-colors"
+                              onClick={() => {
+                                setExpandedIds(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(ws.workspace_id)) {
+                                    next.delete(ws.workspace_id);
+                                  } else {
+                                    next.add(ws.workspace_id);
+                                  }
+                                  return next;
+                                });
+                              }}
+                              title="Click to expand/collapse"
+                            >
+                              {expandedIds.has(ws.workspace_id)
+                                ? ws.workspace_id
+                                : `${ws.workspace_id.slice(0, 8)}...`}
                             </span>
                           </div>
                         </TableCell>
@@ -347,14 +437,26 @@ const Admin = () => {
                         <TableCell className="text-center">{ws.claude_calls ?? 0}</TableCell>
                         <TableCell className="text-center">{ws.openai_calls ?? 0}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setWorkspaceToDelete(ws.workspace_id)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setWorkspaceToDelete(ws.workspace_id)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Delete workspace data only"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setAccountToDelete(ws.workspace_id)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Delete account (data + auth user)"
+                            >
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -595,7 +697,7 @@ const Admin = () => {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Workspace</TableHead>
+                              <TableHead>User</TableHead>
                               <TableHead>Skill</TableHead>
                               <TableHead>Goal</TableHead>
                               <TableHead>Cuisines</TableHead>
@@ -607,7 +709,12 @@ const Admin = () => {
                             {onboardingData.workspace_details.map((detail: OnboardingWorkspaceDetail) => (
                               <TableRow key={detail.workspace_id}>
                                 <TableCell className="font-medium">
-                                  {detail.workspace_id}
+                                  <div className="flex flex-col">
+                                    <span>{detail.email || 'Unknown'}</span>
+                                    <span className="text-xs text-muted-foreground font-mono">
+                                      {detail.workspace_id.slice(0, 8)}...
+                                    </span>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="capitalize">
                                   {detail.answers.skill_level?.replace(/_/g, ' ') || '-'}
@@ -750,7 +857,7 @@ const Admin = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Workspace Confirmation Dialog */}
       <AlertDialog
         open={workspaceToDelete !== null}
         onOpenChange={(open) => !open && setWorkspaceToDelete(null)}
@@ -775,6 +882,47 @@ const Admin = () => {
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
               Delete Workspace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog
+        open={accountToDelete !== null}
+        onOpenChange={(open) => !open && setAccountToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <UserMinus className="h-5 w-5" />
+              Delete Account "{accountToDelete}"?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p className="font-semibold text-foreground">
+                This will permanently delete the user account AND all workspace data.
+              </p>
+              <p>
+                The user will no longer be able to log in. All recipes, meal plans,
+                groceries, and household profile will be permanently removed.
+              </p>
+              <p className="text-destructive font-medium">
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => accountToDelete && deleteAccountMutation.mutate(accountToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAccountMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <UserMinus className="h-4 w-4 mr-2" />
+              )}
+              Delete Account
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

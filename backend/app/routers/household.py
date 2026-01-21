@@ -4,7 +4,7 @@ Household and grocery API endpoints.
 Provides REST API for managing household profile and groceries.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -231,11 +231,12 @@ async def submit_onboarding(
     )
 
     # Build onboarding status
+    # Use UTC with explicit timezone for correct JavaScript Date parsing
     onboarding_status = OnboardingStatus(
         completed=True,
         skipped_count=existing_profile.onboarding_status.skipped_count if existing_profile else 0,
         permanently_dismissed=False,
-        completed_at=datetime.now().isoformat()
+        completed_at=datetime.now(timezone.utc).isoformat()
     )
 
     # Create or update profile

@@ -243,7 +243,7 @@ def get_detailed_onboarding_analytics(
 
     Aggregates onboarding data across all workspaces to show:
     - Answer distributions (percentage for each option)
-    - Per-workspace details for browsing
+    - Per-workspace details for browsing (with email instead of just UUID)
     - Filterable by date range
 
     Args:
@@ -256,10 +256,10 @@ def get_detailed_onboarding_analytics(
         - completion_rate: Completion rate as decimal
         - skip_rate: Skip rate as decimal
         - answer_distributions: {field: {option: percentage}}
-        - workspace_details: List of per-workspace onboarding data
+        - workspace_details: List of per-workspace onboarding data (includes email)
     """
     # Import here to avoid circular imports
-    from app.data.data_manager import list_workspaces, load_household_profile
+    from app.data.data_manager import list_workspaces, load_household_profile, get_user_email_map
 
     result = {
         "total_completions": 0,
@@ -303,6 +303,8 @@ def get_detailed_onboarding_analytics(
     # Iterate through all workspaces to collect onboarding data
     try:
         workspaces = list_workspaces()
+        # Get email map for displaying user-friendly identifiers
+        email_map = get_user_email_map()
 
         for workspace_id in workspaces:
             profile = load_household_profile(workspace_id)
@@ -359,9 +361,10 @@ def get_detailed_onboarding_analytics(
                     answer_counts["dietary_patterns"].get(pattern, 0) + 1
                 )
 
-            # Add to workspace details
+            # Add to workspace details (include email for user-friendly display)
             result["workspace_details"].append({
                 "workspace_id": workspace_id,
+                "email": email_map.get(workspace_id),  # User email for display
                 "completed_at": completed_at,
                 "answers": {
                     "skill_level": data_dict.get("skill_level"),
