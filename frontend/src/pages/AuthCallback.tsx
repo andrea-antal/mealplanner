@@ -47,18 +47,17 @@ export default function AuthCallback() {
         const metadataInviteCode = session.user.user_metadata?.invite_code;
         const hasInviteCode = pendingInviteCode || metadataInviteCode;
 
-        // Check if this is a new user by looking for existing profile
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', session.user.id)
-          .single();
-
-        const isNewUser = !existingProfile;
+        // Check if this is a new user by examining when their auth account was created
+        // Note: We can't use profile existence because the Supabase trigger creates it immediately
+        // Instead, check if the auth user was created within the last 60 seconds
+        const userCreatedAt = new Date(session.user.created_at);
+        const now = new Date();
+        const secondsSinceCreation = (now.getTime() - userCreatedAt.getTime()) / 1000;
+        const isNewlyCreatedUser = secondsSinceCreation < 60;
 
         // SECURITY: New users MUST come through /signup with an invite code
         // If they used /login (no invite code), reject them
-        if (isNewUser && !hasInviteCode) {
+        if (isNewlyCreatedUser && !hasInviteCode) {
           // Sign them out and redirect to signup
           await supabase.auth.signOut();
           setStatus('error');
@@ -73,7 +72,7 @@ export default function AuthCallback() {
           sessionStorage.removeItem('pending_invite_code');
         }
 
-        if (isNewUser) {
+        if (isNewlyCreatedUser) {
           setIsNewUser(true);
         }
 
