@@ -65,20 +65,6 @@ const Index = () => {
     enabled: isReady,
   });
 
-  // Show loading state while checking auth
-  if (isAuthLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  // Don't render if not authenticated (will redirect)
-  if (!isReady) {
-    return null;
-  }
-
   // Get the most recent meal plan
   const currentMealPlan = useMemo(() => {
     if (!mealPlans || mealPlans.length === 0) return null;
@@ -87,23 +73,6 @@ const Index = () => {
       new Date(b.week_start_date).getTime() - new Date(a.week_start_date).getTime()
     )[0];
   }, [mealPlans]);
-
-  // Format the week display (e.g., "Jan 6-12")
-  const formatWeekDisplay = (weekStartDate: string) => {
-    const start = new Date(weekStartDate);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 6);
-
-    const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
-    const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
-    const startDay = start.getDate();
-    const endDay = end.getDate();
-
-    if (startMonth === endMonth) {
-      return `${startMonth} ${startDay}-${endDay}`;
-    }
-    return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
-  };
 
   // Determine if we should show onboarding
   // Never show if user already has household data (prevents data wipe)
@@ -125,6 +94,7 @@ const Index = () => {
     }
   }, [shouldShowOnboarding]);
 
+  // Event handlers (not hooks, can be defined anywhere)
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     // Refresh household profile to show updated data
@@ -134,6 +104,39 @@ const Index = () => {
   const handleOnboardingSkip = () => {
     setShowOnboarding(false);
   };
+
+  // Format the week display (e.g., "Jan 6-12") - helper function, not a hook
+  const formatWeekDisplay = (weekStartDate: string) => {
+    const start = new Date(weekStartDate);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
+    const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+
+    if (startMonth === endMonth) {
+      return `${startMonth} ${startDay}-${endDay}`;
+    }
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+  };
+
+  // === EARLY RETURNS (after all hooks) ===
+
+  // Show loading state while checking auth
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isReady) {
+    return null;
+  }
 
   return (
     <>
