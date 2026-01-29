@@ -24,6 +24,48 @@ logger = logging.getLogger(__name__)
 # Initialize Anthropic client
 client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
+# Minimum recipes per meal type for "good coverage"
+MIN_RECIPES_PER_TYPE = 3
+
+
+def _analyze_recipe_coverage(recipes: list) -> dict:
+    """
+    Analyze recipe library coverage by meal type.
+
+    Returns coverage stats to determine which prompt mode to use:
+    - Mode 1 (Demo): No recipes at all
+    - Mode 2 (Good Coverage): All meal types have >= MIN_RECIPES_PER_TYPE recipes
+    - Mode 3 (Gaps Exist): Some meal types have < MIN_RECIPES_PER_TYPE recipes
+
+    Args:
+        recipes: List of recipe dicts with meal_types field
+
+    Returns:
+        Dict with:
+            - counts: {breakfast: N, lunch: N, dinner: N}
+            - gaps: List of meal types with < MIN_RECIPES_PER_TYPE recipes
+            - has_good_coverage: True if no gaps exist
+    """
+    meal_type_counts = {"breakfast": 0, "lunch": 0, "dinner": 0}
+
+    for recipe in recipes:
+        # Get meal_types, defaulting to ["dinner"] if not specified
+        meal_types = recipe.get("meal_types", ["dinner"])
+        # Handle "side_dish" as usable for lunch/dinner
+        if "side_dish" in meal_types:
+            meal_types = list(meal_types) + ["lunch", "dinner"]
+        for mt in meal_types:
+            if mt in meal_type_counts:
+                meal_type_counts[mt] += 1
+
+    gaps = [mt for mt, count in meal_type_counts.items() if count < MIN_RECIPES_PER_TYPE]
+
+    return {
+        "counts": meal_type_counts,
+        "gaps": gaps,
+        "has_good_coverage": len(gaps) == 0
+    }
+
 
 def generate_meal_plan_with_claude(
     context: Dict,
@@ -131,8 +173,8 @@ You always:
 - Consider dietary preferences when selecting recipes (e.g., more fish/seafood for pescetarians)
 - Consider cooking time constraints (weeknights vs weekends)
 - Provide practical, realistic meal plans that busy families can execute
-- MUST use recipes from the provided candidate list - NEVER invent new recipes
-- recipe_id: null is ONLY for simple snacks (fruit, crackers), NEVER for main meals
+- Prioritize using recipes from the provided candidate list when available
+- Follow the recipe usage instructions in the prompt based on library coverage
 
 RECIPE RATING GUIDELINES:
 - Each recipe may have household member ratings: "like", "dislike", or null (not rated)
@@ -271,19 +313,12 @@ def _build_meal_plan_prompt(context: Dict, week_start_date: str) -> str:
     else:
         groceries_text = "None listed"
 
-    # Format recipes section based on whether we have any
-    if recipes:
-        recipes_json = json.dumps(recipes, indent=2)
-        recipes_section = f"""CANDIDATE RECIPES (YOU MUST USE THESE - DO NOT INVENT NEW RECIPES):
-{recipes_json}
+    # Analyze recipe coverage to determine prompt mode
+    coverage = _analyze_recipe_coverage(recipes) if recipes else None
 
-CRITICAL: Every breakfast, lunch, and dinner MUST use a recipe_id from this list above.
-You may ONLY use recipe_id: null for simple snacks like "apple slices" or "crackers with cheese".
-If a candidate recipe doesn't perfectly match, adapt it or choose the closest option - but ALWAYS use the recipe_id."""
-        recipes_instruction = "8. **MUST use recipe_id from candidate list** for ALL breakfasts, lunches, and dinners - recipe_id: null is ONLY allowed for simple snacks"
-        meal_type_guidance = ""
-        meal_type_matching = "2. **Match recipes to meal types** - use each recipe's \"meal_types\" field to assign it to appropriate meals"
-    else:
+    # Format recipes section based on coverage analysis (three modes)
+    if not recipes:
+        # MODE 1: Demo/No Recipes - generate all meals freely
         recipes_section = """CANDIDATE RECIPES:
 No saved recipes available. Generate meal suggestions based on household preferences and available groceries."""
         recipes_instruction = "8. Use recipe_id: null for all meals since no saved recipes are available"
@@ -298,6 +333,50 @@ NEVER assign snack-type foods (apple slices, cheese sticks, crackers) as dinner 
 NEVER assign heavy meals as snacks.
 Dinner MUST be a complete, substantial meal appropriate for the evening."""
         meal_type_matching = "2. **Generate appropriate meals for each meal type** - breakfast, lunch, dinner must be proper meals (see guidelines above)"
+    elif coverage["has_good_coverage"]:
+        # MODE 2: Good Coverage - strong preference for library recipes
+        recipes_json = json.dumps(recipes, indent=2)
+        counts = coverage["counts"]
+        recipes_section = f"""CANDIDATE RECIPES (USE THESE):
+{recipes_json}
+
+You have good recipe coverage: breakfast ({counts['breakfast']}), lunch ({counts['lunch']}), dinner ({counts['dinner']}).
+Use recipe_id from this list for all breakfasts, lunches, and dinners.
+Only use recipe_id: null for simple snacks (fruit, crackers, cheese)."""
+        recipes_instruction = "8. **Use recipe_id from candidate list** for all breakfasts, lunches, and dinners - recipe_id: null is only for simple snacks"
+        meal_type_guidance = ""
+        meal_type_matching = "2. **Match recipes to meal types** - use each recipe's \"meal_types\" field to assign it to appropriate meals"
+    else:
+        # MODE 3: Gaps Exist - flexible based on coverage
+        recipes_json = json.dumps(recipes, indent=2)
+        counts = coverage["counts"]
+        gaps = coverage["gaps"]
+
+        # Build coverage description
+        covered_types = [mt for mt in ["breakfast", "lunch", "dinner"] if mt not in gaps]
+        coverage_desc = f"breakfast ({counts['breakfast']}), lunch ({counts['lunch']}), dinner ({counts['dinner']})"
+
+        # Build usage instructions based on gaps
+        covered_instruction = f"For {', '.join(t.upper() for t in covered_types)}: Use recipe_id from the list above" if covered_types else ""
+        gap_instruction = f"For {', '.join(t.upper() for t in gaps)}: Limited options available - you may suggest simple meals with recipe_id: null"
+
+        recipes_section = f"""CANDIDATE RECIPES (PRIORITIZE THESE):
+{recipes_json}
+
+Recipe coverage: {coverage_desc}
+- {covered_instruction}
+- {gap_instruction}
+- Snacks: Always allowed to use recipe_id: null"""
+        recipes_instruction = f"8. **Use library recipes where available** - prioritize recipe_id for covered meal types ({', '.join(covered_types)}), allow simple meals with recipe_id: null for gaps ({', '.join(gaps)})"
+        meal_type_guidance = f"""
+MEAL TYPE GUIDELINES (for gaps: {', '.join(gaps)}):
+- **Breakfast**: Morning meals like eggs, pancakes, oatmeal, cereal, toast, smoothies, yogurt parfaits
+- **Lunch**: Midday meals like sandwiches, salads, soups, wraps, pasta dishes, rice bowls
+- **Dinner**: Evening main meals like grilled proteins, pasta, stir-fries, roasts, casseroles, tacos - must be substantial
+- **Snack**: Small bites ONLY like fruit, crackers, cheese, nuts, yogurt, vegetables with dip
+
+For meal types with limited library options, you may suggest simple, practical meals."""
+        meal_type_matching = "2. **Match recipes to meal types** - use library recipes where available, suggest simple meals for gaps"
 
     # Build daycare requirements section dynamically based on actual children and selected days
     if has_daycare_setup:
@@ -388,8 +467,8 @@ Return your response as valid JSON matching this exact schema:
 
 IMPORTANT:
 - Return ONLY valid JSON, no other text
-- CRITICAL: Use recipe IDs and titles EXACTLY as provided in candidate recipes - DO NOT invent new recipes
-- recipe_id: null is ONLY for simple snacks (apple slices, crackers, etc.) - NEVER for breakfast, lunch, or dinner
+- When using library recipes, use recipe IDs and titles EXACTLY as provided in candidate recipes
+- Follow the recipe usage instructions above based on library coverage
 - If no candidate recipe fits perfectly, choose the closest match and note in "notes" field
 - Include 7 consecutive days starting from {week_start_date} (Monday through Sunday)
 {important_weekday}

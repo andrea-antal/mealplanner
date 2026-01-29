@@ -28,6 +28,8 @@
 
 ### Improvements
 
+- **Smarter Meal Plans for New Users** - Meal plans now adapt to your recipe library size. If you have few breakfast or lunch recipes, the AI will suggest simple meals for those gaps instead of forcing you to use only library recipes.
+
 - **Back to Top Button** - Floating button appears when you scroll down, positioned above the nav bar on mobile
 
 - **Cleaner Expiry Badges** - Expired items now show just the warning icon (no text) to save space

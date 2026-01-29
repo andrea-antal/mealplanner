@@ -11,6 +11,52 @@ This document tracks key decisions, changes, and learnings during development.
 
 ---
 
+## 2026-01-29 Fix: Coverage-Based Recipe Library Logic
+
+**Status**: Complete | **Branch**: `main`
+
+### Summary
+Fixed overly strict meal plan generation for users with limited or unbalanced recipe libraries. The previous "MUST use library recipes" prompt was too rigid - now the system dynamically adjusts strictness based on recipe coverage per meal type.
+
+### Problem
+Users with few recipes (especially new users) couldn't get useful meal plans because Claude was instructed to ONLY use library recipes, even when the library had gaps (e.g., only dinner recipes, no breakfast options).
+
+### Solution
+Added coverage analysis that counts recipes by meal type and uses three prompt modes:
+
+| Mode | Condition | Behavior |
+|------|-----------|----------|
+| Demo | 0 recipes | Generate all meals freely |
+| Good Coverage | ≥3 recipes per meal type | Strong preference for library recipes |
+| Gaps Exist | <3 for some meal types | Use library where covered, allow simple meals for gaps |
+
+### Implementation Details
+
+1. **`_analyze_recipe_coverage()`** - New helper function that:
+   - Counts recipes by meal type (breakfast, lunch, dinner)
+   - Treats `side_dish` as usable for lunch/dinner
+   - Returns `{counts, gaps, has_good_coverage}`
+
+2. **Three Prompt Modes** in `_build_meal_plan_prompt()`:
+   - Mode 1 shows meal type guidelines for free generation
+   - Mode 2 shows coverage stats and instructs to use library
+   - Mode 3 explicitly lists which meal types have gaps
+
+3. **System Prompt Updated** - Changed from absolute "MUST use" to flexible "Prioritize using... follow instructions based on coverage"
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `backend/app/services/claude_service.py` | +95/-16 lines: Added `_analyze_recipe_coverage()`, updated prompt construction, flexible system prompt |
+
+### Test Results
+- Module imports successfully
+- Coverage analysis tested with 4 scenarios (empty, good coverage, gaps, side dishes)
+- Existing URL parsing tests still passing (9/9)
+
+---
+
 ## 2026-01-16 Feature: Print Recipe URL Detection
 
 **Status**: Complete | **Branch**: `main`
