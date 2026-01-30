@@ -12,19 +12,20 @@ export function StorageTag({ location, className }: StorageTagProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted/50',
+        'inline-flex items-center gap-1 text-xs text-muted-foreground px-1.5 sm:px-2 py-0.5 rounded-full bg-muted/50',
         className
       )}
+      title={isFridge ? 'Fridge' : 'Pantry'}
     >
       {isFridge ? (
         <>
           <Snowflake className="h-3 w-3" />
-          <span>Fridge</span>
+          <span className="hidden sm:inline">Fridge</span>
         </>
       ) : (
         <>
           <Package className="h-3 w-3" />
-          <span>Pantry</span>
+          <span className="hidden sm:inline">Pantry</span>
         </>
       )}
     </span>

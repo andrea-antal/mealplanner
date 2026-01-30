@@ -17,7 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { AlertCircle, CheckCircle2, AlertTriangle, X, Loader2, ChevronDown, Plus, Snowflake, Package } from 'lucide-react';
+import { AlertCircle, CheckCircle2, AlertTriangle, X, Loader2, ChevronDown, Plus, Snowflake, Package, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -55,6 +55,8 @@ export interface ConfirmedGroceryItem {
   storage_location?: 'fridge' | 'pantry';
 }
 
+export type GroceryDestination = 'inventory' | 'shopping';
+
 export interface GroceryConfirmationDialogProps {
   /** Dialog open state */
   open: boolean;
@@ -67,9 +69,13 @@ export interface GroceryConfirmationDialogProps {
   /** Warnings from AI parsing */
   warnings?: string[];
   /** Callback when user confirms items */
-  onConfirm: (items: ConfirmedGroceryItem[]) => void;
+  onConfirm: (items: ConfirmedGroceryItem[], destination: GroceryDestination) => void;
   /** Whether confirmation is in progress (e.g., API call) */
   isLoading?: boolean;
+  /** Current destination (inventory or shopping list) */
+  destination?: GroceryDestination;
+  /** Callback when destination changes */
+  onDestinationChange?: (destination: GroceryDestination) => void;
 }
 
 /**
@@ -101,6 +107,8 @@ export function GroceryConfirmationDialog({
   warnings = [],
   onConfirm,
   isLoading = false,
+  destination = 'inventory',
+  onDestinationChange,
 }: GroceryConfirmationDialogProps) {
   // Editable items state (initialized from proposed items)
   const [editableItems, setEditableItems] = useState<ProposedGroceryItem[]>([]);
@@ -172,13 +180,16 @@ export function GroceryConfirmationDialog({
       .map(item => ({
         name: item.name.trim(),
         date_added: today,
-        purchase_date: sharedPurchaseDate,
-        expiry_type: item.expiry_type,
-        expiry_date: item.expiry_date,
-        storage_location: item.storage_location,
+        // Only include inventory-specific fields when destination is inventory
+        ...(destination === 'inventory' && {
+          purchase_date: sharedPurchaseDate,
+          expiry_type: item.expiry_type,
+          expiry_date: item.expiry_date,
+          storage_location: item.storage_location,
+        }),
       }));
 
-    onConfirm(confirmed);
+    onConfirm(confirmed, destination);
   };
 
   // Get shared purchase date for display at bottom
@@ -212,11 +223,46 @@ export function GroceryConfirmationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Confirm Grocery Items</DialogTitle>
+          <DialogTitle>Confirm Items</DialogTitle>
           <DialogDescription>
-            Review and edit the items below before adding them to your list
+            Review and edit the items below before adding them
           </DialogDescription>
         </DialogHeader>
+
+        {/* Destination Picker */}
+        {onDestinationChange && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Add to:</span>
+            <div className="inline-flex rounded-lg border border-input bg-muted p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => onDestinationChange('inventory')}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  destination === 'inventory'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                )}
+              >
+                <Package className="h-4 w-4" />
+                Inventory
+              </button>
+              <button
+                type="button"
+                onClick={() => onDestinationChange('shopping')}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  destination === 'shopping'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                )}
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Shopping List
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Warnings Section */}
         {(warnings.length > 0 || excludedItems.length > 0) && (
@@ -280,59 +326,63 @@ export function GroceryConfirmationDialog({
                   </Button>
                 </div>
 
-                {/* Row 2: Storage location toggle + other metadata */}
-                <div className="flex flex-wrap items-center gap-2 text-xs mt-2">
-                  {/* Storage location toggle */}
-                  <div className="inline-flex rounded-lg border border-input bg-muted p-1 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => updateItemStorageLocation(index, 'fridge')}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                        (item.storage_location ?? 'fridge') === 'fridge'
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
-                      )}
-                    >
-                      <Snowflake className="h-3.5 w-3.5" />
-                      Fridge
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateItemStorageLocation(index, 'pantry')}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                        item.storage_location === 'pantry'
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
-                      )}
-                    >
-                      <Package className="h-3.5 w-3.5" />
-                      Pantry
-                    </button>
-                  </div>
+                {/* Row 2: Storage location toggle + other metadata (inventory only) */}
+                {(destination === 'inventory' || item.portion) && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs mt-2">
+                    {/* Storage location toggle - only for inventory */}
+                    {destination === 'inventory' && (
+                      <div className="inline-flex rounded-lg border border-input bg-muted p-1 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => updateItemStorageLocation(index, 'fridge')}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                            (item.storage_location ?? 'fridge') === 'fridge'
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                          )}
+                        >
+                          <Snowflake className="h-3.5 w-3.5" />
+                          Fridge
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateItemStorageLocation(index, 'pantry')}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                            item.storage_location === 'pantry'
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                          )}
+                        >
+                          <Package className="h-3.5 w-3.5" />
+                          Pantry
+                        </button>
+                      </div>
+                    )}
 
-                  {item.portion && (
-                    <Badge variant="secondary" className="gap-1">
-                      {item.portion}
-                    </Badge>
-                  )}
-                  {item.expiry_date && (
-                    <Badge variant="secondary" className="gap-1">
-                      <span className="font-semibold">
-                        {item.expiry_type === 'best_before_date' ? 'Best Before' : 'Expires'}:
-                      </span>{' '}
-                      {new Date(item.expiry_date).toLocaleDateString()}
-                    </Badge>
-                  )}
-                </div>
+                    {item.portion && (
+                      <Badge variant="secondary" className="gap-1">
+                        {item.portion}
+                      </Badge>
+                    )}
+                    {destination === 'inventory' && item.expiry_date && (
+                      <Badge variant="secondary" className="gap-1">
+                        <span className="font-semibold">
+                          {item.expiry_type === 'best_before_date' ? 'Best Before' : 'Expires'}:
+                        </span>{' '}
+                        {new Date(item.expiry_date).toLocaleDateString()}
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}
         </div>
 
-        {/* Shared Purchase Date (from receipt) */}
-        {sharedPurchaseDate && editableItems.length > 0 && (
+        {/* Shared Purchase Date (from receipt) - only for inventory */}
+        {destination === 'inventory' && sharedPurchaseDate && editableItems.length > 0 && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground border-t pt-3">
             <span>Purchase date:</span>
             <span className="font-medium text-foreground">

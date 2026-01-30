@@ -149,9 +149,9 @@ export function GroceryListItem({
         </div>
       )}
 
-      {/* Chevron indicator (not in selection mode) */}
+      {/* Chevron indicator (not in selection mode, hidden on mobile) */}
       {!isSelectionMode && (
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
       )}
     </button>
   );

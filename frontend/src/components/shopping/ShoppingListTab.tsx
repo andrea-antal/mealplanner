@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,90 +20,61 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
   shoppingListAPI,
   templatesAPI,
   type ShoppingListItem,
 } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { TemplatesManager } from './TemplatesManager';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
 import {
-  Plus,
+  X,
   Trash2,
   Loader2,
-  Star,
-  ShoppingCart,
   Package,
-  ChevronDown,
   MoreHorizontal,
-  Mic,
-  MicOff,
+  Search,
+  ArrowDownAZ,
+  Clock,
+  CheckSquare,
+  Snowflake,
+  Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { categorizeItem } from '@/lib/groceryCategories';
-
-// Language options for voice input
-const LANGUAGE_OPTIONS = [
-  { code: 'en-US', label: 'EN', name: 'English' },
-  { code: 'hu-HU', label: 'HU', name: 'Magyar' },
-  { code: 'yue-Hant-HK', label: '粵', name: '廣東話' },
-];
 
 interface ShoppingListTabProps {
   onAddToInventory?: (item: ShoppingListItem) => void;
 }
 
+// Get unique categories from items
+const getCategories = (items: ShoppingListItem[]): string[] => {
+  const categories = new Set(items.map(item => item.category || 'Other'));
+  return Array.from(categories).sort();
+};
+
 export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
   const queryClient = useQueryClient();
   const workspaceId = getCurrentWorkspace();
 
-  const [newItemName, setNewItemName] = useState('');
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showAddToInventoryDialog, setShowAddToInventoryDialog] = useState(false);
   const [itemToCheckOff, setItemToCheckOff] = useState<ShoppingListItem | null>(null);
-  const [showTemplates, setShowTemplates] = useState(false);
 
-  // Voice input
-  const [voiceLanguage, setVoiceLanguage] = useState(() => {
-    return localStorage.getItem('mealplanner_voice_language') || navigator.language || 'en-US';
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [sortMode, setSortMode] = useState<'recent' | 'alphabetical'>(() => {
+    return (localStorage.getItem('mealplanner_shopping_sort_mode') as 'recent' | 'alphabetical') || 'recent';
   });
+  const [viewMode, setViewMode] = useState<'flat' | 'split'>('flat');
 
-  const {
-    state: voiceState,
-    transcription,
-    error: voiceError,
-    startListening,
-    stopListening,
-    reset: resetVoice,
-    isSupported: isVoiceSupported,
-  } = useVoiceInput(voiceLanguage);
+  // Selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
-  // Persist voice language
-  useEffect(() => {
-    localStorage.setItem('mealplanner_voice_language', voiceLanguage);
-  }, [voiceLanguage]);
-
-  // Update input with voice transcription
-  useEffect(() => {
-    if (transcription && voiceState === 'listening') {
-      setNewItemName(transcription);
-    }
-  }, [transcription, voiceState]);
-
-  // Handle voice toggle
-  const handleVoiceToggle = () => {
-    if (voiceState === 'listening') {
-      stopListening();
-    } else {
-      setNewItemName(''); // Clear input when starting voice
-      startListening();
-    }
+  // Persist sort mode
+  const handleSortChange = (mode: 'recent' | 'alphabetical') => {
+    setSortMode(mode);
+    localStorage.setItem('mealplanner_shopping_sort_mode', mode);
   };
 
   // Fetch shopping list
@@ -113,27 +84,11 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
     enabled: !!workspaceId,
   });
 
-  // Fetch templates for favorites
-  const { data: templates } = useQuery({
+  // Fetch favorites/templates
+  const { data: templateList } = useQuery({
     queryKey: ['shopping-templates', workspaceId],
     queryFn: () => templatesAPI.getAll(workspaceId!),
     enabled: !!workspaceId,
-  });
-
-  // Mutations
-  const addItemMutation = useMutation({
-    mutationFn: (name: string) => {
-      const category = categorizeItem(name);
-      return shoppingListAPI.addItem(workspaceId!, { name, category });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId] });
-      setNewItemName('');
-      toast.success('Item added to shopping list');
-    },
-    onError: () => {
-      toast.error('Failed to add item');
-    },
   });
 
   const checkOffMutation = useMutation({
@@ -174,66 +129,65 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
     },
   });
 
-  // State for tracking favorites being added
-  const [isAddingFavorites, setIsAddingFavorites] = useState(false);
+  // Batch delete mutation
+  const batchDeleteMutation = useMutation({
+    mutationFn: async (itemIds: string[]) => {
+      for (const id of itemIds) {
+        await shoppingListAPI.deleteItem(workspaceId!, id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId] });
+      toast.success(`${selectedItems.length} items deleted`);
+      setSelectedItems([]);
+      setIsSelectionMode(false);
+    },
+    onError: () => {
+      toast.error('Failed to delete items');
+    },
+  });
 
-  // Smart add favorites - only adds items not already in shopping list
-  const handleAddFromFavorites = async () => {
-    if (!templates || !shoppingList) return;
+  // Add all favorites to shopping list mutation
+  const addFavoritesMutation = useMutation({
+    mutationFn: async () => {
+      const favorites = templateList?.items || [];
+      const existingNames = new Set(
+        (shoppingList?.items || []).map(item => item.canonical_name || item.name.toLowerCase())
+      );
 
-    // Get favorite templates
-    const favorites = templates.items.filter(t => t.is_favorite);
-    if (favorites.length === 0) {
-      toast.info('No favorites to add');
-      return;
-    }
+      // Filter out favorites already in shopping list
+      const newFavorites = favorites.filter(
+        f => !existingNames.has(f.canonical_name || f.name.toLowerCase())
+      );
 
-    // Get existing shopping list item names (lowercase for comparison)
-    const existingNames = new Set(
-      shoppingList.items.map(item => item.name.toLowerCase())
-    );
+      if (newFavorites.length === 0) {
+        return { added: 0 };
+      }
 
-    // Filter out favorites already in shopping list
-    const newFavorites = favorites.filter(
-      fav => !existingNames.has(fav.name.toLowerCase())
-    );
-
-    if (newFavorites.length === 0) {
-      toast.info('All favorites are already in your shopping list');
-      return;
-    }
-
-    // Add only the new favorites
-    setIsAddingFavorites(true);
-    try {
+      // Add each favorite to shopping list
       for (const favorite of newFavorites) {
         await shoppingListAPI.addItem(workspaceId!, {
           name: favorite.name,
-          quantity: favorite.default_quantity,
+          canonical_name: favorite.canonical_name,
           category: favorite.category,
+          quantity: favorite.default_quantity,
         });
       }
+
+      return { added: newFavorites.length };
+    },
+    onSuccess: ({ added }) => {
       queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId] });
-
-      const skippedCount = favorites.length - newFavorites.length;
-      if (skippedCount > 0) {
-        toast.success(`${newFavorites.length} new favorite${newFavorites.length !== 1 ? 's' : ''} added (${skippedCount} already in list)`);
+      if (added > 0) {
+        toast.success(`Added ${added} favorite${added !== 1 ? 's' : ''} to list`);
       } else {
-        toast.success(`${newFavorites.length} favorite${newFavorites.length !== 1 ? 's' : ''} added to shopping list`);
+        toast.info('All favorites already in list');
       }
-    } catch (error) {
+    },
+    onError: () => {
       toast.error('Failed to add favorites');
-    } finally {
-      setIsAddingFavorites(false);
-    }
-  };
-
-  const handleAddItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newItemName.trim()) {
-      addItemMutation.mutate(newItemName.trim());
-    }
-  };
+    },
+  });
 
   const handleCheckOff = (item: ShoppingListItem) => {
     if (item.is_checked) {
@@ -254,19 +208,66 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
     }
   };
 
-  // Group items by category
-  const groupedItems = shoppingList?.items.reduce((acc, item) => {
+  // Selection handlers
+  const handleToggleSelect = (itemId: string) => {
+    setSelectedItems(prev =>
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedItems.length > 0) {
+      batchDeleteMutation.mutate(selectedItems);
+    }
+  };
+
+  // Get all items and available categories
+  const allItems = shoppingList?.items || [];
+  const categories = getCategories(allItems);
+
+  // Filter items
+  const filteredItems = allItems.filter(item => {
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      if (!item.name.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+    // Category filter
+    if (categoryFilter !== 'all') {
+      const itemCategory = item.category || 'Other';
+      if (itemCategory !== categoryFilter) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Sort items
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    if (sortMode === 'alphabetical') {
+      return a.name.localeCompare(b.name);
+    }
+    // 'recent' - by ID (newer items have later IDs)
+    return b.id.localeCompare(a.id);
+  });
+
+  // Group items by category for display
+  const groupedItems = sortedItems.reduce((acc, item) => {
     const category = item.category || 'Other';
     if (!acc[category]) {
       acc[category] = [];
     }
     acc[category].push(item);
     return acc;
-  }, {} as Record<string, ShoppingListItem[]>) || {};
+  }, {} as Record<string, ShoppingListItem[]>);
 
-  const uncheckedCount = shoppingList?.items.filter(i => !i.is_checked).length || 0;
-  const totalCount = shoppingList?.items.length || 0;
-  const favoriteCount = templates?.items.filter(t => t.is_favorite).length || 0;
+  const uncheckedCount = allItems.filter(i => !i.is_checked).length;
+  const totalCount = allItems.length;
+  const filteredCount = filteredItems.length;
 
   if (!workspaceId) {
     return null;
@@ -274,120 +275,176 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
 
   return (
     <div className="space-y-4">
-      {/* Add item form and favorites button */}
-      <div className="flex gap-2">
-        <div className="flex-1 rounded-xl border border-border bg-card p-3 space-y-2">
-          <form onSubmit={handleAddItem} className="flex gap-2">
+      {/* Search, Filter, Sort Controls */}
+      <div className="rounded-2xl bg-card shadow-soft p-4 space-y-3">
+        {/* Search and Filter Row */}
+        <div className="flex items-center gap-2">
+          {/* Search - full width like Inventory */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="Add item"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              className="flex-1 h-11"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-10"
             />
-            {/* Voice input button */}
-            {isVoiceSupported && (
-              <Button
-                type="button"
-                variant={voiceState === 'listening' ? 'destructive' : 'outline'}
-                className="h-11 px-3"
-                onClick={handleVoiceToggle}
-                title={voiceState === 'listening' ? 'Stop recording' : 'Start voice input'}
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                {voiceState === 'listening' ? (
-                  <MicOff className="w-4 h-4" />
-                ) : (
-                  <Mic className="w-4 h-4" />
-                )}
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Category Filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 gap-1 min-w-[80px]">
+                {categoryFilter === 'all' ? 'All' : categoryFilter}
               </Button>
-            )}
-            <Button
-              type="submit"
-              disabled={!newItemName.trim() || addItemMutation.isPending}
-              className="h-11 px-4"
-            >
-              {addItemMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setCategoryFilter('all')}>
+                All Categories
+              </DropdownMenuItem>
+              {categories.map(category => (
+                <DropdownMenuItem
+                  key={category}
+                  onClick={() => setCategoryFilter(category)}
+                >
+                  {category}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Sort and View Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleSortChange('alphabetical')}
+              className={cn(
+                "p-2 rounded-md transition-colors",
+                sortMode === 'alphabetical'
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
-            </Button>
-          </form>
-
-          {/* Voice state indicators */}
-          {voiceState === 'listening' && (
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 bg-destructive rounded-full animate-pulse" />
-              <span className="text-xs text-muted-foreground">Listening...</span>
-              {/* Language selector */}
-              <div className="flex items-center gap-1 ml-auto">
-                {LANGUAGE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.code}
-                    type="button"
-                    onClick={() => setVoiceLanguage(opt.code)}
-                    className={cn(
-                      "px-2 py-0.5 text-xs rounded transition-colors",
-                      voiceLanguage === opt.code
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {voiceError && (
-            <div className="flex items-center gap-2 text-xs text-destructive">
-              <span>{voiceError}</span>
-            </div>
-          )}
+              title="Sort A-Z"
+            >
+              <ArrowDownAZ className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleSortChange('recent')}
+              className={cn(
+                "p-2 rounded-md transition-colors",
+                sortMode === 'recent'
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+              title="Sort by recently added"
+            >
+              <Clock className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode(viewMode === 'flat' ? 'split' : 'flat')}
+              className={cn(
+                "p-2 rounded-md transition-colors",
+                viewMode === 'split'
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+              title={viewMode === 'flat' ? 'Group by category' : 'Show flat list'}
+            >
+              <Snowflake className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-        {favoriteCount > 0 && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleAddFromFavorites}
-            disabled={isAddingFavorites}
-            className="h-auto px-3 shrink-0"
-          >
-            {isAddingFavorites ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                <Star className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Add all favorites</span>
-                <span className="sm:hidden">Favorites</span>
-              </>
-            )}
-          </Button>
-        )}
-      </div>
 
-      {/* List header with count and overflow menu */}
-      {totalCount > 0 && (
+        {/* Item Count and Actions Row */}
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
             {uncheckedCount} of {totalCount} items remaining
+            {filteredCount !== totalCount && ` (showing ${filteredCount})`}
           </p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => setShowClearDialog(true)}
-                className="text-destructive focus:text-destructive"
+          <div className="flex items-center gap-2">
+            {/* Add Favorites button */}
+            {(templateList?.items.length || 0) > 0 && (
+              <button
+                onClick={() => addFavoritesMutation.mutate()}
+                disabled={addFavoritesMutation.isPending}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-colors",
+                  "text-muted-foreground hover:text-yellow-600 hover:bg-yellow-500/10"
+                )}
+                title="Add all favorites to shopping list"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Clear List
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {addFavoritesMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Star className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Add Favorites</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (isSelectionMode) {
+                  setSelectedItems([]);
+                }
+                setIsSelectionMode(!isSelectionMode);
+              }}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-colors",
+                isSelectionMode
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              Select
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => setShowClearDialog(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear List
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+
+      {/* Selection Mode Action Bar */}
+      {isSelectionMode && selectedItems.length > 0 && (
+        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+          <span className="text-sm font-medium">
+            {selectedItems.length} selected
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDeleteSelected}
+            disabled={batchDeleteMutation.isPending}
+          >
+            {batchDeleteMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </>
+            )}
+          </Button>
         </div>
       )}
 
@@ -403,33 +460,56 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
         <div className="text-center py-12 text-muted-foreground">
           <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p className="text-lg font-medium">Your shopping list is empty</p>
-          <p className="text-sm mt-1">Add items above or use your favorite templates</p>
+          <p className="text-sm mt-1">Click "Add Items" to get started</p>
+        </div>
+      )}
+
+      {/* No results state */}
+      {!isLoading && totalCount > 0 && filteredCount === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">No items match your search</p>
+          <p className="text-sm mt-1">Try a different search term or filter</p>
         </div>
       )}
 
       {/* Shopping list items grouped by category */}
-      {!isLoading && totalCount > 0 && (
-        <div className="space-y-4">
-          {Object.entries(groupedItems).map(([category, items]) => (
-            <div key={category} className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground capitalize">
-                {category}
-              </h3>
-              <div className="space-y-1">
+      {!isLoading && filteredCount > 0 && (
+        <div className="rounded-2xl bg-card shadow-soft overflow-hidden">
+          {Object.entries(groupedItems)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([category, items], categoryIndex) => (
+              <div key={category}>
+                {/* Category header */}
+                <div className="px-4 py-2 bg-muted/30 border-b border-border">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {category}
+                  </h3>
+                </div>
+                {/* Items in category */}
                 {items.map((item) => (
                   <div
                     key={item.id}
                     className={cn(
-                      'flex items-center gap-3 p-3 rounded-lg border bg-card group',
-                      'hover:bg-muted/50 transition-colors',
-                      item.is_checked && 'opacity-60'
+                      'flex items-center gap-3 px-4 py-3 border-b border-border/50 last:border-b-0',
+                      'hover:bg-muted/30 transition-colors group',
+                      item.is_checked && 'opacity-60',
+                      isSelectionMode && selectedItems.includes(item.id) && 'bg-primary/5'
                     )}
                   >
-                    <Checkbox
-                      checked={item.is_checked}
-                      onCheckedChange={() => handleCheckOff(item)}
-                      className="h-5 w-5"
-                    />
+                    {isSelectionMode ? (
+                      <Checkbox
+                        checked={selectedItems.includes(item.id)}
+                        onCheckedChange={() => handleToggleSelect(item.id)}
+                        className="h-5 w-5"
+                      />
+                    ) : (
+                      <Checkbox
+                        checked={item.is_checked}
+                        onCheckedChange={() => handleCheckOff(item)}
+                        className="h-5 w-5"
+                      />
+                    )}
                     <div className="flex-1 min-w-0">
                       <span
                         className={cn(
@@ -445,45 +525,22 @@ export const ShoppingListTab = ({ onAddToInventory }: ShoppingListTabProps) => {
                         </span>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteItemMutation.mutate(item.id)}
-                      className="md:opacity-0 md:group-hover:opacity-100"
-                    >
-                      <Trash2 className="w-4 h-4 text-muted-foreground" />
-                    </Button>
+                    {!isSelectionMode && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteItemMutation.mutate(item.id)}
+                        className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0"
+                      >
+                        <Trash2 className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       )}
-
-      {/* Templates section */}
-      <Collapsible open={showTemplates} onOpenChange={setShowTemplates}>
-        <CollapsibleTrigger asChild>
-          <Button
-            variant="outline"
-            className="w-full justify-between"
-          >
-            <div className="flex items-center gap-2">
-              <Star className="w-4 h-4" />
-              <span>Manage Favorites</span>
-            </div>
-            <ChevronDown
-              className={cn(
-                'w-4 h-4 transition-transform',
-                showTemplates && 'rotate-180'
-              )}
-            />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-4">
-          <TemplatesManager />
-        </CollapsibleContent>
-      </Collapsible>
 
       {/* Clear list confirmation dialog */}
       <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>

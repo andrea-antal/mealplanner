@@ -132,24 +132,11 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Header - count only, no add button */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Star className="w-5 h-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {totalCount} favorite{totalCount !== 1 ? 's' : ''}
-          </span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setEditingTemplate(null);
-            setShowModal(true);
-          }}
-        >
-          ⭐️ Add Favorite
-        </Button>
+        <p className="text-xs text-muted-foreground">
+          {totalCount} item{totalCount !== 1 ? 's' : ''}
+        </p>
       </div>
 
       {/* Loading state */}
@@ -161,87 +148,67 @@ export const TemplatesManager = ({ onAddToList }: TemplatesManagerProps) => {
 
       {/* Empty state */}
       {!isLoading && totalCount === 0 && (
-        <div className="text-center py-12 text-muted-foreground border rounded-lg">
+        <div className="text-center py-12 text-muted-foreground">
           <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p className="text-lg font-medium">No favorites yet</p>
-          <p className="text-sm mt-1 mb-4">Add items you buy regularly for quick access</p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setEditingTemplate(null);
-              setShowModal(true);
-            }}
-          >
-            ⭐️ Add First Favorite
-          </Button>
+          <p className="text-sm mt-1">
+            Star items in your Inventory to add them here
+          </p>
         </div>
       )}
 
-      {/* Templates grouped by category */}
+      {/* Templates grouped by category - styled like Inventory */}
       {!isLoading && totalCount > 0 && (
-        <div className="space-y-4">
+        <div className="rounded-2xl bg-card shadow-soft overflow-hidden">
           {Object.entries(groupedTemplates)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([category, templates]) => (
-              <div key={category} className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground capitalize">
-                  {category}
-                </h3>
-                <div className="space-y-1">
-                  {templates.map((template) => (
-                    <div
-                      key={template.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
-                    >
-                      {/* Star toggle - clickable to remove from favorites */}
-                      <button
-                        onClick={() => handleRemoveFromFavorites(template)}
-                        className="shrink-0 hover:scale-110 transition-transform"
-                        title="Remove from favorites"
-                      >
-                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                      </button>
-
-                      {/* Template info - clickable to edit */}
-                      <button
-                        onClick={() => handleEdit(template)}
-                        className="flex-1 min-w-0 text-left"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium truncate">
-                            {template.name}
-                          </span>
-                          {template.default_quantity && (
-                            <span className="text-xs text-muted-foreground">
-                              ({template.default_quantity})
-                            </span>
-                          )}
-                        </div>
-                        {template.frequency && (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Clock className="w-3 h-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">
-                              {frequencyLabels[template.frequency]}
-                            </span>
-                          </div>
-                        )}
-                      </button>
-
-                      {/* Add to list button (only if callback provided) */}
-                      {onAddToList && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onAddToList([template.id])}
-                          title="Add to shopping list"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <ListPlus className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+              <div key={category}>
+                {/* Category header */}
+                <div className="px-4 py-2 bg-muted/30 border-b border-border">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {category}
+                  </h3>
                 </div>
+                {/* Items in category */}
+                {templates.map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleEdit(template)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+                      'border-b border-border/50 last:border-b-0',
+                      'hover:bg-muted/30 active:bg-muted/50 group'
+                    )}
+                  >
+                    {/* Star - clickable to remove */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFromFavorites(template);
+                      }}
+                      className="shrink-0 hover:scale-110 transition-transform cursor-pointer"
+                      title="Remove from favorites"
+                    >
+                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                    </div>
+
+                    {/* Item name */}
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-foreground capitalize truncate">
+                        {template.name}
+                      </span>
+                    </div>
+
+                    {/* Frequency badge */}
+                    {template.frequency && (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted/50">
+                        <Clock className="w-3 h-3" />
+                        <span className="hidden sm:inline">{frequencyLabels[template.frequency]}</span>
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
             ))}
         </div>

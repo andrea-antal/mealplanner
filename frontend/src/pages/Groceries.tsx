@@ -13,6 +13,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { DynamicRecipeModal } from '@/components/DynamicRecipeModal';
 import { AddGroceryModal } from '@/components/groceries/AddGroceryModal';
 import { GroceryListItem } from '@/components/groceries/GroceryListItem';
@@ -20,9 +26,8 @@ import { GrocerySection } from '@/components/groceries/GrocerySection';
 import { GroceryItemModal } from '@/components/groceries/GroceryItemModal';
 import { StickyActionBar } from '@/components/groceries/StickyActionBar';
 import { ShoppingListTab } from '@/components/shopping/ShoppingListTab';
+import { TemplatesManager } from '@/components/shopping/TemplatesManager';
 import { groceriesAPI, templatesAPI, shoppingListAPI, type GroceryItem, type Recipe } from '@/lib/api';
-import { NukeButton } from '@/components/groceries/NukeButton';
-import { useNukeWithUndo } from '@/hooks/useNukeWithUndo';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import {
   X,
@@ -33,11 +38,13 @@ import {
   Snowflake,
   Package,
   Search,
-  Refrigerator,
   ArrowDownAZ,
   Clock,
   ShoppingCart,
   ArrowUp,
+  Star,
+  MoreHorizontal,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -70,6 +77,9 @@ const Groceries = () => {
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
+
+  // Clear inventory dialog state
+  const [showClearInventoryDialog, setShowClearInventoryDialog] = useState(false);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,9 +151,6 @@ const Groceries = () => {
   const favoriteNames = new Set(
     templateList?.items.map(t => t.name.toLowerCase()) || []
   );
-
-  // Nuke (clear all) functionality with undo
-  const { executeNuke, isNuking } = useNukeWithUndo({ workspaceId });
 
   // Delete grocery mutation
   const deleteMutation = useMutation({
@@ -292,6 +299,14 @@ const Groceries = () => {
     setShowDeleteConfirmDialog(true);
   };
 
+  const handleClearInventoryConfirm = () => {
+    const allItemNames = groceries.map(item => item.name);
+    if (allItemNames.length > 0) {
+      bulkDeleteMutation.mutate(allItemNames);
+    }
+    setShowClearInventoryDialog(false);
+  };
+
   const handleBulkDeleteConfirm = () => {
     bulkDeleteMutation.mutate(selectedIngredients);
     setShowDeleteConfirmDialog(false);
@@ -338,46 +353,59 @@ const Groceries = () => {
           <p className="text-muted-foreground mt-1">Manage your inventory and shopping list</p>
         </div>
         <div className="flex items-center gap-2">
-          {activeTab === 'inventory' && (
-            <Button variant="hero" onClick={() => setShowAddModal(true)}>
-              <Plus className="h-4 w-4" />
-              Add Groceries
-            </Button>
-          )}
-          <NukeButton
-            inventoryItems={groceries}
-            shoppingItems={shoppingList?.items || []}
-            onNuke={executeNuke}
-            disabled={isNuking}
-          />
+          <Button variant="hero" onClick={() => setShowAddModal(true)}>
+            <Plus className="h-4 w-4" />
+            Add Items
+          </Button>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-2">
+      {/* Tab Navigation - Underline Style */}
+      <div className="flex items-center gap-6 border-b border-border">
         <button
           onClick={() => setActiveTab('inventory')}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium",
+            "flex items-center gap-2 py-3 text-sm font-medium transition-colors relative",
             activeTab === 'inventory'
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           <Package className="h-4 w-4" />
-          <span>Inventory</span>
+          Inventory
+          {activeTab === 'inventory' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+          )}
         </button>
         <button
           onClick={() => setActiveTab('shopping')}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium",
+            "flex items-center gap-2 py-3 text-sm font-medium transition-colors relative",
             activeTab === 'shopping'
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           <ShoppingCart className="h-4 w-4" />
-          <span>Shopping List</span>
+          Shopping List
+          {activeTab === 'shopping' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('favorites')}
+          className={cn(
+            "flex items-center gap-2 py-3 text-sm font-medium transition-colors relative",
+            activeTab === 'favorites'
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Star className="h-4 w-4" />
+          Favorites
+          {activeTab === 'favorites' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+          )}
         </button>
       </div>
 
@@ -385,6 +413,15 @@ const Groceries = () => {
       {activeTab === 'shopping' && (
         <div className="space-y-6">
           <ShoppingListTab />
+        </div>
+      )}
+
+      {/* Favorites Tab */}
+      {activeTab === 'favorites' && (
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-card shadow-soft p-4">
+            <TemplatesManager />
+          </div>
         </div>
       )}
 
@@ -531,7 +568,7 @@ const Groceries = () => {
                       )}
                       title={viewMode === 'flat' ? 'Show Fridge/Pantry split' : 'Show flat list'}
                     >
-                      <Refrigerator className="h-4 w-4" />
+                      <Snowflake className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -549,22 +586,41 @@ const Groceries = () => {
                       </span>
                     )}
                   </p>
-                  {isSelectionMode ? (
-                    <button
-                      onClick={handleCancelSelection}
-                      className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setIsSelectionMode(true)}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <CheckSquare className="h-3.5 w-3.5" />
-                      Select
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isSelectionMode ? (
+                      <button
+                        onClick={handleCancelSelection}
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setIsSelectionMode(true)}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <CheckSquare className="h-3.5 w-3.5" />
+                        Select
+                      </button>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => setShowClearInventoryDialog(true)}
+                          disabled={groceries.length === 0}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Clear Inventory
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
 
                 {/* Flat view */}
@@ -634,7 +690,11 @@ const Groceries = () => {
       )}
 
       {/* Modals */}
-      <AddGroceryModal open={showAddModal} onOpenChange={setShowAddModal} />
+      <AddGroceryModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        defaultDestination={activeTab === 'shopping' || activeTab === 'favorites' ? 'shopping' : 'inventory'}
+      />
 
       <DynamicRecipeModal
         open={showRecipeModal}
@@ -671,6 +731,29 @@ const Groceries = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Inventory Dialog */}
+      <AlertDialog open={showClearInventoryDialog} onOpenChange={setShowClearInventoryDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Inventory?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all {groceries.length} item{groceries.length !== 1 ? 's' : ''} from your inventory.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearInventoryConfirm}
+              disabled={bulkDeleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleteMutation.isPending ? 'Clearing...' : 'Clear Inventory'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

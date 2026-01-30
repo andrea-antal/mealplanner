@@ -28,8 +28,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { groceriesAPI, type GroceryItem } from '@/lib/api';
-import { GroceryConfirmationDialog, type ProposedGroceryItem } from '@/components/GroceryConfirmationDialog';
+import { groceriesAPI, shoppingListAPI, type GroceryItem, type AddShoppingItemRequest } from '@/lib/api';
+import { GroceryConfirmationDialog, type ProposedGroceryItem, type GroceryDestination } from '@/components/GroceryConfirmationDialog';
+import { categorizeItem } from '@/lib/groceryCategories';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { getCurrentWorkspace } from '@/lib/workspace';
 
@@ -43,9 +44,11 @@ const LANGUAGE_OPTIONS = [
 interface AddGroceryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Default destination for items (current tab). Defaults to 'inventory'. */
+  defaultDestination?: GroceryDestination;
 }
 
-export function AddGroceryModal({ open, onOpenChange }: AddGroceryModalProps) {
+export function AddGroceryModal({ open, onOpenChange, defaultDestination = 'inventory' }: AddGroceryModalProps) {
   const queryClient = useQueryClient();
   const workspaceId = getCurrentWorkspace();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +56,9 @@ export function AddGroceryModal({ open, onOpenChange }: AddGroceryModalProps) {
   // Text input state
   const [groceryInput, setGroceryInput] = useState('');
   const [isParsing, setIsParsing] = useState(false);
+
+  // Destination state
+  const [destination, setDestination] = useState<GroceryDestination>(defaultDestination);
 
   // Manual entry state
   const [manualExpanded, setManualExpanded] = useState(false);
@@ -111,9 +117,12 @@ export function AddGroceryModal({ open, onOpenChange }: AddGroceryModalProps) {
     }
   }, [transcription, voiceState]);
 
-  // Reset state when modal closes
+  // Reset state when modal opens/closes
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      // Reset destination to default when opening
+      setDestination(defaultDestination);
+    } else {
       setGroceryInput('');
       setManualExpanded(false);
       setNewItemName('');
@@ -125,7 +134,7 @@ export function AddGroceryModal({ open, onOpenChange }: AddGroceryModalProps) {
       setParseWarnings([]);
       resetVoice();
     }
-  }, [open, resetVoice]);
+  }, [open, defaultDestination, resetVoice]);
 
   // Parse text mutation
   const parseTextMutation = useMutation({
@@ -156,13 +165,27 @@ export function AddGroceryModal({ open, onOpenChange }: AddGroceryModalProps) {
     },
   });
 
-  // Batch add mutation
-  const batchAddMutation = useMutation({
+  // Batch add to inventory mutation
+  const batchAddToInventoryMutation = useMutation({
     mutationFn: (items: GroceryItem[]) => groceriesAPI.batchAdd(workspaceId!, items),
     onSuccess: (_, items) => {
       queryClient.invalidateQueries({ queryKey: ['groceries', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['groceries-expiring', workspaceId] });
-      toast.success(`${items.length} item${items.length !== 1 ? 's' : ''} added`);
+      toast.success(`${items.length} item${items.length !== 1 ? 's' : ''} added to inventory`);
+      setShowConfirmDialog(false);
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to add items: ${error.message}`);
+    },
+  });
+
+  // Batch add to shopping list mutation
+  const batchAddToShoppingMutation = useMutation({
+    mutationFn: (items: AddShoppingItemRequest[]) => shoppingListAPI.batchAdd(workspaceId!, items),
+    onSuccess: (_, items) => {
+      queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId] });
+      toast.success(`${items.length} item${items.length !== 1 ? 's' : ''} added to shopping list`);
       setShowConfirmDialog(false);
       onOpenChange(false);
     },
@@ -287,13 +310,24 @@ export function AddGroceryModal({ open, onOpenChange }: AddGroceryModalProps) {
     addItemMutation.mutate(newItem);
   };
 
-  // Handle confirmation
-  const handleConfirmItems = (items: GroceryItem[]) => {
-    batchAddMutation.mutate(items);
+  // Handle confirmation with destination routing
+  const handleConfirmItems = (items: GroceryItem[], dest: GroceryDestination) => {
+    if (dest === 'shopping') {
+      // Transform to shopping list items with auto-categorization
+      const shoppingItems: AddShoppingItemRequest[] = items.map(item => ({
+        name: item.name,
+        canonical_name: item.canonical_name,
+        category: categorizeItem(item.name, item.canonical_name),
+      }));
+      batchAddToShoppingMutation.mutate(shoppingItems);
+    } else {
+      batchAddToInventoryMutation.mutate(items);
+    }
   };
 
   const canParse = groceryInput.trim().length >= 3;
   const isProcessing = isParsing || isUploadingReceipt || parseReceiptMutation.isPending;
+  const isConfirming = batchAddToInventoryMutation.isPending || batchAddToShoppingMutation.isPending;
 
   return (
     <>
@@ -301,7 +335,7 @@ export function AddGroceryModal({ open, onOpenChange }: AddGroceryModalProps) {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl">
-              Add Groceries
+              Add Items
             </DialogTitle>
           </DialogHeader>
 
@@ -315,29 +349,64 @@ export function AddGroceryModal({ open, onOpenChange }: AddGroceryModalProps) {
                 List your groceries - one per line or as a comma-separated list
               </p>
 
-              {/* Textarea with voice button */}
-              <div className="relative">
-                <Textarea
-                  id="grocery-input"
-                  value={groceryInput}
-                  onChange={(e) => setGroceryInput(e.target.value)}
-                  placeholder="milk, eggs, bread
+              {/* Textarea */}
+              <Textarea
+                id="grocery-input"
+                value={groceryInput}
+                onChange={(e) => setGroceryInput(e.target.value)}
+                placeholder="milk, eggs, bread
 chicken breast 2 lbs
 spinach
 apples (6)"
-                  disabled={isProcessing}
-                  rows={6}
-                  className="pr-12 font-mono text-sm resize-none"
-                />
+                disabled={isProcessing}
+                rows={6}
+                className="font-mono text-sm resize-none placeholder:italic placeholder:text-muted-foreground/60"
+              />
 
-                {/* Voice button - positioned inside textarea */}
-                {isVoiceSupported && (
-                  <div className="absolute right-2 top-2">
+              {/* Voice state indicator - only when listening */}
+              {voiceState === 'listening' && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-2 w-2 bg-destructive rounded-full animate-pulse" />
+                  <span className="text-xs text-muted-foreground">Listening...</span>
+                </div>
+              )}
+
+              {voiceError && (
+                <div className="flex items-center gap-2 mt-2 text-xs text-destructive">
+                  <AlertCircle className="h-3 w-3" />
+                  {voiceError}
+                </div>
+              )}
+
+              {/* Controls row: Voice input + Add button */}
+              <div className="flex items-center justify-between mt-2">
+                {/* Voice controls - left side */}
+                {isVoiceSupported ? (
+                  <div className="flex items-center gap-2">
+                    {/* Language selector */}
+                    <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+                      {LANGUAGE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.code}
+                          type="button"
+                          onClick={() => setVoiceLanguage(opt.code)}
+                          className={cn(
+                            "px-2 py-1 text-xs font-medium rounded transition-colors",
+                            voiceLanguage === opt.code
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-muted-foreground/10"
+                          )}
+                          title={opt.name}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Mic button */}
                     <Button
                       type="button"
-                      variant={voiceState === 'listening' ? 'destructive' : 'ghost'}
-                      size="icon"
-                      className="h-8 w-8"
+                      variant={voiceState === 'listening' ? 'destructive' : 'outline'}
+                      size="sm"
                       onClick={handleVoiceToggle}
                       disabled={isProcessing && voiceState !== 'listening'}
                       title={voiceState === 'listening' ? 'Stop recording' : 'Start voice input'}
@@ -349,44 +418,11 @@ apples (6)"
                       )}
                     </Button>
                   </div>
+                ) : (
+                  <div /> // Spacer when voice not supported
                 )}
-              </div>
 
-              {/* Voice state indicators */}
-              {voiceState === 'listening' && (
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="h-2 w-2 bg-destructive rounded-full animate-pulse" />
-                  <span className="text-xs text-muted-foreground">Listening...</span>
-                  {/* Language selector */}
-                  <div className="flex items-center gap-1 ml-auto">
-                    {LANGUAGE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.code}
-                        type="button"
-                        onClick={() => setVoiceLanguage(opt.code)}
-                        className={cn(
-                          "px-2 py-0.5 text-xs rounded transition-colors",
-                          voiceLanguage === opt.code
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-muted"
-                        )}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {voiceError && (
-                <div className="flex items-center gap-2 mt-2 text-xs text-destructive">
-                  <AlertCircle className="h-3 w-3" />
-                  {voiceError}
-                </div>
-              )}
-
-              {/* Parse button */}
-              <div className="flex justify-end mt-2">
+                {/* Add button - right side */}
                 <Button
                   type="button"
                   onClick={handleParse}
@@ -396,10 +432,10 @@ apples (6)"
                   {isParsing ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Parsing...
+                      Adding...
                     </>
                   ) : (
-                    'Parse Items'
+                    'Add'
                   )}
                 </Button>
               </div>
@@ -538,7 +574,9 @@ apples (6)"
         excludedItems={excludedItems}
         warnings={parseWarnings}
         onConfirm={handleConfirmItems}
-        isLoading={batchAddMutation.isPending}
+        isLoading={isConfirming}
+        destination={destination}
+        onDestinationChange={setDestination}
       />
     </>
   );
