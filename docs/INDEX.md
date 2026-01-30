@@ -57,6 +57,12 @@ See [DOC_STANDARDS.md](DOC_STANDARDS.md) for full documentation conventions.
 
 ## 📚 Reference Docs
 
+### Architecture Decisions
+- **[decisions/INDEX.md](decisions/INDEX.md)** - Architecture Decision Records *(Current)*
+  - 🎯 Why things are built the way they are
+  - 📝 Design tradeoffs, alternatives considered, consequences
+  - ✨ Update when logic changes or new decisions are made
+
 ### Technical Reference
 - **[reference/FRONTEND_FEATURES.md](reference/FRONTEND_FEATURES.md)** - Frontend tech stack *(Reference)*
   - 🎯 React, TypeScript, shadcn-ui component details

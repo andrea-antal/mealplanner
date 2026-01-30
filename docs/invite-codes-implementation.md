@@ -1,7 +1,5 @@
 # Invite Codes Implementation
 
-> ⚠️ **Note:** This was built without prior approval. Review before deciding to keep or revert.
-
 ## Overview
 
 Adds invite code gating for new user signups during beta. Existing users can still log in without a code.
@@ -176,32 +174,52 @@ Complete rewrite to support invite codes:
 
 ## Admin Usage
 
+> **Note:** The backend code references JSON file storage (`data/invites.json`), but production uses Supabase. Create and manage invite codes directly in Supabase rather than through the API endpoints.
+
 ### Create an invite code
-```bash
-curl -X POST "https://your-backend/invites" \
-  -H "X-Admin-Key: YOUR_ADMIN_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"max_uses": 10, "note": "Beta testers batch 1"}'
+
+In Supabase SQL Editor:
+
+```sql
+INSERT INTO invite_codes (code, max_uses, note, created_by)
+VALUES ('MEAL-ABC123', 10, 'Beta testers batch 1', 'admin');
 ```
 
-### Create a custom code
-```bash
-curl -X POST "https://your-backend/invites" \
-  -H "X-Admin-Key: YOUR_ADMIN_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"code": "PRODUCTHUNT", "max_uses": 100, "note": "PH launch"}'
+### Create a custom code (e.g., for a launch)
+
+```sql
+INSERT INTO invite_codes (code, max_uses, note, expires_at)
+VALUES (
+  'PRODUCTHUNT',
+  100,
+  'PH launch',
+  NOW() + INTERVAL '30 days'
+);
 ```
 
 ### List all codes
-```bash
-curl "https://your-backend/invites" \
-  -H "X-Admin-Key: YOUR_ADMIN_SECRET"
+
+```sql
+SELECT code, uses, max_uses, note, disabled, created_at
+FROM invite_codes
+ORDER BY created_at DESC;
 ```
 
 ### Disable a code
-```bash
-curl -X DELETE "https://your-backend/invites/MEAL-ABC123" \
-  -H "X-Admin-Key: YOUR_ADMIN_SECRET"
+
+```sql
+UPDATE invite_codes
+SET disabled = true
+WHERE code = 'MEAL-ABC123';
+```
+
+### View redemptions
+
+```sql
+SELECT ir.*, ic.note as invite_note
+FROM invite_redemptions ir
+JOIN invite_codes ic ON ir.code = ic.code
+ORDER BY ir.redeemed_at DESC;
 ```
 
 ---
