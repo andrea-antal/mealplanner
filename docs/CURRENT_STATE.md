@@ -125,7 +125,7 @@
 - **URL**: https://mealplanner-backend-production-3e88.up.railway.app
 
 ### Data
-- **Database**: Supabase PostgreSQL (https://kydcpdwdhfvwbggfqtlq.supabase.co)
+- **Database**: Supabase PostgreSQL
 - **Tables**: household_profiles, recipes, meal_plans, groceries, recipe_ratings, shopping_lists, shopping_templates
 - **Multi-tenancy**: RLS policies filter by `workspace_id`
 - **Vector Store**: ChromaDB (recipe embeddings for similarity search)

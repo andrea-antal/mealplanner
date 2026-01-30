@@ -54,11 +54,9 @@ TABLES = [
 
 # Manual mapping: legacy_workspace_id -> email
 # For workspaces that don't match the email-derived ID pattern
-# (e.g., "andrea" was used as workspace, but email is "hi@andrea-antal.com")
+# Add workspace -> email mappings as needed for migration
 MANUAL_WORKSPACE_TO_EMAIL = {
-    "andrea": "hi@andrea-antal.com",
-    # Add more mappings as needed:
-    # "ibolya": "ibolya@example.com",
+    # Example: "username": "user@example.com",
 }
 
 
