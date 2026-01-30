@@ -23,6 +23,7 @@ import { Progress } from '@/components/ui/progress';
 import { ChefHat, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { onboardingAPI, FamilyMember, OnboardingSubmission } from '@/lib/api';
+import { RecipeGenerationModal } from '@/components/RecipeGenerationModal';
 
 // Step components
 import {
@@ -99,6 +100,7 @@ export function OnboardingWizard({
   const [currentStep, setCurrentStep] = useState(0);
   const [state, setState] = useState<OnboardingState>(INITIAL_STATE);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
+  const [showRecipeModal, setShowRecipeModal] = useState(false);
   const queryClient = useQueryClient();
 
   const submitMutation = useMutation({
@@ -107,16 +109,17 @@ export function OnboardingWizard({
       queryClient.invalidateQueries({ queryKey: ['onboardingStatus', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['householdProfile', workspaceId] });
 
-      // Show appropriate toast based on starter content choice
+      // Show appropriate feedback based on starter content choice
       if (variables.starter_content_choice === 'meal_plan') {
         toast.success('Welcome! Generating your meal plan in the background...');
+        onComplete();
       } else if (variables.starter_content_choice === 'starter_recipes') {
-        toast.success('Welcome! Adding starter recipes to your library...');
+        // Show progress modal for recipe generation
+        setShowRecipeModal(true);
       } else {
         toast.success('Welcome! Your profile has been set up.');
+        onComplete();
       }
-
-      onComplete();
     },
     onError: (error) => {
       toast.error(`Failed to save profile: ${error.message}`);
@@ -186,6 +189,12 @@ export function OnboardingWizard({
   const handleSkipConfirm = (permanent: boolean) => {
     setShowSkipConfirm(false);
     skipMutation.mutate(permanent);
+  };
+
+  const handleRecipeModalClose = () => {
+    setShowRecipeModal(false);
+    toast.success('Recipes are being added in the background.');
+    onComplete();
   };
 
   const progressPercent = ((currentStep + 1) / TOTAL_STEPS) * 100;
@@ -361,6 +370,12 @@ export function OnboardingWizard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Recipe generation progress modal */}
+      <RecipeGenerationModal
+        open={showRecipeModal}
+        onClose={handleRecipeModalClose}
+      />
     </>
   );
 }

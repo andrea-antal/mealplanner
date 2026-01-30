@@ -19,6 +19,13 @@ logger = logging.getLogger(__name__)
 
 # Starter recipe titles organized by cuisine
 STARTER_RECIPES_BY_CUISINE = {
+    "hungarian": [
+        ("Chicken Paprikash", "dinner"),
+        ("Hungarian Goulash", "dinner"),
+        ("Stuffed Peppers", "dinner"),
+        ("Lángos with Sour Cream", "snack"),
+        ("Hungarian Mushroom Soup", "lunch"),
+    ],
     "italian": [
         ("Spaghetti Carbonara", "dinner"),
         ("Chicken Parmesan", "dinner"),
@@ -161,13 +168,16 @@ async def generate_starter_recipes(
     cuisines = onboarding_data.cuisine_preferences or []
 
     if cuisines:
-        # Get recipes from user's preferred cuisines
+        # Determine how many recipes to take per cuisine
+        # If only 1 cuisine selected, use all recipes from it
+        # If multiple cuisines, distribute evenly (at least 2 per cuisine)
+        recipes_per_cuisine = count if len(cuisines) == 1 else max(2, count // len(cuisines))
+
         for cuisine in cuisines:
             cuisine_lower = cuisine.lower()
             if cuisine_lower in STARTER_RECIPES_BY_CUISINE:
-                # Take up to 2 recipes per cuisine
                 titles_to_generate.extend(
-                    STARTER_RECIPES_BY_CUISINE[cuisine_lower][:2]
+                    STARTER_RECIPES_BY_CUISINE[cuisine_lower][:recipes_per_cuisine]
                 )
 
     # If not enough recipes from cuisines, add defaults
