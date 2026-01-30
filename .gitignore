@@ -33,17 +33,19 @@ env/
 # VS Code
 .vscode/
 
+# Obsidian
+.obsidian/
+
 # Environment variables
 .env
-.env.local
-.env.*.local
-.env.production
+.env.*
+!.env.example
 
 # FastAPI / Uvicorn
 *.log
 
-# Chroma DB
-backend/data/chroma_db/
+# Backend data (user data, logs, vector DB)
+backend/data/
 
 # Node
 node_modules/
@@ -85,10 +87,6 @@ htmlcov/
 *.temp
 .cache/
 
-# Data files (optional - uncomment if you don't want to commit your personal data)
-# backend/data/household_profile.json
-# backend/data/groceries.json
-# backend/data/recipes/*.json
 
 # Claude Code project instructions (may contain sensitive info)
 CLAUDE.md
