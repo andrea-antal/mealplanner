@@ -200,8 +200,12 @@ def prepare_context_for_llm(
             "all_dislikes": list(set(dislikes)),
             "daycare_rules": {
                 "no_nuts": household.daycare_rules.no_nuts,
+                "no_peanuts_only": household.daycare_rules.no_peanuts_only,
+                "no_chocolate": household.daycare_rules.no_chocolate,
                 "no_honey": household.daycare_rules.no_honey,
-                "must_be_cold": household.daycare_rules.must_be_cold
+                "must_be_cold": household.daycare_rules.must_be_cold,
+                "custom_rules": household.daycare_rules.custom_rules,
+                "daycare_days": household.daycare_rules.daycare_days
             },
             "cooking_preferences": {
                 "available_appliances": household.cooking_preferences.available_appliances,
