@@ -11,7 +11,8 @@ class Meal(BaseModel):
     for_who: str = Field(..., description="Who this meal is for (family member name or 'everyone')")
     recipe_id: Optional[str] = Field(None, description="Reference to recipe ID (optional for simple snacks)")
     recipe_title: str = Field(..., description="Recipe title for quick reference")
-    notes: str = Field(default="", description="Optional notes (e.g., 'for daycare lunch')")
+    notes: str = Field(default="", description="Optional notes (e.g., 'uses available chicken')")
+    is_daycare: bool = Field(default=False, description="True if this meal is for daycare/school (must comply with daycare rules)")
     # Fields for undo functionality
     previous_recipe_id: Optional[str] = Field(None, description="Previous recipe ID before swap (for undo)")
     previous_recipe_title: Optional[str] = Field(None, description="Previous recipe title before swap (for undo)")

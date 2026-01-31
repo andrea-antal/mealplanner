@@ -385,17 +385,17 @@ For meal types with limited library options, you may suggest simple, practical m
         days_text = ", ".join(day_abbrevs)
         daycare_requirements = f"""6. **DAYCARE/SCHOOL REQUIREMENTS** ({days_text} only) - CRITICAL:
    - On daycare days, you MUST generate SEPARATE meal entries for {children_text}:
-     * One "lunch" entry for {children_text} with for_who="{child_names[0]}" and notes containing "for daycare"
-     * One "lunch" entry for adults (if applicable)
-     * One "snack" entry for {children_text} with for_who="{child_names[0]}" and notes containing "for daycare"
-   - Daycare meals MUST comply with ALL daycare rules above (no exceptions)
-   - On non-daycare days: generate family meals only (no separate child entries)"""
+     * One "lunch" entry for {children_text} with for_who="{child_names[0]}" and is_daycare=true
+     * One "lunch" entry for adults (if applicable) with is_daycare=false
+     * One "snack" entry for {children_text} with for_who="{child_names[0]}" and is_daycare=true
+   - Daycare meals (is_daycare=true) MUST comply with ALL daycare rules above (no exceptions)
+   - On non-daycare days: generate family meals only with is_daycare=false"""
         important_weekday = f"""- On daycare days ({days_text}), generate MULTIPLE entries per meal type:
-     * breakfast: 1 family entry
-     * lunch: 1 entry for {children_text} (for daycare, rule-compliant) + 1 entry for adults
-     * dinner: 1 family entry
-     * snack: 1 entry for {children_text} (for daycare, rule-compliant)"""
-        important_weekend = "- On non-daycare days: breakfast (family), lunch (family), dinner (family), optional family snacks - single entries only"
+     * breakfast: 1 family entry (is_daycare=false)
+     * lunch: 1 entry for {children_text} (is_daycare=true, rule-compliant) + 1 entry for adults (is_daycare=false)
+     * dinner: 1 family entry (is_daycare=false)
+     * snack: 1 entry for {children_text} (is_daycare=true, rule-compliant)"""
+        important_weekend = "- On non-daycare days: all meals should have is_daycare=false (family meals only)"
     else:
         # No children or no daycare rules - skip daycare requirements entirely
         daycare_requirements = "6. (No daycare requirements for this household)"
@@ -465,7 +465,8 @@ Return your response as valid JSON matching this exact schema:
           "for_who": "name of family member(s) this meal is for",
           "recipe_id": "id from candidate recipes OR null for simple snacks",
           "recipe_title": "title from candidate recipes OR simple description for snacks",
-          "notes": "any relevant notes (e.g., 'for daycare', 'uses available chicken')"
+          "notes": "any relevant notes (e.g., 'uses available chicken')",
+          "is_daycare": true/false
         }}
       ]
     }}
@@ -473,7 +474,7 @@ Return your response as valid JSON matching this exact schema:
 }}
 
 NOTE: A day can have MULTIPLE entries with the same meal_type if different people need different meals.
-Example: On a daycare day, you might have two "lunch" entries - one for the child (daycare) and one for adults.
+Example: On a daycare day, you might have two "lunch" entries - one for the child (is_daycare: true) and one for adults (is_daycare: false).
 
 IMPORTANT:
 - Return ONLY valid JSON, no other text
