@@ -811,5 +811,422 @@ class TestReadinessEndpoint:
         assert data["counts_by_meal_type"]["side_dish"] == 0
 
 
+class TestMoveMealEndpoint:
+    """Test POST /meal-plans/{meal_plan_id}/move-meal endpoint for drag-and-drop"""
+
+    def test_move_meal_within_same_day(self, client, temp_data_dir):
+        """Test moving a meal to a different position within the same day"""
+        workspace_id = "test-workspace"
+
+        # Create meal plan with multiple meals on day 0
+        meal_plan_data = create_test_meal_plan_data()
+        meal_plan_data["days"][0]["meals"] = [
+            {"meal_type": "breakfast", "for_who": "everyone", "recipe_id": "recipe_breakfast", "recipe_title": "Breakfast", "notes": ""},
+            {"meal_type": "lunch", "for_who": "everyone", "recipe_id": "recipe_lunch", "recipe_title": "Lunch", "notes": ""},
+            {"meal_type": "dinner", "for_who": "everyone", "recipe_id": "recipe_dinner", "recipe_title": "Dinner", "notes": ""},
+        ]
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        # Move dinner (index 2) to position 0 (before breakfast)
+        response = client.post(
+            "/meal-plans/2025-01-06/move-meal",
+            json={
+                "source_day_index": 0,
+                "source_meal_index": 2,
+                "target_day_index": 0,
+                "target_meal_index": 0
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify new order: dinner, breakfast, lunch
+        meals = data["days"][0]["meals"]
+        assert meals[0]["recipe_title"] == "Dinner"
+        assert meals[1]["recipe_title"] == "Breakfast"
+        assert meals[2]["recipe_title"] == "Lunch"
+
+    def test_move_meal_between_days(self, client, temp_data_dir):
+        """Test moving a meal from one day to another"""
+        workspace_id = "test-workspace"
+
+        meal_plan_data = create_test_meal_plan_data()
+        # Day 0 has one meal, day 1 has one meal
+        meal_plan_data["days"][0]["meals"] = [
+            {"meal_type": "dinner", "for_who": "everyone", "recipe_id": "recipe_monday", "recipe_title": "Monday Dinner", "notes": ""}
+        ]
+        meal_plan_data["days"][1]["meals"] = [
+            {"meal_type": "dinner", "for_who": "everyone", "recipe_id": "recipe_tuesday", "recipe_title": "Tuesday Dinner", "notes": ""}
+        ]
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        # Move Monday's dinner to Tuesday (at position 0, before Tuesday's dinner)
+        response = client.post(
+            "/meal-plans/2025-01-06/move-meal",
+            json={
+                "source_day_index": 0,
+                "source_meal_index": 0,
+                "target_day_index": 1,
+                "target_meal_index": 0
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Day 0 should now be empty (or have minimum placeholder)
+        assert len(data["days"][0]["meals"]) == 0 or data["days"][0]["meals"][0]["recipe_id"] is None
+
+        # Day 1 should have Monday's dinner first, then Tuesday's
+        tuesday_meals = data["days"][1]["meals"]
+        assert len(tuesday_meals) == 2
+        assert tuesday_meals[0]["recipe_title"] == "Monday Dinner"
+        assert tuesday_meals[1]["recipe_title"] == "Tuesday Dinner"
+
+    def test_move_meal_invalid_source_day(self, client, temp_data_dir):
+        """Test 400 for invalid source day index"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/move-meal",
+            json={
+                "source_day_index": 99,  # Invalid
+                "source_meal_index": 0,
+                "target_day_index": 0,
+                "target_meal_index": 0
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 400
+
+    def test_move_meal_invalid_source_meal(self, client, temp_data_dir):
+        """Test 400 for invalid source meal index"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/move-meal",
+            json={
+                "source_day_index": 0,
+                "source_meal_index": 99,  # Invalid
+                "target_day_index": 0,
+                "target_meal_index": 0
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 400
+
+    def test_move_meal_invalid_target_day(self, client, temp_data_dir):
+        """Test 400 for invalid target day index"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/move-meal",
+            json={
+                "source_day_index": 0,
+                "source_meal_index": 0,
+                "target_day_index": 99,  # Invalid
+                "target_meal_index": 0
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 400
+
+    def test_move_meal_not_found(self, client, temp_data_dir):
+        """Test 404 when meal plan doesn't exist"""
+        response = client.post(
+            "/meal-plans/nonexistent/move-meal",
+            json={
+                "source_day_index": 0,
+                "source_meal_index": 0,
+                "target_day_index": 1,
+                "target_meal_index": 0
+            },
+            params={"workspace_id": "test-workspace"}
+        )
+
+        assert response.status_code == 404
+
+    def test_move_meal_requires_workspace_id(self, client, temp_data_dir):
+        """Test that workspace_id is required"""
+        response = client.post(
+            "/meal-plans/2025-01-06/move-meal",
+            json={
+                "source_day_index": 0,
+                "source_meal_index": 0,
+                "target_day_index": 1,
+                "target_meal_index": 0
+            }
+        )
+
+        assert response.status_code == 422
+
+
+class TestAddMealEndpoint:
+    """Test POST /meal-plans/{meal_plan_id}/add-meal endpoint for manual recipe addition"""
+
+    def test_add_meal_success(self, client, temp_data_dir):
+        """Test successfully adding a meal from recipe library"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        # Add a new lunch to day 0
+        response = client.post(
+            "/meal-plans/2025-01-06/add-meal",
+            json={
+                "day_index": 0,
+                "meal_type": "lunch",
+                "recipe_id": "library_recipe_001",
+                "recipe_title": "Chicken Salad from Library",
+                "for_who": "everyone"
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify meal was added
+        day_meals = data["days"][0]["meals"]
+        added_meal = next((m for m in day_meals if m["recipe_id"] == "library_recipe_001"), None)
+        assert added_meal is not None
+        assert added_meal["meal_type"] == "lunch"
+        assert added_meal["recipe_title"] == "Chicken Salad from Library"
+        assert added_meal["for_who"] == "everyone"
+
+    def test_add_meal_with_notes(self, client, temp_data_dir):
+        """Test adding a meal with notes"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/add-meal",
+            json={
+                "day_index": 0,
+                "meal_type": "lunch",
+                "recipe_id": "recipe_123",
+                "recipe_title": "Test Recipe",
+                "for_who": "Nathan",
+                "notes": "for daycare"
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        day_meals = data["days"][0]["meals"]
+        added_meal = next((m for m in day_meals if m["recipe_id"] == "recipe_123"), None)
+        assert added_meal is not None
+        assert added_meal["notes"] == "for daycare"
+        assert added_meal["for_who"] == "Nathan"
+
+    def test_add_meal_with_is_daycare(self, client, temp_data_dir):
+        """Test adding a daycare meal with is_daycare flag"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/add-meal",
+            json={
+                "day_index": 0,
+                "meal_type": "lunch",
+                "recipe_id": "daycare_recipe",
+                "recipe_title": "Daycare Lunch",
+                "for_who": "Nathan",
+                "is_daycare": True
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        day_meals = data["days"][0]["meals"]
+        added_meal = next((m for m in day_meals if m["recipe_id"] == "daycare_recipe"), None)
+        assert added_meal is not None
+        assert added_meal["is_daycare"] is True
+
+    def test_add_meal_invalid_day_index(self, client, temp_data_dir):
+        """Test 400 for invalid day index"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/add-meal",
+            json={
+                "day_index": 99,  # Invalid
+                "meal_type": "lunch",
+                "recipe_id": "recipe_123",
+                "recipe_title": "Test Recipe",
+                "for_who": "everyone"
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 400
+
+    def test_add_meal_not_found(self, client, temp_data_dir):
+        """Test 404 when meal plan doesn't exist"""
+        response = client.post(
+            "/meal-plans/nonexistent/add-meal",
+            json={
+                "day_index": 0,
+                "meal_type": "lunch",
+                "recipe_id": "recipe_123",
+                "recipe_title": "Test Recipe",
+                "for_who": "everyone"
+            },
+            params={"workspace_id": "test-workspace"}
+        )
+
+        assert response.status_code == 404
+
+    def test_add_meal_requires_workspace_id(self, client, temp_data_dir):
+        """Test that workspace_id is required"""
+        response = client.post(
+            "/meal-plans/2025-01-06/add-meal",
+            json={
+                "day_index": 0,
+                "meal_type": "lunch",
+                "recipe_id": "recipe_123",
+                "recipe_title": "Test Recipe",
+                "for_who": "everyone"
+            }
+        )
+
+        assert response.status_code == 422
+
+    def test_add_meal_requires_recipe_title(self, client, temp_data_dir):
+        """Test that recipe_title is required"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/add-meal",
+            json={
+                "day_index": 0,
+                "meal_type": "lunch",
+                "recipe_id": "recipe_123",
+                "for_who": "everyone"
+                # Missing recipe_title
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 422
+
+
+class TestDeleteMealEndpoint:
+    """Test DELETE /meal-plans/{meal_plan_id}/delete-meal endpoint"""
+
+    def test_delete_meal_success(self, client, temp_data_dir):
+        """Test successfully deleting a meal from a day"""
+        workspace_id = "test-workspace"
+
+        # Create meal plan with multiple meals on day 0
+        meal_plan_data = create_test_meal_plan_data()
+        meal_plan_data["days"][0]["meals"] = [
+            {"meal_type": "breakfast", "for_who": "everyone", "recipe_id": "recipe_breakfast", "recipe_title": "Breakfast", "notes": ""},
+            {"meal_type": "lunch", "for_who": "everyone", "recipe_id": "recipe_lunch", "recipe_title": "Lunch", "notes": ""},
+            {"meal_type": "dinner", "for_who": "everyone", "recipe_id": "recipe_dinner", "recipe_title": "Dinner", "notes": ""},
+        ]
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        # Delete lunch (index 1)
+        response = client.post(
+            "/meal-plans/2025-01-06/delete-meal",
+            json={
+                "day_index": 0,
+                "meal_index": 1
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify lunch was removed
+        meals = data["days"][0]["meals"]
+        assert len(meals) == 2
+        assert meals[0]["recipe_title"] == "Breakfast"
+        assert meals[1]["recipe_title"] == "Dinner"
+
+    def test_delete_meal_invalid_day_index(self, client, temp_data_dir):
+        """Test 400 for invalid day index"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/delete-meal",
+            json={
+                "day_index": 99,
+                "meal_index": 0
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 400
+
+    def test_delete_meal_invalid_meal_index(self, client, temp_data_dir):
+        """Test 400 for invalid meal index"""
+        workspace_id = "test-workspace"
+        meal_plan_data = create_test_meal_plan_data()
+        client.post("/meal-plans", json=meal_plan_data, params={"workspace_id": workspace_id})
+
+        response = client.post(
+            "/meal-plans/2025-01-06/delete-meal",
+            json={
+                "day_index": 0,
+                "meal_index": 99
+            },
+            params={"workspace_id": workspace_id}
+        )
+
+        assert response.status_code == 400
+
+    def test_delete_meal_not_found(self, client, temp_data_dir):
+        """Test 404 when meal plan doesn't exist"""
+        response = client.post(
+            "/meal-plans/nonexistent/delete-meal",
+            json={
+                "day_index": 0,
+                "meal_index": 0
+            },
+            params={"workspace_id": "test-workspace"}
+        )
+
+        assert response.status_code == 404
+
+    def test_delete_meal_requires_workspace_id(self, client, temp_data_dir):
+        """Test that workspace_id is required"""
+        response = client.post(
+            "/meal-plans/2025-01-06/delete-meal",
+            json={
+                "day_index": 0,
+                "meal_index": 0
+            }
+        )
+
+        assert response.status_code == 422
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

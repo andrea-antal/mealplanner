@@ -66,6 +66,31 @@ class UndoSwapRequest(BaseModel):
     meal_index: int  # Index of meal within the day
 
 
+class MoveMealRequest(BaseModel):
+    """Request body for moving a meal (drag-and-drop)"""
+    source_day_index: int  # Day to move FROM (0-6)
+    source_meal_index: int  # Meal position in source day
+    target_day_index: int  # Day to move TO (0-6)
+    target_meal_index: int  # Position in target day (insert before)
+
+
+class AddMealRequest(BaseModel):
+    """Request body for adding a meal from recipe library"""
+    day_index: int  # Day to add to (0-6)
+    meal_type: str  # breakfast, lunch, dinner, snack
+    recipe_id: str  # Recipe ID from library
+    recipe_title: str  # Recipe title
+    for_who: str = "everyone"  # Who this meal is for
+    notes: str = ""  # Optional notes
+    is_daycare: bool = False  # Whether this is a daycare meal
+
+
+class DeleteMealRequest(BaseModel):
+    """Request body for deleting a meal"""
+    day_index: int  # Day index (0-6)
+    meal_index: int  # Meal position to delete
+
+
 @router.post("/generate", response_model=MealPlan)
 async def generate_meal_plan_endpoint(
     request: GenerateMealPlanRequest,
@@ -363,6 +388,207 @@ async def undo_swap_endpoint(
     # Reload to get updated timestamps
     updated_plan = load_meal_plan(workspace_id, meal_plan_id)
     logger.info(f"Successfully undid swap in plan {meal_plan_id}")
+    return updated_plan
+
+
+# ===== Move, Add, Delete Meal Endpoints (for drag-and-drop) =====
+
+@router.post("/{meal_plan_id}/move-meal", response_model=MealPlan)
+async def move_meal_endpoint(
+    meal_plan_id: str,
+    request: MoveMealRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Move a meal from one position to another (drag-and-drop).
+
+    Can move within the same day (reorder) or between different days.
+    The meal is removed from source and inserted at target position.
+
+    Args:
+        meal_plan_id: Meal plan identifier
+        request: Contains source and target day/meal indices
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        Updated MealPlan object
+
+    Raises:
+        HTTPException 404: Meal plan not found
+        HTTPException 400: Invalid indices
+    """
+    logger.info(f"Moving meal in plan {meal_plan_id} for workspace '{workspace_id}'")
+
+    # Load the meal plan
+    meal_plan = load_meal_plan(workspace_id, meal_plan_id)
+    if not meal_plan:
+        raise HTTPException(status_code=404, detail=f"Meal plan '{meal_plan_id}' not found")
+
+    # Validate source day index
+    if request.source_day_index < 0 or request.source_day_index >= len(meal_plan.days):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid source_day_index: {request.source_day_index}. Must be 0-{len(meal_plan.days) - 1}"
+        )
+
+    # Validate target day index
+    if request.target_day_index < 0 or request.target_day_index >= len(meal_plan.days):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid target_day_index: {request.target_day_index}. Must be 0-{len(meal_plan.days) - 1}"
+        )
+
+    source_day = meal_plan.days[request.source_day_index]
+
+    # Validate source meal index
+    if request.source_meal_index < 0 or request.source_meal_index >= len(source_day.meals):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid source_meal_index: {request.source_meal_index}. Must be 0-{len(source_day.meals) - 1}"
+        )
+
+    # Remove meal from source
+    meal_to_move = source_day.meals.pop(request.source_meal_index)
+
+    # Get target day
+    target_day = meal_plan.days[request.target_day_index]
+
+    # Validate target meal index (can be 0 to len(meals) for insertion)
+    max_target_index = len(target_day.meals)
+    if request.target_meal_index < 0 or request.target_meal_index > max_target_index:
+        # Restore the meal we just removed before raising
+        source_day.meals.insert(request.source_meal_index, meal_to_move)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid target_meal_index: {request.target_meal_index}. Must be 0-{max_target_index}"
+        )
+
+    # Insert at target position
+    target_day.meals.insert(request.target_meal_index, meal_to_move)
+
+    # Save the updated plan
+    save_meal_plan(workspace_id, meal_plan)
+
+    # Reload to get updated timestamps
+    updated_plan = load_meal_plan(workspace_id, meal_plan_id)
+    logger.info(f"Successfully moved meal in plan {meal_plan_id}")
+    return updated_plan
+
+
+@router.post("/{meal_plan_id}/add-meal", response_model=MealPlan)
+async def add_meal_endpoint(
+    meal_plan_id: str,
+    request: AddMealRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Add a meal from the recipe library to a day.
+
+    This allows users to manually select and add recipes to their meal plan.
+
+    Args:
+        meal_plan_id: Meal plan identifier
+        request: Contains day_index, meal_type, recipe_id, recipe_title, for_who
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        Updated MealPlan object
+
+    Raises:
+        HTTPException 404: Meal plan not found
+        HTTPException 400: Invalid day_index
+    """
+    logger.info(f"Adding meal to plan {meal_plan_id} for workspace '{workspace_id}'")
+
+    # Load the meal plan
+    meal_plan = load_meal_plan(workspace_id, meal_plan_id)
+    if not meal_plan:
+        raise HTTPException(status_code=404, detail=f"Meal plan '{meal_plan_id}' not found")
+
+    # Validate day index
+    if request.day_index < 0 or request.day_index >= len(meal_plan.days):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid day_index: {request.day_index}. Must be 0-{len(meal_plan.days) - 1}"
+        )
+
+    # Create the new meal
+    from app.models.meal_plan import Meal
+    new_meal = Meal(
+        meal_type=request.meal_type,
+        for_who=request.for_who,
+        recipe_id=request.recipe_id,
+        recipe_title=request.recipe_title,
+        notes=request.notes,
+        is_daycare=request.is_daycare
+    )
+
+    # Add to the day's meals
+    meal_plan.days[request.day_index].meals.append(new_meal)
+
+    # Save the updated plan
+    save_meal_plan(workspace_id, meal_plan)
+
+    # Reload to get updated timestamps
+    updated_plan = load_meal_plan(workspace_id, meal_plan_id)
+    logger.info(f"Successfully added meal to plan {meal_plan_id}")
+    return updated_plan
+
+
+@router.post("/{meal_plan_id}/delete-meal", response_model=MealPlan)
+async def delete_meal_endpoint(
+    meal_plan_id: str,
+    request: DeleteMealRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Delete a meal from a day.
+
+    Args:
+        meal_plan_id: Meal plan identifier
+        request: Contains day_index and meal_index
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        Updated MealPlan object
+
+    Raises:
+        HTTPException 404: Meal plan not found
+        HTTPException 400: Invalid indices
+    """
+    logger.info(f"Deleting meal from plan {meal_plan_id} for workspace '{workspace_id}'")
+
+    # Load the meal plan
+    meal_plan = load_meal_plan(workspace_id, meal_plan_id)
+    if not meal_plan:
+        raise HTTPException(status_code=404, detail=f"Meal plan '{meal_plan_id}' not found")
+
+    # Validate day index
+    if request.day_index < 0 or request.day_index >= len(meal_plan.days):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid day_index: {request.day_index}. Must be 0-{len(meal_plan.days) - 1}"
+        )
+
+    day = meal_plan.days[request.day_index]
+
+    # Validate meal index
+    if request.meal_index < 0 or request.meal_index >= len(day.meals):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid meal_index: {request.meal_index}. Must be 0-{len(day.meals) - 1}"
+        )
+
+    # Remove the meal
+    removed_meal = day.meals.pop(request.meal_index)
+    logger.info(f"Removed meal: {removed_meal.recipe_title}")
+
+    # Save the updated plan
+    save_meal_plan(workspace_id, meal_plan)
+
+    # Reload to get updated timestamps
+    updated_plan = load_meal_plan(workspace_id, meal_plan_id)
+    logger.info(f"Successfully deleted meal from plan {meal_plan_id}")
     return updated_plan
 
 
