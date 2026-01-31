@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 # Minimum recipes per meal type for "good coverage"
-MIN_RECIPES_PER_TYPE = 3
+# Lowered from 3 to 2 to work better with smaller libraries
+MIN_RECIPES_PER_TYPE = 2
 
 
 def _analyze_recipe_coverage(recipes: list) -> dict:

@@ -17,6 +17,10 @@ from app.data.data_manager import query_recipes, list_all_recipes
 
 logger = logging.getLogger(__name__)
 
+# Minimum recipes per core meal type to ensure balanced coverage
+MIN_PER_MEAL_TYPE = 2
+CORE_MEAL_TYPES = ["breakfast", "lunch", "dinner"]
+
 
 def retrieve_relevant_recipes(
     workspace_id: str,
@@ -28,8 +32,12 @@ def retrieve_relevant_recipes(
     """
     Retrieve relevant recipes based on household constraints and available groceries.
 
-    This function performs semantic search using pgvector to find
-    recipes that best match the household's needs and available ingredients.
+    This function ensures balanced meal type coverage by:
+    1. Guaranteeing at least MIN_PER_MEAL_TYPE recipes for each core meal type
+    2. Filling remaining slots with semantically relevant recipes
+
+    This prevents the common issue where semantic search returns mostly dinners,
+    leaving breakfast/lunch with "gaps" that trigger AI-generated meals.
 
     Args:
         workspace_id: Workspace identifier for data isolation
@@ -39,7 +47,7 @@ def retrieve_relevant_recipes(
         week_context: Optional user description of their week (e.g., "busy week, need quick meals")
 
     Returns:
-        List of Recipe objects, sorted by relevance
+        List of Recipe objects with balanced meal type coverage
 
     Example:
         >>> household = load_household_profile("andrea")
@@ -57,16 +65,124 @@ def retrieve_relevant_recipes(
     filters = _build_filters(household)
     logger.debug(f"Filters: {filters}")
 
-    # Query for relevant recipes using semantic search
-    recipes = query_recipes(
+    # Get all recipes to ensure we can meet minimum coverage
+    all_recipes = list_all_recipes(workspace_id)
+
+    if not all_recipes:
+        logger.info(f"No recipes found for workspace '{workspace_id}'")
+        return []
+
+    # If library is small, just return all recipes
+    if len(all_recipes) <= num_recipes:
+        logger.info(f"Small library ({len(all_recipes)} recipes), returning all")
+        return all_recipes
+
+    # Query for semantically relevant recipes
+    semantic_recipes = query_recipes(
         workspace_id=workspace_id,
         query_text=query_text,
-        n_results=num_recipes,
+        n_results=num_recipes * 2,  # Get extra for meal type balancing
         filters=filters
     )
 
-    logger.info(f"Retrieved {len(recipes)} recipes for workspace '{workspace_id}'")
-    return recipes
+    # Build balanced result ensuring minimum coverage per meal type
+    result = _ensure_meal_type_coverage(
+        all_recipes=all_recipes,
+        semantic_recipes=semantic_recipes,
+        num_recipes=num_recipes
+    )
+
+    logger.info(f"Retrieved {len(result)} recipes for workspace '{workspace_id}' (balanced coverage)")
+    return result
+
+
+def _ensure_meal_type_coverage(
+    all_recipes: List[Recipe],
+    semantic_recipes: List[Recipe],
+    num_recipes: int
+) -> List[Recipe]:
+    """
+    Ensure balanced meal type coverage in the returned recipes.
+
+    Strategy:
+    1. First, include semantic results that help meet minimum coverage
+    2. If gaps remain, pull from all_recipes to fill them
+    3. Fill remaining slots with best semantic matches
+
+    Args:
+        all_recipes: All recipes in the workspace
+        semantic_recipes: Recipes from semantic search (relevance-ordered)
+        num_recipes: Target number of recipes to return
+
+    Returns:
+        List of recipes with balanced meal type coverage
+    """
+    result: List[Recipe] = []
+    result_ids: set = set()
+
+    # Group all recipes by meal type for gap-filling
+    recipes_by_type: Dict[str, List[Recipe]] = {mt: [] for mt in CORE_MEAL_TYPES}
+    for recipe in all_recipes:
+        meal_types = getattr(recipe, 'meal_types', []) or ['dinner']
+        # Handle side_dish as usable for lunch/dinner
+        if 'side_dish' in meal_types:
+            meal_types = list(meal_types) + ['lunch', 'dinner']
+        for mt in meal_types:
+            if mt in recipes_by_type:
+                recipes_by_type[mt].append(recipe)
+
+    # Track coverage as we add recipes
+    coverage: Dict[str, int] = {mt: 0 for mt in CORE_MEAL_TYPES}
+
+    def add_recipe(recipe: Recipe) -> bool:
+        """Add recipe to result if not already present. Returns True if added."""
+        if recipe.id in result_ids:
+            return False
+        result.append(recipe)
+        result_ids.add(recipe.id)
+        # Update coverage counts
+        meal_types = getattr(recipe, 'meal_types', []) or ['dinner']
+        if 'side_dish' in meal_types:
+            meal_types = list(meal_types) + ['lunch', 'dinner']
+        for mt in meal_types:
+            if mt in coverage:
+                coverage[mt] += 1
+        return True
+
+    # Step 1: Add semantic recipes, prioritizing those that help coverage
+    for recipe in semantic_recipes:
+        if len(result) >= num_recipes:
+            break
+        meal_types = getattr(recipe, 'meal_types', []) or ['dinner']
+        if 'side_dish' in meal_types:
+            meal_types = list(meal_types) + ['lunch', 'dinner']
+        # Prioritize if it helps a type below minimum
+        helps_coverage = any(coverage.get(mt, 0) < MIN_PER_MEAL_TYPE for mt in meal_types if mt in CORE_MEAL_TYPES)
+        if helps_coverage:
+            add_recipe(recipe)
+
+    # Step 2: Fill gaps from all_recipes if semantic didn't provide enough
+    for meal_type in CORE_MEAL_TYPES:
+        while coverage[meal_type] < MIN_PER_MEAL_TYPE and len(result) < num_recipes:
+            # Find a recipe of this type not yet in results
+            for recipe in recipes_by_type[meal_type]:
+                if recipe.id not in result_ids:
+                    add_recipe(recipe)
+                    break
+            else:
+                # No more recipes of this type available
+                break
+
+    # Step 3: Fill remaining slots with semantic recipes (in order)
+    for recipe in semantic_recipes:
+        if len(result) >= num_recipes:
+            break
+        add_recipe(recipe)
+
+    # Log coverage stats
+    logger.info(f"Recipe coverage: breakfast={coverage['breakfast']}, lunch={coverage['lunch']}, dinner={coverage['dinner']}")
+
+    return result
 
 
 def _build_query_text(
