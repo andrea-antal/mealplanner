@@ -14,6 +14,7 @@ import { SwapRecipeModal } from '@/components/SwapRecipeModal';
 import { InsufficientRecipesModal } from '@/components/InsufficientRecipesModal';
 import { SaveAllRecipesModal, type SaveAllResult } from '@/components/SaveAllRecipesModal';
 import { WeekContextModal } from '@/components/WeekContextModal';
+import { RecipePickerModal } from '@/components/RecipePickerModal';
 
 // Meal type emoji mapping (lowercase to match API data)
 const mealTypeIcons: Record<string, string> = {
@@ -132,6 +133,13 @@ const MealPlans = () => {
     currentRecipeTitle: string;
   } | null>(null);
 
+  // Recipe picker modal state (for adding recipes from library)
+  const [recipePickerOpen, setRecipePickerOpen] = useState(false);
+  const [recipePickerContext, setRecipePickerContext] = useState<{
+    dayIndex: number;
+    dayLabel: string;
+  } | null>(null);
+
   // Insufficient recipes modal state (V1 empty state handling)
   const [insufficientModalOpen, setInsufficientModalOpen] = useState(false);
   const [insufficientData, setInsufficientData] = useState<{
@@ -243,6 +251,42 @@ const MealPlans = () => {
     },
     onError: (error: Error) => {
       toast.error(`Failed to undo swap: ${error.message}`);
+    },
+  });
+
+  // Mutation to add a meal from recipe library
+  const addMealMutation = useMutation({
+    mutationFn: async ({
+      dayIndex,
+      mealType,
+      recipeId,
+      recipeTitle,
+      forWho = 'everyone',
+    }: {
+      dayIndex: number;
+      mealType: string;
+      recipeId: string;
+      recipeTitle: string;
+      forWho?: string;
+    }) => {
+      if (!mealPlan?.id) throw new Error('No meal plan');
+      return mealPlansAPI.addMeal(workspaceId, mealPlan.id, {
+        day_index: dayIndex,
+        meal_type: mealType,
+        recipe_id: recipeId,
+        recipe_title: recipeTitle,
+        for_who: forWho,
+      });
+    },
+    onSuccess: (updatedPlan) => {
+      setMealPlan(updatedPlan);
+      setRecipePickerOpen(false);
+      toast.success('Recipe added!', {
+        description: 'Added to your meal plan.',
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to add recipe: ${error.message}`);
     },
   });
 
@@ -525,6 +569,23 @@ const MealPlans = () => {
     undoSwapMutation.mutate({ dayIndex, mealIndex });
   };
 
+  // Handle add recipe button click - opens recipe picker modal
+  const handleAddRecipeClick = (dayIndex: number, dayLabel: string) => {
+    setRecipePickerContext({ dayIndex, dayLabel });
+    setRecipePickerOpen(true);
+  };
+
+  // Handle selecting a recipe from the picker modal
+  const handleRecipePickerSelect = (recipe: Recipe, mealType: string) => {
+    if (!recipePickerContext) return;
+    addMealMutation.mutate({
+      dayIndex: recipePickerContext.dayIndex,
+      mealType: mealType,
+      recipeId: recipe.id,
+      recipeTitle: recipe.title,
+    });
+  };
+
   // Collect recipe IDs already in the meal plan (for exclusion in alternatives)
   const getExcludedRecipeIds = (): string[] => {
     if (!mealPlan) return [];
@@ -784,6 +845,20 @@ const MealPlans = () => {
                         </div>
                       </div>
                     ))}
+
+                    {/* Add Recipe Button */}
+                    <button
+                      onClick={() => handleAddRecipeClick(dayIndex, dayName)}
+                      className={cn(
+                        "w-full p-3 rounded-lg border-2 border-dashed border-muted-foreground/30",
+                        "flex items-center justify-center gap-2",
+                        "text-muted-foreground hover:text-primary hover:border-primary/50",
+                        "transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      )}
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="text-sm font-medium">Add Recipe</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -887,6 +962,16 @@ const MealPlans = () => {
         excludeRecipeIds={getExcludedRecipeIds()}
         onSelect={handleSwapSelect}
         isSwapping={swapMutation.isPending}
+      />
+
+      {/* Recipe Picker Modal (add recipe from library) */}
+      <RecipePickerModal
+        open={recipePickerOpen}
+        onOpenChange={setRecipePickerOpen}
+        dayIndex={recipePickerContext?.dayIndex ?? 0}
+        dayLabel={recipePickerContext?.dayLabel ?? ''}
+        onSelect={handleRecipePickerSelect}
+        isAdding={addMealMutation.isPending}
       />
 
       {/* Insufficient Recipes Modal (V1 empty state handling) */}
