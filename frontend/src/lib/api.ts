@@ -277,6 +277,7 @@ export interface Meal {
   recipe_id: string | null;
   recipe_title: string;
   notes: string;
+  is_daycare?: boolean;
   previous_recipe_id?: string | null;
   previous_recipe_title?: string | null;
 }
@@ -315,6 +316,28 @@ export interface SwapMealRequest {
 }
 
 export interface UndoSwapRequest {
+  day_index: number;
+  meal_index: number;
+}
+
+export interface MoveMealRequest {
+  source_day_index: number;
+  source_meal_index: number;
+  target_day_index: number;
+  target_meal_index: number;
+}
+
+export interface AddMealRequest {
+  day_index: number;
+  meal_type: string;
+  recipe_id: string;
+  recipe_title: string;
+  for_who?: string;
+  notes?: string;
+  is_daycare?: boolean;
+}
+
+export interface DeleteMealRequest {
   day_index: number;
   meal_index: number;
 }
@@ -762,6 +785,33 @@ export const mealPlansAPI = {
   async checkReadiness(workspaceId: string): Promise<RecipeReadiness> {
     const response = await fetch(`${API_BASE_URL}/meal-plans/readiness?workspace_id=${encodeURIComponent(workspaceId)}`);
     return handleResponse<RecipeReadiness>(response);
+  },
+
+  async moveMeal(workspaceId: string, mealPlanId: string, request: MoveMealRequest): Promise<MealPlan> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/${encodeURIComponent(mealPlanId)}/move-meal?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    return handleResponse<MealPlan>(response);
+  },
+
+  async addMeal(workspaceId: string, mealPlanId: string, request: AddMealRequest): Promise<MealPlan> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/${encodeURIComponent(mealPlanId)}/add-meal?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    return handleResponse<MealPlan>(response);
+  },
+
+  async deleteMeal(workspaceId: string, mealPlanId: string, request: DeleteMealRequest): Promise<MealPlan> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/${encodeURIComponent(mealPlanId)}/delete-meal?workspace_id=${encodeURIComponent(workspaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    return handleResponse<MealPlan>(response);
   },
 };
 
