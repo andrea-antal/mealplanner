@@ -277,6 +277,7 @@ export interface Meal {
   recipe_id: string | null;
   recipe_title: string;
   notes: string;
+  is_daycare?: boolean;
   previous_recipe_id?: string | null;
   previous_recipe_title?: string | null;
 }

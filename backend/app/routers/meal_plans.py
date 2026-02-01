@@ -141,7 +141,9 @@ async def generate_meal_plan_endpoint(
             detail="Failed to generate meal plan. Check logs for details."
         )
 
-    logger.info(f"Successfully generated meal plan with {len(meal_plan.days)} days for workspace '{workspace_id}'")
+    # Save the generated meal plan to database
+    save_meal_plan(workspace_id, meal_plan)
+    logger.info(f"Successfully generated and saved meal plan with {len(meal_plan.days)} days for workspace '{workspace_id}'")
     return meal_plan
 
 

@@ -30,10 +30,10 @@
     --muted: 40 30% 92%;
     --muted-foreground: 20 20% 30%;
 
-    /* Terracotta - warm Italian clay */
-    --accent: 16 75% 48%;
-    --accent-soft: 20 60% 92%;
-    --accent-foreground: 0 0% 100%;
+    /* Subtle warm neutral (was terracotta) */
+    --accent: 40 30% 92%;
+    --accent-soft: 40 25% 95%;
+    --accent-foreground: 20 25% 12%;
 
     /* Limoncello warning */
     --warning: 50 95% 48%;
@@ -97,10 +97,10 @@
     --muted: 25 20% 16%;
     --muted-foreground: 40 15% 65%;
 
-    /* Warm terracotta accent */
-    --accent: 20 80% 55%;
-    --accent-soft: 20 40% 18%;
-    --accent-foreground: 0 0% 100%;
+    /* Subtle warm neutral (was terracotta) */
+    --accent: 25 20% 20%;
+    --accent-soft: 25 18% 22%;
+    --accent-foreground: 40 15% 90%;
 
     --warning: 50 90% 55%;
     --warning-foreground: 25 30% 8%;

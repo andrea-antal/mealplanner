@@ -774,6 +774,18 @@ const MealPlans = () => {
                           <span className="text-muted-foreground capitalize">{meal.meal_type}:</span>
                           {' '}
                           {loadingRecipeId && loadingRecipeId === meal.recipe_id ? 'Loading...' : meal.recipe_title}
+                          {(() => {
+                            // Check if for_who is essentially "everyone" (literal or contains comma = multiple people)
+                            const isForEveryone = !meal.for_who || meal.for_who === 'everyone' || meal.for_who.includes(',');
+                            const showTag = meal.is_daycare || !isForEveryone;
+                            if (!showTag) return null;
+                            return (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                                {!isForEveryone ? meal.for_who : ''}
+                                {meal.is_daycare ? (!isForEveryone ? ' - Daycare' : 'Daycare') : ''}
+                              </span>
+                            );
+                          })()}
                         </p>
 
                         {/* Action buttons */}

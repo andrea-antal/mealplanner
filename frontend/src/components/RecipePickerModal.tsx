@@ -141,7 +141,7 @@ export function RecipePickerModal({
                   disabled={isAdding}
                   className={cn(
                     "w-full text-left p-3 rounded-lg border transition-colors",
-                    "hover:bg-accent hover:border-primary/50",
+                    "hover:bg-muted hover:border-primary/50",
                     "focus:outline-none focus:ring-2 focus:ring-primary/50",
                     isAdding && "opacity-50 cursor-not-allowed"
                   )}
