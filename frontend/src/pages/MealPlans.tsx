@@ -1,10 +1,30 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { startOfWeek, addDays, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { mealPlansAPI, recipesAPI, onboardingAPI, type MealPlan, type Recipe, type AlternativeRecipeSuggestion } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Sparkles, Loader2, Plus, RefreshCw, Undo2, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react';
+import { Sparkles, Loader2, Plus, RefreshCw, Undo2, ChevronLeft, ChevronRight, Download, Trash2, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeModal } from '@/components/RecipeModal';
@@ -32,6 +52,177 @@ const mealTypeIcons: Record<string, string> = {
   lunch: '🥗',
   dinner: '🍽️',
   snack: '🍪',
+};
+
+// Sortable meal item component
+interface SortableMealProps {
+  id: string;
+  meal: {
+    meal_type: string;
+    recipe_id: string | null;
+    recipe_title: string;
+    for_who: string;
+    is_daycare?: boolean;
+    previous_recipe_title?: string | null;
+  };
+  dayIndex: number;
+  mealIdx: number;
+  isClickable: boolean;
+  hasRecipe: boolean;
+  isAIGenerated: boolean;
+  loadingRecipeId: string | null;
+  onRecipeClick: (recipeId: string) => void;
+  onAITitleClick: (dayIndex: number, mealIdx: number, mealType: string, recipeTitle: string) => void;
+  onSwapClick: (dayIndex: number, mealIdx: number, mealType: string, recipeTitle: string) => void;
+  onUndoSwap: (dayIndex: number, mealIdx: number) => void;
+  onRemoveClick: (dayIndex: number, mealIdx: number, mealType: string, recipeTitle: string) => void;
+  isUndoPending: boolean;
+  isRemovePending: boolean;
+}
+
+const SortableMeal = ({
+  id,
+  meal,
+  dayIndex,
+  mealIdx,
+  isClickable,
+  hasRecipe,
+  isAIGenerated,
+  loadingRecipeId,
+  onRecipeClick,
+  onAITitleClick,
+  onSwapClick,
+  onUndoSwap,
+  onRemoveClick,
+  isUndoPending,
+  isRemovePending,
+}: SortableMealProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || 'transform 200ms cubic-bezier(0.25, 1, 0.5, 1)',
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 1 : 0,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "rounded-lg bg-muted/50 p-4 transition-colors flex items-center gap-3",
+        isClickable && "hover:bg-muted",
+        isDragging && "shadow-lg ring-2 ring-primary"
+      )}
+    >
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-muted-foreground hover:text-foreground touch-none"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      {/* Meal content - clickable area */}
+      <div
+        className={cn("flex-1 min-w-0", isClickable && "cursor-pointer")}
+        onClick={() => {
+          if (hasRecipe && meal.recipe_id) {
+            onRecipeClick(meal.recipe_id);
+          } else if (isAIGenerated) {
+            onAITitleClick(dayIndex, mealIdx, meal.meal_type, meal.recipe_title);
+          }
+        }}
+      >
+        <p className="text-base font-medium text-foreground">
+          <span className="mr-2">{mealTypeIcons[meal.meal_type.toLowerCase()]}</span>
+          <span className="text-muted-foreground capitalize">{meal.meal_type}:</span>
+          {' '}
+          {loadingRecipeId && loadingRecipeId === meal.recipe_id ? 'Loading...' : meal.recipe_title}
+          {(() => {
+            const isForEveryone = !meal.for_who || meal.for_who === 'everyone' || meal.for_who.includes(',');
+            const showTag = meal.is_daycare || !isForEveryone;
+            if (!showTag) return null;
+            return (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                {!isForEveryone ? meal.for_who : ''}
+                {meal.is_daycare ? (!isForEveryone ? ' - Daycare' : 'Daycare') : ''}
+              </span>
+            );
+          })()}
+        </p>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Undo button */}
+        {meal.previous_recipe_title && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUndoSwap(dayIndex, mealIdx);
+            }}
+            disabled={isUndoPending}
+            className={cn(
+              "p-2 rounded-full transition-all duration-200",
+              "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600",
+              "focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2",
+              "disabled:opacity-50"
+            )}
+            title={`Undo: restore "${meal.previous_recipe_title}"`}
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* Swap button - only for existing recipes */}
+        {hasRecipe && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSwapClick(dayIndex, mealIdx, meal.meal_type, meal.recipe_title);
+            }}
+            className={cn(
+              "p-2 rounded-full transition-all duration-200",
+              "bg-primary/10 hover:bg-primary/20 text-primary",
+              "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            )}
+            title="Swap with different recipe"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* Remove button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemoveClick(dayIndex, mealIdx, meal.meal_type, meal.recipe_title);
+          }}
+          disabled={isRemovePending}
+          className={cn(
+            "p-2 rounded-full transition-all duration-200",
+            "bg-red-500/10 hover:bg-red-500/20 text-red-600",
+            "focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2",
+            "disabled:opacity-50"
+          )}
+          title="Remove meal"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
 };
 
 const MealPlans = () => {
@@ -81,6 +272,32 @@ const MealPlans = () => {
       setMealPlan(mealPlans[0]);
     }
   }, [mealPlans]);
+
+  // Date for generating empty week structure (defaults to today)
+  const [selectedDate] = useState(() => new Date());
+
+  // Create empty week structure when no meal plan exists
+  const emptyWeekPlan = useMemo(() => {
+    if (mealPlan) return null;
+    const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 }); // Monday start
+    return {
+      week_start_date: format(startDate, 'yyyy-MM-dd'),
+      days: Array.from({ length: 7 }, (_, i) => ({
+        date: format(addDays(startDate, i), 'yyyy-MM-dd'),
+        meals: [] as Array<{
+          meal_type: string;
+          recipe_id: string | null;
+          recipe_title: string;
+          for_who: string;
+          is_daycare?: boolean;
+          previous_recipe_title?: string | null;
+        }>,
+      })),
+    };
+  }, [mealPlan, selectedDate]);
+
+  // Use either the real meal plan or the empty structure for display
+  const displayPlan = mealPlan || emptyWeekPlan;
 
   // Selected day index (0 = Monday, 6 = Sunday)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
@@ -184,6 +401,28 @@ const MealPlans = () => {
     mealType: string;
     recipeTitle: string;
   } | null>(null);
+
+  // Drag and drop state
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [overDayIndex, setOverDayIndex] = useState<number | null>(null);
+
+  // Drop animation config - spring bounce effect
+  const dropAnimation = {
+    duration: 250,
+    easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)', // Slight overshoot for bounce
+  };
+
+  // Drag sensors for pointer and keyboard
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before starting drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Mutation to generate meal plan
   const generateMutation = useMutation({
@@ -298,8 +537,19 @@ const MealPlans = () => {
       recipeTitle: string;
       forWho?: string;
     }) => {
-      if (!mealPlan?.id) throw new Error('No meal plan');
-      return mealPlansAPI.addMeal(workspaceId, mealPlan.id, {
+      let planId = mealPlan?.id;
+
+      // If no meal plan exists, create one first using the empty week structure
+      if (!planId && emptyWeekPlan) {
+        const newPlan = await mealPlansAPI.save(workspaceId, emptyWeekPlan as MealPlan);
+        planId = newPlan.id;
+        // Update local state with the new plan
+        setMealPlan(newPlan);
+      }
+
+      if (!planId) throw new Error('Failed to create meal plan');
+
+      return mealPlansAPI.addMeal(workspaceId, planId, {
         day_index: dayIndex,
         meal_type: mealType,
         recipe_id: recipeId,
@@ -310,6 +560,7 @@ const MealPlans = () => {
     onSuccess: (updatedPlan) => {
       setMealPlan(updatedPlan);
       setRecipePickerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['meal-plans', workspaceId] });
       toast.success('Recipe added!', {
         description: 'Added to your meal plan.',
       });
@@ -364,6 +615,36 @@ const MealPlans = () => {
     },
     onError: (error: Error) => {
       toast.error(`Failed to remove meal: ${error.message}`);
+    },
+  });
+
+  // Mutation to move a meal (drag and drop)
+  const moveMealMutation = useMutation({
+    mutationFn: async ({
+      sourceDayIndex,
+      sourceMealIndex,
+      targetDayIndex,
+      targetMealIndex,
+    }: {
+      sourceDayIndex: number;
+      sourceMealIndex: number;
+      targetDayIndex: number;
+      targetMealIndex: number;
+    }) => {
+      if (!mealPlan?.id) throw new Error('No meal plan');
+      return mealPlansAPI.moveMeal(workspaceId, mealPlan.id, {
+        source_day_index: sourceDayIndex,
+        source_meal_index: sourceMealIndex,
+        target_day_index: targetDayIndex,
+        target_meal_index: targetMealIndex,
+      });
+    },
+    onSuccess: (updatedPlan) => {
+      setMealPlan(updatedPlan);
+      // No toast for drag - it's obvious what happened
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to move meal: ${error.message}`);
     },
   });
 
@@ -735,6 +1016,67 @@ const MealPlans = () => {
     setGenerateConfirmContext(null);
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    if (over) {
+      const match = (over.id as string).match(/day-(\d+)-meal-(\d+)/);
+      if (match) {
+        setOverDayIndex(parseInt(match[1], 10));
+      }
+    } else {
+      setOverDayIndex(null);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
+    setOverDayIndex(null);
+
+    const { active, over } = event;
+    if (!over || active.id === over.id || !mealPlan) return;
+
+    // Parse the drag IDs: format is "day-{dayIndex}-meal-{mealIndex}"
+    const activeMatch = (active.id as string).match(/day-(\d+)-meal-(\d+)/);
+    const overMatch = (over.id as string).match(/day-(\d+)-meal-(\d+)/);
+
+    if (!activeMatch || !overMatch) return;
+
+    const sourceDayIndex = parseInt(activeMatch[1], 10);
+    const sourceMealIndex = parseInt(activeMatch[2], 10);
+    const targetDayIndex = parseInt(overMatch[1], 10);
+    let targetMealIndex = parseInt(overMatch[2], 10);
+
+    // If moving within the same day and source is before target, adjust index
+    if (sourceDayIndex === targetDayIndex && sourceMealIndex < targetMealIndex) {
+      targetMealIndex -= 1;
+    }
+
+    // Skip if nothing changed
+    if (sourceDayIndex === targetDayIndex && sourceMealIndex === targetMealIndex) return;
+
+    moveMealMutation.mutate({
+      sourceDayIndex,
+      sourceMealIndex,
+      targetDayIndex,
+      targetMealIndex,
+    });
+  };
+
+  // Get the meal being dragged for DragOverlay
+  const getActiveMeal = () => {
+    if (!activeDragId || !mealPlan) return null;
+    const match = activeDragId.match(/day-(\d+)-meal-(\d+)/);
+    if (!match) return null;
+    const dayIndex = parseInt(match[1], 10);
+    const mealIndex = parseInt(match[2], 10);
+    return mealPlan.days[dayIndex]?.meals[mealIndex] || null;
+  };
+
   // Collect recipe IDs already in the meal plan (for exclusion in alternatives)
   const getExcludedRecipeIds = (): string[] => {
     if (!mealPlan) return [];
@@ -754,16 +1096,39 @@ const MealPlans = () => {
         <h1 className="font-display text-3xl font-bold text-foreground">
           Weekly Meal Plan
         </h1>
-        {mealPlan && (
+        {displayPlan && (
           <p className="text-muted-foreground mt-1">
-            Week of {new Date(mealPlan.week_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            Week of {new Date(displayPlan.week_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         )}
       </div>
 
       {/* Meal Plan Content */}
-      {mealPlan ? (
+      {displayPlan && (
         <>
+          {/* Empty State Header - Show prominent generate button when no real plan */}
+          {!mealPlan && (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 p-6 rounded-2xl bg-card shadow-soft">
+              <Button
+                variant="hero"
+                onClick={handleGenerate}
+                disabled={generateMutation.isPending}
+              >
+                {generateMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Generate New Plan
+                  </>
+                )}
+              </Button>
+              <span className="text-sm text-muted-foreground">or manually add recipes below</span>
+            </div>
+          )}
           {/* Day Navigator - Minimal sticky header */}
           <div className="sticky top-16 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border/50">
             {/* Mobile: Compact nav with arrows */}
@@ -788,10 +1153,10 @@ const MealPlans = () => {
                 className="flex-1 text-center py-1"
               >
                 <p className="font-display text-lg font-semibold text-foreground">
-                  {formatDate(mealPlan.days[selectedDayIndex].date).dayName}
+                  {formatDate(displayPlan.days[selectedDayIndex].date).dayName}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {formatDate(mealPlan.days[selectedDayIndex].date).shortDate}
+                  {formatDate(displayPlan.days[selectedDayIndex].date).shortDate}
                 </p>
               </button>
 
@@ -810,7 +1175,7 @@ const MealPlans = () => {
 
             {/* Mobile: Week dots indicator */}
             <div className="flex justify-center gap-1.5 mt-2 md:hidden">
-              {mealPlan.days.map((day, index) => {
+              {displayPlan.days.map((day, index) => {
                 const isSelected = index === selectedDayIndex;
                 const isVisible = visibleDayIndices.includes(index);
                 return (
@@ -833,7 +1198,7 @@ const MealPlans = () => {
 
             {/* Desktop: Full week strip */}
             <div className="hidden md:flex items-center justify-between gap-1">
-              {mealPlan.days.map((day, index) => {
+              {displayPlan.days.map((day, index) => {
                 const { dayOfWeek, shortDate } = formatDate(day.date);
                 const isSelected = index === selectedDayIndex;
                 const isVisible = visibleDayIndices.includes(index) && !isSelected;
@@ -869,177 +1234,119 @@ const MealPlans = () => {
             </div>
           </div>
 
-          {/* Day View - Responsive Grid (1-3 days) */}
-          <div
-            className="grid gap-6"
-            style={{
-              gridTemplateColumns: `repeat(${actualVisibleCount}, minmax(0, 1fr))`,
-            }}
+          {/* Day View - Responsive Grid (1-3 days) with Drag and Drop */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
           >
-            {visibleDayIndices.map((dayIndex) => {
-              const day = mealPlan.days[dayIndex];
-              const { dayName, shortDate } = formatDate(day.date);
-              const isFirstDay = dayIndex === selectedDayIndex;
+            <div
+              className="grid gap-6"
+              style={{
+                gridTemplateColumns: `repeat(${actualVisibleCount}, minmax(0, 1fr))`,
+              }}
+            >
+              {visibleDayIndices.map((dayIndex) => {
+                const day = displayPlan.days[dayIndex];
+                const { dayName, shortDate } = formatDate(day.date);
+                const isFirstDay = dayIndex === selectedDayIndex;
+                const mealIds = day.meals.map((_, idx) => `day-${dayIndex}-meal-${idx}`);
 
-              return (
-                <div
-                  key={day.date}
-                  className={cn(
-                    "rounded-2xl bg-card shadow-soft overflow-hidden",
-                    !isFirstDay && "opacity-95"
-                  )}
-                >
-                  {/* Day Header - Hidden on mobile (navigator sufficient), compact on desktop */}
-                  <div className={cn(
-                    "hidden md:flex items-center justify-between px-4 py-2.5",
-                    isFirstDay
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-primary/80 text-primary-foreground"
-                  )}>
-                    <span className="font-display text-base font-semibold">
-                      {dayName}
-                    </span>
-                    <span className={cn(
-                      "text-sm",
-                      isFirstDay ? "text-primary-foreground/80" : "text-primary-foreground/70"
+                return (
+                  <div
+                    key={day.date}
+                    className={cn(
+                      "rounded-2xl bg-card shadow-soft overflow-hidden transition-all duration-200",
+                      !isFirstDay && "opacity-95",
+                      // Highlight when dragging over this day
+                      activeDragId && overDayIndex === dayIndex && "ring-2 ring-primary ring-offset-2 scale-[1.02]"
+                    )}
+                  >
+                    {/* Day Header - Hidden on mobile (navigator sufficient), compact on desktop */}
+                    <div className={cn(
+                      "hidden md:flex items-center justify-between px-4 py-2.5",
+                      isFirstDay
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-primary/80 text-primary-foreground"
                     )}>
-                      {shortDate}
-                    </span>
-                  </div>
+                      <span className="font-display text-base font-semibold">
+                        {dayName}
+                      </span>
+                      <span className={cn(
+                        "text-sm",
+                        isFirstDay ? "text-primary-foreground/80" : "text-primary-foreground/70"
+                      )}>
+                        {shortDate}
+                      </span>
+                    </div>
 
-                  {/* Meals */}
-                  <div className="p-6 space-y-3">
-                    {day.meals.map((meal, mealIdx) => {
-                      // Determine if this meal is clickable and what action to take
-                      const isEatingOut = meal.recipe_title.toLowerCase().includes('eating out');
-                      const hasRecipe = !!meal.recipe_id;
-                      const isAIGenerated = !hasRecipe && !isEatingOut;
-                      const isClickable = hasRecipe || isAIGenerated;
+                    {/* Meals - Sortable within this day */}
+                    <div className="p-6 space-y-3">
+                      <SortableContext items={mealIds} strategy={verticalListSortingStrategy}>
+                        {day.meals.map((meal, mealIdx) => {
+                          const isEatingOut = meal.recipe_title.toLowerCase().includes('eating out');
+                          const hasRecipe = !!meal.recipe_id;
+                          const isAIGenerated = !hasRecipe && !isEatingOut;
+                          const isClickable = hasRecipe || isAIGenerated;
 
-                      return (
-                      <div
-                        key={`${meal.meal_type}-${mealIdx}`}
+                          return (
+                            <SortableMeal
+                              key={`day-${dayIndex}-meal-${mealIdx}`}
+                              id={`day-${dayIndex}-meal-${mealIdx}`}
+                              meal={meal}
+                              dayIndex={dayIndex}
+                              mealIdx={mealIdx}
+                              isClickable={isClickable}
+                              hasRecipe={hasRecipe}
+                              isAIGenerated={isAIGenerated}
+                              loadingRecipeId={loadingRecipeId}
+                              onRecipeClick={handleRecipeClick}
+                              onAITitleClick={handleAITitleClick}
+                              onSwapClick={handleSwapClick}
+                              onUndoSwap={handleUndoSwap}
+                              onRemoveClick={handleRemoveClick}
+                              isUndoPending={undoSwapMutation.isPending}
+                              isRemovePending={removeMealMutation.isPending}
+                            />
+                          );
+                        })}
+                      </SortableContext>
+
+                      {/* Add Recipe Button */}
+                      <button
+                        onClick={() => handleAddRecipeClick(dayIndex, dayName)}
                         className={cn(
-                          "rounded-lg bg-muted/50 p-4 transition-colors flex items-center justify-between gap-3",
-                          isClickable && "hover:bg-muted cursor-pointer"
+                          "w-full p-3 rounded-lg border-2 border-dashed border-muted-foreground/30",
+                          "flex items-center justify-center gap-2",
+                          "text-muted-foreground hover:text-primary hover:border-primary/50",
+                          "transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
                         )}
-                        onClick={() => {
-                          if (hasRecipe) {
-                            handleRecipeClick(meal.recipe_id!);
-                          } else if (isAIGenerated) {
-                            handleAITitleClick(dayIndex, mealIdx, meal.meal_type, meal.recipe_title);
-                          }
-                        }}
                       >
-                        <p className="text-base font-medium text-foreground flex-1">
-                          <span className="mr-2">{mealTypeIcons[meal.meal_type.toLowerCase()]}</span>
-                          <span className="text-muted-foreground capitalize">{meal.meal_type}:</span>
-                          {' '}
-                          {loadingRecipeId && loadingRecipeId === meal.recipe_id ? 'Loading...' : meal.recipe_title}
-                          {(() => {
-                            // Check if for_who is essentially "everyone" (literal or contains comma = multiple people)
-                            const isForEveryone = !meal.for_who || meal.for_who === 'everyone' || meal.for_who.includes(',');
-                            const showTag = meal.is_daycare || !isForEveryone;
-                            if (!showTag) return null;
-                            return (
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                                {!isForEveryone ? meal.for_who : ''}
-                                {meal.is_daycare ? (!isForEveryone ? ' - Daycare' : 'Daycare') : ''}
-                              </span>
-                            );
-                          })()}
-                        </p>
-
-                        {/* Action buttons */}
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {/* Undo button - show if meal was swapped (check title, not id, since original may not have had a recipe_id) */}
-                          {meal.previous_recipe_title && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUndoSwap(dayIndex, mealIdx);
-                              }}
-                              disabled={undoSwapMutation.isPending}
-                              className={cn(
-                                "p-2 rounded-full transition-all duration-200",
-                                "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600",
-                                "focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2",
-                                "disabled:opacity-50"
-                              )}
-                              title={`Undo: restore "${meal.previous_recipe_title}"`}
-                            >
-                              <Undo2 className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Swap button - only show for existing recipes (not AI-generated titles) */}
-                          {hasRecipe && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSwapClick(
-                                  dayIndex,
-                                  mealIdx,
-                                  meal.meal_type,
-                                  meal.recipe_title
-                                );
-                              }}
-                              className={cn(
-                                "p-2 rounded-full transition-all duration-200",
-                                "bg-primary/10 hover:bg-primary/20 text-primary",
-                                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                              )}
-                              title="Swap with different recipe"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Remove button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveClick(
-                                dayIndex,
-                                mealIdx,
-                                meal.meal_type,
-                                meal.recipe_title
-                              );
-                            }}
-                            disabled={removeMealMutation.isPending}
-                            className={cn(
-                              "p-2 rounded-full transition-all duration-200",
-                              "bg-red-500/10 hover:bg-red-500/20 text-red-600",
-                              "focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2",
-                              "disabled:opacity-50"
-                            )}
-                            title="Remove meal"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                    {/* Add Recipe Button */}
-                    <button
-                      onClick={() => handleAddRecipeClick(dayIndex, dayName)}
-                      className={cn(
-                        "w-full p-3 rounded-lg border-2 border-dashed border-muted-foreground/30",
-                        "flex items-center justify-center gap-2",
-                        "text-muted-foreground hover:text-primary hover:border-primary/50",
-                        "transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      )}
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span className="text-sm font-medium">Add Recipe</span>
-                    </button>
+                        <Plus className="h-4 w-4" />
+                        <span className="text-sm font-medium">Add Recipe</span>
+                      </button>
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+
+            {/* Drag Overlay - Shows the dragged item with bounce animation */}
+            <DragOverlay dropAnimation={dropAnimation}>
+              {activeDragId && getActiveMeal() && (
+                <div className="rounded-lg bg-card p-4 shadow-xl ring-2 ring-primary flex items-center gap-3 scale-105">
+                  <GripVertical className="h-4 w-4 text-primary" />
+                  <p className="text-base font-medium text-foreground">
+                    <span className="mr-2">{mealTypeIcons[getActiveMeal()!.meal_type.toLowerCase()]}</span>
+                    <span className="text-muted-foreground capitalize">{getActiveMeal()!.meal_type}:</span>
+                    {' '}{getActiveMeal()!.recipe_title}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </DragOverlay>
+          </DndContext>
 
           {/* Action Buttons - Below the meal plan */}
           <div className="flex flex-wrap gap-3 pt-4 sm:justify-end">
