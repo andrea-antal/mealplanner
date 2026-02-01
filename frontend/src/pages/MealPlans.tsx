@@ -266,12 +266,22 @@ const MealPlans = () => {
   // Use most recent meal plan (first in list, sorted by date desc)
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
 
-  // Sync state with fetched data
+  // Calculate current week's start date (Monday)
+  const currentWeekStart = useMemo(() => {
+    return format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  }, []);
+
+  // Sync state with fetched data - only use plans for the current week
   useEffect(() => {
     if (mealPlans && mealPlans.length > 0) {
-      setMealPlan(mealPlans[0]);
+      // Find a plan for the current week
+      const currentWeekPlan = mealPlans.find(plan => plan.week_start_date === currentWeekStart);
+      setMealPlan(currentWeekPlan || null);
+    } else if (mealPlans && mealPlans.length === 0) {
+      // Clear local state when no plans exist (e.g., after deletion)
+      setMealPlan(null);
     }
-  }, [mealPlans]);
+  }, [mealPlans, currentWeekStart]);
 
   // Date for generating empty week structure (defaults to today)
   const [selectedDate] = useState(() => new Date());
@@ -401,6 +411,9 @@ const MealPlans = () => {
     mealType: string;
     recipeTitle: string;
   } | null>(null);
+
+  // Delete meal plan confirmation dialog state
+  const [deletePlanDialogOpen, setDeletePlanDialogOpen] = useState(false);
 
   // Drag and drop state
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -645,6 +658,37 @@ const MealPlans = () => {
     },
     onError: (error: Error) => {
       toast.error(`Failed to move meal: ${error.message}`);
+    },
+  });
+
+  // Mutation to delete the entire meal plan
+  const deletePlanMutation = useMutation({
+    mutationFn: async () => {
+      if (!mealPlan?.id) throw new Error('No meal plan to delete');
+      // Capture count before deletion for the toast message
+      const planCount = mealPlans?.length ?? 0;
+      await mealPlansAPI.delete(workspaceId, mealPlan.id);
+      return { deletedWeek: mealPlan.week_start_date, remainingCount: planCount - 1 };
+    },
+    onSuccess: ({ deletedWeek, remainingCount }) => {
+      setMealPlan(null);
+      setDeletePlanDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['meal-plans', workspaceId] });
+
+      const deletedDate = new Date(deletedWeek).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      if (remainingCount > 0) {
+        toast.success(`Week of ${deletedDate} deleted`, {
+          description: `Showing ${remainingCount === 1 ? 'your other saved week' : `one of ${remainingCount} other saved weeks`}.`,
+        });
+      } else {
+        toast.success('Meal plan deleted', {
+          description: 'You can generate a new plan or add recipes manually.',
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete meal plan: ${error.message}`);
     },
   });
 
@@ -1097,9 +1141,26 @@ const MealPlans = () => {
           Weekly Meal Plan
         </h1>
         {displayPlan && (
-          <p className="text-muted-foreground mt-1">
-            Week of {new Date(displayPlan.week_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-muted-foreground">
+              Week of{' '}
+              <span className="font-medium text-foreground">
+                {new Date(displayPlan.week_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </span>
+            </p>
+            {/* Show count of other saved weeks when viewing a real plan */}
+            {mealPlan && mealPlans && mealPlans.length > 1 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                +{mealPlans.length - 1} past {mealPlans.length === 2 ? 'week' : 'weeks'}
+              </span>
+            )}
+            {/* Show historical count when no current week plan exists */}
+            {!mealPlan && mealPlans && mealPlans.length > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                {mealPlans.length} past {mealPlans.length === 1 ? 'week' : 'weeks'} saved
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -1348,70 +1409,66 @@ const MealPlans = () => {
             </DragOverlay>
           </DndContext>
 
-          {/* Action Buttons - Below the meal plan */}
-          <div className="flex flex-wrap gap-3 pt-4 sm:justify-end">
-            <Button
-              variant="outline"
-              onClick={isSavingRecipes ? () => setSaveAllModalOpen(true) : handleSaveAllClick}
-              className="flex-1 sm:flex-none"
-            >
-              {isSavingRecipes ? (
-                <>
+          {/* Action Buttons - Below the meal plan (only show when there's a real meal plan) */}
+          {mealPlan && (
+            <div className="flex flex-wrap gap-3 pt-4 sm:justify-between">
+              {/* Delete button - left side on desktop */}
+              <Button
+                variant="ghost"
+                onClick={() => setDeletePlanDialogOpen(true)}
+                disabled={deletePlanMutation.isPending}
+                aria-label="Delete meal plan"
+                className="text-muted-foreground hover:text-red-600 hover:bg-red-50 sm:flex-none order-last sm:order-first"
+              >
+                {deletePlanMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  View Progress
-                </>
-              ) : (
-                <>
-                  <Download className="h-4 w-4" />
-                  Save Recipes
-                </>
-              )}
-            </Button>
-            <Button
-              variant="hero"
-              onClick={handleGenerate}
-              disabled={generateMutation.isPending}
-              className="flex-1 sm:flex-none"
-            >
-              {generateMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate New Plan
-                </>
-              )}
-            </Button>
-          </div>
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                <span className="sm:hidden">Delete Plan</span>
+              </Button>
+
+              {/* Right-aligned action buttons */}
+              <div className="flex flex-wrap gap-3 flex-1 sm:flex-none sm:justify-end">
+                <Button
+                  variant="outline"
+                  onClick={isSavingRecipes ? () => setSaveAllModalOpen(true) : handleSaveAllClick}
+                  className="flex-1 sm:flex-none"
+                >
+                  {isSavingRecipes ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      View Progress
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Save Recipes
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="hero"
+                  onClick={handleGenerate}
+                  disabled={generateMutation.isPending}
+                  className="flex-1 sm:flex-none"
+                >
+                  {generateMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Generate New Plan
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </>
-      ) : (
-        <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
-          <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground mb-2">No meal plan yet</p>
-          <p className="text-sm text-muted-foreground mb-6">
-            Generate a personalized weekly meal plan based on your recipes and preferences
-          </p>
-          <Button
-            variant="hero"
-            onClick={handleGenerate}
-            disabled={generateMutation.isPending}
-          >
-            {generateMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Generate New Plan
-              </>
-            )}
-          </Button>
-        </div>
       )}
 
       {/* Recipe Modal */}
@@ -1552,6 +1609,33 @@ const MealPlans = () => {
             >
               <Sparkles className="h-4 w-4 mr-2" />
               Generate Recipe
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Meal Plan Confirmation Dialog */}
+      <AlertDialog open={deletePlanDialogOpen} onOpenChange={setDeletePlanDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this meal plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your current meal plan. Your saved recipes will not be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePlanMutation.mutate()}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deletePlanMutation.isPending}
+            >
+              {deletePlanMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete Plan
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
