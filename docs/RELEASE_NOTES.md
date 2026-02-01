@@ -1,11 +1,38 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2026-01-14
+**Last Updated**: 2026-02-01
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.13.0 - February 1, 2026
+
+### New Features
+
+- **Manual Meal Planning** - You can now build meal plans manually without AI generation:
+  - The meal plan page now shows a full week grid even when no plan exists
+  - Click "Add Recipe" on any day to pick from your library
+  - A plan is automatically created when you add your first recipe
+  - Great for users who prefer to plan meals themselves
+
+- **Delete Meal Plan** - Remove your current meal plan with a single click:
+  - Trash icon appears at the bottom left of the meal plan
+  - Confirmation dialog prevents accidental deletion
+  - After deletion, you'll see the empty week grid ready for a new plan
+
+### Improvements
+
+- **Current Week Focus** - The meal plan page now only displays plans for the current week. Historical plans are preserved but don't clutter the view.
+
+- **Historical Plans Badge** - When past weeks exist, a badge shows "X past weeks saved" so you know your history is preserved.
+
+- **Smarter Delete Messages** - When deleting a plan, the toast message tells you if other saved weeks remain.
+
+- **Drag-and-Drop Reordering** - Meals within a day can now be reordered by dragging (added in previous update).
+
+---
 
 ## Version 0.12.0 - January 14, 2026
 

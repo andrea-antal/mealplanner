@@ -1,6 +1,6 @@
 ---
 **Summary**: Chronological feature history with technical implementation details, test results, and file changes. Authoritative source for "what was built when and how".
-**Last Updated**: 2026-01-16
+**Last Updated**: 2026-02-01
 **Status**: Current
 **Read This If**: You need detailed implementation notes for any feature or sprint
 ---
@@ -8,6 +8,37 @@
 # Meal Planner - Development Changelog
 
 This document tracks key decisions, changes, and learnings during development.
+
+---
+
+## 2026-02-01 Feature: Empty Week Grid UI & Delete Meal Plan
+
+**Status**: Complete | **Branch**: `main`
+
+### Summary
+Replaced the "no meal plan" empty state with a full interactive week grid. Users can now manually add recipes day-by-day without generating an AI plan first. Also added ability to delete current meal plans and improved week visibility logic.
+
+### Key Changes
+
+1. **Empty Week Grid** - When no plan exists, show the full 7-day grid with empty cards and "Add Recipe" buttons instead of a static placeholder
+2. **Delete Meal Plan** - Added trash icon button with confirmation dialog to delete the current week's plan
+3. **Current Week Filter** - Only display plans for the current week; historical plans don't auto-display
+4. **Historical Plans Badge** - Shows "X past weeks saved" when historical plans exist but no current week plan
+5. **On-Demand Plan Creation** - When adding a recipe with no existing plan, creates one automatically
+
+### Implementation Details
+
+- `emptyWeekPlan` useMemo creates a virtual week structure with empty meals arrays
+- `displayPlan = mealPlan || emptyWeekPlan` provides unified render path
+- `addMealMutation` calls `mealPlansAPI.save()` before `addMeal()` when no plan exists
+- `deletePlanMutation` calls `mealPlansAPI.delete()` with smart toast showing remaining plan count
+- `currentWeekStart` computed via date-fns to filter plans by week
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `frontend/src/pages/MealPlans.tsx` | +152/-68 lines: Added empty grid, delete functionality, week filtering |
 
 ---
 
