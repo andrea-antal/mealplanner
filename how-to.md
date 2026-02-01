@@ -12,7 +12,7 @@ Open a new terminal window/tab and run:
 cd /Users/andreachan/Desktop/mealplanner/frontend
 npm run dev
 ```
-The frontend will start on http://localhost:5173 (or the next available port)
+The frontend will start on http://localhost:8080
 
 # Sync all workspaces
 
@@ -205,7 +205,7 @@ You'll need to update CORS settings after deploying your frontend. For now, you 
 Edit `backend/app/main.py` and update the origins list:
 ```python
 origins = [
-    "http://localhost:5173",
+    "http://localhost:8080",
     "http://localhost:3000",
     "https://*.railway.app",  # Allow Railway preview deployments
     # You'll add your Vercel URL here after frontend deployment
@@ -289,7 +289,7 @@ Now update your backend to allow requests from your Vercel frontend.
 Edit `backend/app/main.py`:
 ```python
 origins = [
-    "http://localhost:5173",
+    "http://localhost:8080",
     "http://localhost:3000",
     "https://*.railway.app",
     "https://mealplanner.vercel.app",  # Add your Vercel URL

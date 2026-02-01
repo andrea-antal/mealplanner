@@ -193,7 +193,7 @@ uvicorn app.main:app --reload
 ```bash
 cd frontend
 npm run dev
-# → http://localhost:5173
+# → http://localhost:8080
 ```
 
 ### Tests

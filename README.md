@@ -70,7 +70,7 @@ AI-powered meal planning for busy families. Tell it what's in your fridge, who's
    # Terminal 2: Frontend
    cd frontend
    npm run dev
-   # App runs at http://localhost:5173
+   # App runs at http://localhost:8080
    ```
 
 ## Built With

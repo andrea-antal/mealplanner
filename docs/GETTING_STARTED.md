@@ -66,14 +66,14 @@ cp .env.example .env
 npm run dev
 ```
 
-**Frontend will be at**: http://localhost:5173
+**Frontend will be at**: http://localhost:8080
 
 ---
 
 ## ✅ Verify It's Working
 
 1. **Backend health check**: http://localhost:8000 should show `{"status":"healthy"}`
-2. **Frontend loads**: http://localhost:5173 should show the home page
+2. **Frontend loads**: http://localhost:8080 should show the home page
 3. **Test meal plan generation**:
    - Go to Groceries page
    - Add a few items (or use voice/receipt upload)
@@ -209,7 +209,7 @@ Navigate to: http://localhost:8000/docs (Swagger UI)
 
 **Frontend won't start**:
 - Run `npm install` again
-- Check port 5173 isn't in use: `lsof -i :5173`
+- Check port 8080 isn't in use: `lsof -i :8080`
 - Clear node_modules and reinstall: `rm -rf node_modules && npm install`
 
 **Tests failing**:

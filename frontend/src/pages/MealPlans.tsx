@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { mealPlansAPI, recipesAPI, onboardingAPI, type MealPlan, type Recipe, type AlternativeRecipeSuggestion } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Sparkles, Loader2, Plus, RefreshCw, Undo2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Sparkles, Loader2, Plus, RefreshCw, Undo2, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeModal } from '@/components/RecipeModal';
@@ -15,6 +15,16 @@ import { InsufficientRecipesModal } from '@/components/InsufficientRecipesModal'
 import { SaveAllRecipesModal, type SaveAllResult } from '@/components/SaveAllRecipesModal';
 import { WeekContextModal } from '@/components/WeekContextModal';
 import { RecipePickerModal } from '@/components/RecipePickerModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // Meal type emoji mapping (lowercase to match API data)
 const mealTypeIcons: Record<string, string> = {
@@ -156,6 +166,25 @@ const MealPlans = () => {
   const [weekContextModalOpen, setWeekContextModalOpen] = useState(false);
   const [pendingWeekStartDate, setPendingWeekStartDate] = useState<string | null>(null);
 
+  // Remove meal confirmation dialog state
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removeContext, setRemoveContext] = useState<{
+    dayIndex: number;
+    mealIndex: number;
+    mealType: string;
+    recipeTitle: string;
+    isLastOfType: boolean;
+  } | null>(null);
+
+  // Generate recipe confirmation dialog state (for clicking AI-generated titles)
+  const [generateConfirmOpen, setGenerateConfirmOpen] = useState(false);
+  const [generateConfirmContext, setGenerateConfirmContext] = useState<{
+    dayIndex: number;
+    mealIndex: number;
+    mealType: string;
+    recipeTitle: string;
+  } | null>(null);
+
   // Mutation to generate meal plan
   const generateMutation = useMutation({
     mutationFn: async ({ week_start_date, week_context }: { week_start_date: string; week_context?: string }) => {
@@ -287,6 +316,54 @@ const MealPlans = () => {
     },
     onError: (error: Error) => {
       toast.error(`Failed to add recipe: ${error.message}`);
+    },
+  });
+
+  // Mutation to remove a meal
+  const removeMealMutation = useMutation({
+    mutationFn: async ({
+      dayIndex,
+      mealIndex,
+      replaceWithEatingOut,
+      mealType,
+    }: {
+      dayIndex: number;
+      mealIndex: number;
+      replaceWithEatingOut?: boolean;
+      mealType?: string;
+    }) => {
+      if (!mealPlan?.id) throw new Error('No meal plan');
+
+      // If replacing with "Eating out", first delete then add
+      const updatedPlan = await mealPlansAPI.deleteMeal(workspaceId, mealPlan.id, {
+        day_index: dayIndex,
+        meal_index: mealIndex,
+      });
+
+      // If user chose to replace with "Eating out", add that meal
+      if (replaceWithEatingOut && mealType) {
+        return mealPlansAPI.addMeal(workspaceId, mealPlan.id, {
+          day_index: dayIndex,
+          meal_type: mealType,
+          recipe_id: null,
+          recipe_title: 'Eating out',
+          for_who: 'everyone',
+        });
+      }
+
+      return updatedPlan;
+    },
+    onSuccess: (updatedPlan, variables) => {
+      setMealPlan(updatedPlan);
+      setRemoveDialogOpen(false);
+      setRemoveContext(null);
+      toast.success(
+        variables.replaceWithEatingOut ? 'Meal replaced with "Eating out"' : 'Meal removed!',
+        { description: 'Your meal plan has been updated.' }
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to remove meal: ${error.message}`);
     },
   });
 
@@ -586,6 +663,78 @@ const MealPlans = () => {
     });
   };
 
+  // Handle remove meal click - check if it's the last of its type for the day
+  const handleRemoveClick = (
+    dayIndex: number,
+    mealIndex: number,
+    mealType: string,
+    recipeTitle: string
+  ) => {
+    if (!mealPlan) return;
+
+    // Count meals of this type on this day
+    const day = mealPlan.days[dayIndex];
+    const mealsOfType = day.meals.filter(
+      (m) => m.meal_type.toLowerCase() === mealType.toLowerCase()
+    );
+    const isLastOfType = mealsOfType.length === 1;
+
+    if (isLastOfType) {
+      // Show confirmation dialog
+      setRemoveContext({
+        dayIndex,
+        mealIndex,
+        mealType,
+        recipeTitle,
+        isLastOfType: true,
+      });
+      setRemoveDialogOpen(true);
+    } else {
+      // Remove directly without confirmation
+      removeMealMutation.mutate({ dayIndex, mealIndex });
+    }
+  };
+
+  // Handle confirmation dialog actions
+  const handleRemoveConfirm = (replaceWithEatingOut: boolean) => {
+    if (!removeContext) return;
+    removeMealMutation.mutate({
+      dayIndex: removeContext.dayIndex,
+      mealIndex: removeContext.mealIndex,
+      replaceWithEatingOut,
+      mealType: removeContext.mealType,
+    });
+  };
+
+  // Handle clicking on an AI-generated meal title (no recipe_id)
+  const handleAITitleClick = (
+    dayIndex: number,
+    mealIndex: number,
+    mealType: string,
+    recipeTitle: string
+  ) => {
+    // Skip for "Eating out" meals
+    if (recipeTitle.toLowerCase().includes('eating out')) return;
+
+    setGenerateConfirmContext({ dayIndex, mealIndex, mealType, recipeTitle });
+    setGenerateConfirmOpen(true);
+  };
+
+  // Handle confirming recipe generation from AI title
+  const handleGenerateConfirm = () => {
+    if (!generateConfirmContext) return;
+    setGenerateConfirmOpen(false);
+    // Open the generate modal with the context
+    setGenerateMealType(generateConfirmContext.mealType);
+    setGenerateRecipeTitle(generateConfirmContext.recipeTitle);
+    setGenerateMealContext({
+      dayIndex: generateConfirmContext.dayIndex,
+      mealIndex: generateConfirmContext.mealIndex,
+    });
+    setGenerateModalOpen(true);
+    setGenerateConfirmContext(null);
+  };
+
   // Collect recipe IDs already in the meal plan (for exclusion in alternatives)
   const getExcludedRecipeIds = (): string[] => {
     if (!mealPlan) return [];
@@ -760,14 +909,27 @@ const MealPlans = () => {
 
                   {/* Meals */}
                   <div className="p-6 space-y-3">
-                    {day.meals.map((meal, mealIdx) => (
+                    {day.meals.map((meal, mealIdx) => {
+                      // Determine if this meal is clickable and what action to take
+                      const isEatingOut = meal.recipe_title.toLowerCase().includes('eating out');
+                      const hasRecipe = !!meal.recipe_id;
+                      const isAIGenerated = !hasRecipe && !isEatingOut;
+                      const isClickable = hasRecipe || isAIGenerated;
+
+                      return (
                       <div
                         key={`${meal.meal_type}-${mealIdx}`}
                         className={cn(
                           "rounded-lg bg-muted/50 p-4 transition-colors flex items-center justify-between gap-3",
-                          meal.recipe_id && "hover:bg-muted cursor-pointer"
+                          isClickable && "hover:bg-muted cursor-pointer"
                         )}
-                        onClick={() => meal.recipe_id && handleRecipeClick(meal.recipe_id)}
+                        onClick={() => {
+                          if (hasRecipe) {
+                            handleRecipeClick(meal.recipe_id!);
+                          } else if (isAIGenerated) {
+                            handleAITitleClick(dayIndex, mealIdx, meal.meal_type, meal.recipe_title);
+                          }
+                        }}
                       >
                         <p className="text-base font-medium text-foreground flex-1">
                           <span className="mr-2">{mealTypeIcons[meal.meal_type.toLowerCase()]}</span>
@@ -810,53 +972,55 @@ const MealPlans = () => {
                             </button>
                           )}
 
-                          {/* Swap button - always show to swap to library recipe */}
+                          {/* Swap button - only show for existing recipes (not AI-generated titles) */}
+                          {hasRecipe && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSwapClick(
+                                  dayIndex,
+                                  mealIdx,
+                                  meal.meal_type,
+                                  meal.recipe_title
+                                );
+                              }}
+                              className={cn(
+                                "p-2 rounded-full transition-all duration-200",
+                                "bg-primary/10 hover:bg-primary/20 text-primary",
+                                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                              )}
+                              title="Swap with different recipe"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </button>
+                          )}
+
+                          {/* Remove button */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleSwapClick(
+                              handleRemoveClick(
                                 dayIndex,
                                 mealIdx,
                                 meal.meal_type,
                                 meal.recipe_title
                               );
                             }}
+                            disabled={removeMealMutation.isPending}
                             className={cn(
                               "p-2 rounded-full transition-all duration-200",
-                              "bg-primary/10 hover:bg-primary/20 text-primary",
-                              "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                              "bg-red-500/10 hover:bg-red-500/20 text-red-600",
+                              "focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2",
+                              "disabled:opacity-50"
                             )}
-                            title="Swap with library recipe"
+                            title="Remove meal"
                           >
-                            <RefreshCw className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
-
-                          {/* Generate button - show if no recipe (creates new recipe) */}
-                          {/* Hide for "Eating out" meals since there's no recipe to generate */}
-                          {!meal.recipe_id && !meal.recipe_title.toLowerCase().includes('eating out') && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleGenerateClick(
-                                  meal.meal_type,
-                                  meal.recipe_title,
-                                  dayIndex,
-                                  mealIdx
-                                );
-                              }}
-                              className={cn(
-                                "p-2 rounded-full transition-all duration-200",
-                                "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600",
-                                "focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-                              )}
-                              title="Generate new recipe"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          )}
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
 
                     {/* Add Recipe Button */}
                     <button
@@ -1012,6 +1176,79 @@ const MealPlans = () => {
         onComplete={handleSaveAllComplete}
         onProcessingChange={setIsSavingRecipes}
       />
+
+      {/* Remove Meal Confirmation Dialog */}
+      <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removeContext?.mealType}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This is your only {removeContext?.mealType?.toLowerCase()} for this day.
+              Are you eating out instead, or just removing it?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+            <AlertDialogCancel
+              onClick={() => {
+                setRemoveDialogOpen(false);
+                setRemoveContext(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleRemoveConfirm(false)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={removeMealMutation.isPending}
+            >
+              {removeMealMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Just Remove
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleRemoveConfirm(true)}
+              className="bg-primary hover:bg-primary/90"
+              disabled={removeMealMutation.isPending}
+            >
+              {removeMealMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Replace with "Eating Out"
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Generate Recipe Confirmation Dialog (for AI-generated meal titles) */}
+      <AlertDialog open={generateConfirmOpen} onOpenChange={setGenerateConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate Full Recipe?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium text-foreground">"{generateConfirmContext?.recipeTitle}"</span> is an AI-suggested meal title.
+              Would you like to generate a complete recipe with ingredients and instructions, and save it to your library?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setGenerateConfirmOpen(false);
+                setGenerateConfirmContext(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleGenerateConfirm}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate Recipe
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

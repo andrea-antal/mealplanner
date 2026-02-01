@@ -308,6 +308,8 @@ def prepare_context_for_llm(
                     "age_group": member.age_group,
                     "allergies": member.allergies,
                     "dislikes": member.dislikes,
+                    "likes": member.likes,
+                    "diet": member.diet,
                     "preferences": member.preferences
                 }
                 for member in household.family_members

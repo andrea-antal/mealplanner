@@ -58,7 +58,7 @@ npm install
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+The app will be available at `http://localhost:8080`
 
 ### Build for Production
 
@@ -195,6 +195,6 @@ From [IMPLEMENTATION_PLAN.md](../docs/IMPLEMENTATION_PLAN.md):
 ## Notes
 
 - Backend must be running for full functionality
-- Ensure CORS is configured in backend to allow `http://localhost:5173`
+- Ensure CORS is configured in backend to allow `http://localhost:8080`
 - All API calls use standard fetch (wrapped in React Query hooks)
 - Recipe data, household profiles, and groceries are managed server-side
