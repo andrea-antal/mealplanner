@@ -93,7 +93,7 @@ const CookingPreferences = () => {
 
   if (error && !error.message.includes('404')) {
     return (
-      <div className="rounded-2xl bg-destructive/10 p-6 text-destructive">
+      <div className="rounded-xl bg-destructive/10 p-6 text-destructive">
         <h2 className="font-semibold mb-2">Error loading profile</h2>
         <p className="text-sm">{error instanceof Error ? error.message : 'Unknown error'}</p>
       </div>
@@ -149,7 +149,7 @@ const CookingPreferences = () => {
       </div>
 
         {/* Cooking Preferences */}
-        <section className="rounded-2xl bg-card p-6 shadow-soft space-y-6">
+        <section className="rounded-xl bg-card border border-border p-6 shadow-xs space-y-6">
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Skill Level</Label>

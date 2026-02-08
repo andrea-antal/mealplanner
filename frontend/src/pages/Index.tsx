@@ -152,10 +152,10 @@ const Index = () => {
         />
       )}
 
-      <div className="space-y-12">
+      <div className="space-y-10">
         {/* Get Started */}
         <section>
-          <h2 className="font-display text-2xl font-semibold text-foreground mb-6 text-balance">
+          <h2 className="font-display text-2xl font-semibold text-foreground mb-5">
             Get Started
           </h2>
 
@@ -186,17 +186,17 @@ const Index = () => {
           </div>
           */}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {/* Plan */}
           <Link
             to="/meal-plans"
-            className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
+            className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-transparent hover:border-border hover:bg-card hover:shadow-soft transition-all"
           >
-            <div className="flex items-center justify-center size-20 md:size-24 rounded-2xl bg-primary shadow-sm">
-              <Calendar className="size-10 md:size-12 text-primary-foreground" />
+            <div className="flex items-center justify-center size-16 md:size-20 rounded-xl bg-primary/10">
+              <Calendar className="size-8 md:size-10 text-primary" />
             </div>
             <div className="text-center">
-              <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground block">Plan</span>
+              <span className="text-sm font-medium text-foreground block">Plan</span>
               {currentMealPlan && (
                 <span className="text-xs text-muted-foreground">{formatWeekDisplay(currentMealPlan.week_start_date)}</span>
               )}
@@ -206,13 +206,13 @@ const Index = () => {
           {/* Groceries */}
           <Link
             to="/groceries"
-            className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
+            className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-transparent hover:border-border hover:bg-card hover:shadow-soft transition-all"
           >
-            <div className="flex items-center justify-center size-20 md:size-24 rounded-2xl bg-primary shadow-sm">
-              <ShoppingBasket className="size-10 md:size-12 text-primary-foreground" />
+            <div className="flex items-center justify-center size-16 md:size-20 rounded-xl bg-primary/10">
+              <ShoppingBasket className="size-8 md:size-10 text-primary" />
             </div>
             <div className="text-center">
-              <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground block">Groceries</span>
+              <span className="text-sm font-medium text-foreground block">Groceries</span>
               {groceryList?.items && groceryList.items.length > 0 && (
                 <span className="text-xs text-muted-foreground">{groceryList.items.length} items</span>
               )}
@@ -222,13 +222,13 @@ const Index = () => {
           {/* Recipes */}
           <Link
             to="/recipes"
-            className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
+            className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-transparent hover:border-border hover:bg-card hover:shadow-soft transition-all"
           >
-            <div className="flex items-center justify-center size-20 md:size-24 rounded-2xl bg-primary shadow-sm">
-              <UtensilsCrossed className="size-10 md:size-12 text-primary-foreground" />
+            <div className="flex items-center justify-center size-16 md:size-20 rounded-xl bg-primary/10">
+              <UtensilsCrossed className="size-8 md:size-10 text-primary" />
             </div>
             <div className="text-center">
-              <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground block">Recipes</span>
+              <span className="text-sm font-medium text-foreground block">Recipes</span>
               {recipes && recipes.length > 0 && (
                 <span className="text-xs text-muted-foreground">{recipes.length} saved</span>
               )}
@@ -238,19 +238,19 @@ const Index = () => {
           {/* Cook */}
           <Link
             to="/cook"
-            className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
+            className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-transparent hover:border-border hover:bg-card hover:shadow-soft transition-all"
           >
-            <div className="flex items-center justify-center size-20 md:size-24 rounded-2xl bg-primary shadow-sm">
-              <ChefHat className="size-10 md:size-12 text-primary-foreground" />
+            <div className="flex items-center justify-center size-16 md:size-20 rounded-xl bg-primary/10">
+              <ChefHat className="size-8 md:size-10 text-primary" />
             </div>
-            <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground text-center">Cook</span>
+            <span className="text-sm font-medium text-foreground text-center">Cook</span>
           </Link>
         </div>
       </section>
 
       {/* Household Members Preview */}
       <section>
-        <h2 className="font-display text-2xl font-semibold text-foreground mb-6 text-balance">
+        <h2 className="font-display text-2xl font-semibold text-foreground mb-5">
           Your Household
         </h2>
         {isLoadingProfile && !profileError ? (
@@ -258,7 +258,7 @@ const Index = () => {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : householdProfile?.family_members && householdProfile.family_members.length > 0 ? (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-3">
             {householdProfile.family_members.map((member) => {
               const AgeIcon = member.age_group === 'toddler' ? Baby
                 : member.age_group === 'child' ? Laugh
@@ -267,13 +267,13 @@ const Index = () => {
                 <Link
                   key={member.name}
                   to="/household"
-                  className="group flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-card"
+                  className="group flex flex-col items-center gap-2 p-3 rounded-xl border border-transparent hover:border-border hover:bg-card hover:shadow-soft transition-all"
                 >
-                  <div className="flex items-center justify-center size-12">
-                    <AgeIcon className="size-10 text-primary" />
+                  <div className="flex items-center justify-center size-10">
+                    <AgeIcon className="size-8 text-primary" />
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">{member.name}</p>
+                    <p className="text-sm font-medium text-foreground">{member.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">{member.age_group}</p>
                   </div>
                 </Link>
@@ -281,7 +281,7 @@ const Index = () => {
             })}
           </div>
         ) : (
-          <div className="rounded-2xl bg-card p-6 text-center">
+          <div className="rounded-xl border border-border bg-card p-6 text-center">
             <p className="text-muted-foreground mb-4">No household members added yet</p>
             <Button variant="secondary" asChild>
               <Link to="/household">

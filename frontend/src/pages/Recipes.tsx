@@ -167,7 +167,7 @@ const Recipes = () => {
 
   if (error) {
     return (
-      <div className="rounded-2xl bg-destructive/10 p-6 text-destructive">
+      <div className="rounded-xl bg-destructive/10 p-6 text-destructive">
         <h2 className="font-semibold mb-2">Error loading recipes</h2>
         <p className="text-sm">{error instanceof Error ? error.message : 'Unknown error'}</p>
         <p className="text-sm mt-2">Make sure your backend is running at http://localhost:8000</p>
@@ -243,7 +243,7 @@ const Recipes = () => {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl bg-card py-16 text-center">
           <p className="text-muted-foreground mb-4">
             No recipes found
             {selectedFilter !== 'all' && ' matching your filters'}

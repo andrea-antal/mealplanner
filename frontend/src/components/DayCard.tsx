@@ -22,7 +22,7 @@ export function DayCard({ day, isToday }: DayCardProps) {
   return (
     <div
       className={cn(
-        'rounded-2xl bg-card shadow-soft overflow-hidden transition-all duration-300 hover:shadow-medium',
+        'rounded-xl border border-border bg-card shadow-xs overflow-hidden transition-all hover:shadow-soft',
         isToday && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
       )}
     >

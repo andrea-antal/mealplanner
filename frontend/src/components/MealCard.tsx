@@ -74,9 +74,9 @@ export function MealCard({ meal }: MealCardProps) {
     <>
       <div
         className={cn(
-          'rounded-lg bg-card p-3 border-l-4 shadow-soft transition-all duration-200',
+          'rounded-lg bg-card p-3 border-l-[3px] shadow-xs transition-all',
           mealTypeStyles[meal.meal_type] || 'border-l-muted',
-          meal.recipe_id && 'cursor-pointer hover:shadow-medium'
+          meal.recipe_id && 'cursor-pointer hover:shadow-soft'
         )}
         onClick={handleRecipeClick}
       >

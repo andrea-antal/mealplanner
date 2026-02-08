@@ -270,7 +270,7 @@ const Household = () => {
   // Only show error if it's not a 404 (404 means no profile yet, which is handled above)
   if (error && !error.message.includes('404')) {
     return (
-      <div className="rounded-2xl bg-destructive/10 p-6 text-destructive">
+      <div className="rounded-xl bg-destructive/10 p-6 text-destructive">
         <h2 className="font-semibold mb-2">Error loading household profile</h2>
         <p className="text-sm">{error instanceof Error ? error.message : 'Unknown error'}</p>
         <p className="text-sm mt-2">Make sure your backend is running at http://localhost:8000</p>
@@ -346,7 +346,7 @@ const Household = () => {
             return (
               <div
                 key={member.name}
-                className="rounded-xl bg-card border border-border overflow-hidden shadow-soft"
+                className="rounded-xl bg-card border border-border overflow-hidden shadow-xs"
               >
                 {/* Card Header - Name with age icon */}
                 <div className="flex items-center justify-between px-4 py-3">
@@ -525,7 +525,7 @@ const Household = () => {
         </div>
 
         {/* Days of the Week Selector */}
-        <div className="rounded-xl bg-card border border-border p-4 shadow-soft space-y-4">
+        <div className="rounded-xl bg-card border border-border p-4 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-medium text-foreground">Attendance Days</h3>
@@ -594,7 +594,7 @@ const Household = () => {
         </div>
 
         {/* Food Rules */}
-        <div className="rounded-xl bg-card border border-border p-4 shadow-soft space-y-4">
+        <div className="rounded-xl bg-card border border-border p-4 shadow-xs space-y-4">
           <div>
             <h3 className="font-medium text-foreground">Food Rules</h3>
             <p className="text-xs text-muted-foreground">Toggle rules that apply to packed meals</p>

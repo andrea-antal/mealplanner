@@ -261,7 +261,7 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
             <div className="space-y-3">
               {recipe.instructions.split(/\d+\.\s+/).filter(step => step.trim()).map((step, idx) => (
                 <div key={idx} className="flex gap-3 text-sm">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
                     {idx + 1}
                   </span>
                   <p className="pt-0.5">{step.trim()}</p>

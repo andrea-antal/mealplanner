@@ -39,61 +39,61 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-dvh bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card">
-        <div className="container flex h-16 items-center justify-between">
-          {/* Left: Logo + Feedback */}
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-card/80 backdrop-blur-lg">
+        <div className="container flex h-14 items-center justify-between">
+          {/* Left: Logo */}
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-soft">
-                <Carrot className="h-5 w-5 text-primary-foreground" />
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-xs">
+                <Carrot className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-display text-xl font-semibold text-foreground">
+              <span className="font-display text-lg font-semibold text-foreground">
                 Meal Planner
               </span>
             </Link>
+          </div>
+
+          {/* Center: Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-0.5">
+            {navigation.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1.5">
             <Button
               onClick={() => setShowFeedback(true)}
               size="icon"
               variant="ghost"
-              className="h-8 w-8 rounded-full bg-destructive/90 text-destructive-foreground hover:bg-destructive"
+              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
               aria-label="Help and feedback"
             >
               <HelpCircle className="h-4 w-4" />
             </Button>
-          </div>
 
-          {/* Right: Desktop Nav + Hamburger Menu */}
-          <div className="flex items-center gap-2">
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navigation.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={cn(
-                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-soft'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    )}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* Hamburger menu - always far right */}
             {isAuthenticated && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-8 w-8 rounded-full"
+                    className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
                     aria-label="Menu"
                   >
                     <Menu className="h-4 w-4" />
@@ -116,12 +116,12 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </header>
 
-      {/* Unsaved Changes Banner Slot - rendered via portal from page components */}
+      {/* Unsaved Changes Banner Slot */}
       <div id="unsaved-banner-slot" />
 
       {/* Mobile Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card md:hidden pb-safe">
-        <div className="flex justify-around py-2">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-card/80 backdrop-blur-lg md:hidden pb-safe">
+        <div className="flex justify-around py-1.5">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -129,7 +129,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 key={item.name}
                 to={item.href}
                 className={cn(
-                  'flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200',
+                  'flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors',
                   isActive
                     ? 'text-primary'
                     : 'text-muted-foreground'
@@ -144,7 +144,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </nav>
 
       {/* Main Content */}
-      <main className="container py-6 pb-24 md:pb-6">
+      <main className="container py-6 pb-24 md:pb-8">
         {children}
       </main>
 

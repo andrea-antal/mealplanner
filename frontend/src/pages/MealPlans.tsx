@@ -1169,7 +1169,7 @@ const MealPlans = () => {
         <>
           {/* Empty State Header - Show prominent generate button when no real plan */}
           {!mealPlan && (
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 p-6 rounded-2xl bg-card shadow-soft">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 p-6 rounded-xl bg-card border border-border shadow-xs">
               <Button
                 variant="hero"
                 onClick={handleGenerate}
@@ -1319,7 +1319,7 @@ const MealPlans = () => {
                   <div
                     key={day.date}
                     className={cn(
-                      "rounded-2xl bg-card shadow-soft overflow-hidden transition-all duration-200",
+                      "rounded-xl bg-card border border-border shadow-xs overflow-hidden transition-all duration-200",
                       !isFirstDay && "opacity-95",
                       // Highlight when dragging over this day
                       activeDragId && overDayIndex === dayIndex && "ring-2 ring-primary ring-offset-2 scale-[1.02]"

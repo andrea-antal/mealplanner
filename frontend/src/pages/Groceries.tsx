@@ -335,7 +335,7 @@ const Groceries = () => {
 
   if (error) {
     return (
-      <div className="rounded-2xl bg-destructive/10 p-6 text-destructive">
+      <div className="rounded-xl bg-destructive/10 p-6 text-destructive">
         <h2 className="font-semibold mb-2">Error loading grocery list</h2>
         <p className="text-sm">{error instanceof Error ? error.message : 'Unknown error'}</p>
       </div>
@@ -419,7 +419,7 @@ const Groceries = () => {
       {/* Favorites Tab */}
       {activeTab === 'favorites' && (
         <div className="space-y-4">
-          <div className="rounded-2xl bg-card shadow-soft p-4">
+          <div className="rounded-xl bg-card border border-border shadow-xs p-4">
             <TemplatesManager />
           </div>
         </div>
@@ -474,7 +474,7 @@ const Groceries = () => {
 
             if (groceries.length === 0) {
               return (
-                <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-16 text-center shadow-soft">
+                <div className="flex flex-col items-center justify-center rounded-xl bg-card border border-border shadow-xs py-16 text-center">
                   <ShoppingBasket className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground mb-2">Your grocery list is empty</p>
                   <p className="text-sm text-muted-foreground">
@@ -486,7 +486,7 @@ const Groceries = () => {
 
             if (filteredGroceries.length === 0 && isFiltering) {
               return (
-                <div className="flex flex-col items-center justify-center rounded-2xl bg-card py-12 text-center shadow-soft">
+                <div className="flex flex-col items-center justify-center rounded-xl bg-card border border-border shadow-xs py-12 text-center">
                   <Search className="h-10 w-10 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground mb-2">No items match your search</p>
                   <Button
@@ -504,7 +504,7 @@ const Groceries = () => {
             }
 
             return (
-              <div className="rounded-2xl bg-card shadow-soft p-4 space-y-3">
+              <div className="rounded-xl bg-card border border-border shadow-xs p-4 space-y-3">
                 {/* Search and filter row */}
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
