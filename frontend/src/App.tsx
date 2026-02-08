@@ -16,6 +16,7 @@ import AuthVerify from "./pages/AuthVerify";
 import AuthCallback from "./pages/AuthCallback";
 import MealPlans from "./pages/MealPlans";
 import MealPlansMockup from "./pages/MealPlansMockup";
+import MealPlanPlayground from "./pages/MealPlanPlayground";
 import Recipes from "./pages/Recipes";
 import Household from "./pages/Household";
 import Groceries from "./pages/Groceries";
@@ -101,6 +102,7 @@ const App = () => {
               <Route path="/recipes" element={<WorkspaceGuard><Recipes /></WorkspaceGuard>} />
               <Route path="/meal-plans" element={<WorkspaceGuard><MealPlans /></WorkspaceGuard>} />
               <Route path="/meal-plans-mockup" element={<WorkspaceGuard><MealPlansMockup /></WorkspaceGuard>} />
+              <Route path="/playground" element={<MealPlanPlayground />} />
 
               {/* Admin route - global view, no workspace required */}
               <Route path="/a" element={<Admin />} />
