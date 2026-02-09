@@ -1,15 +1,15 @@
 ---
 **Summary**: Quick snapshot of what's working right now (Deployed to production). Updated after each sprint. Use this to quickly understand current capabilities.
-**Last Updated**: 2026-01-16
+**Last Updated**: 2026-02-08
 **Status**: Current
 **Read This If**: You need a quick feature inventory or tech stack summary
 ---
 
 # Current State - Meal Planner
 
-**As of**: Production Deployment (2026-01-16)
+**As of**: Production Deployment (2026-02-08)
 **Branch**: `main`
-**Version**: v0.10.0 (production)
+**Version**: v0.14.0 (production)
 **Status**: 🚀 **LIVE IN PRODUCTION**
 
 ## 🌐 Production URLs
@@ -54,49 +54,58 @@
    - Optional prompt to add purchased items to inventory
    - Tab-based UI on Groceries page (Inventory | Shopping List)
 
-5. ✅ **Recipe Library**
-   - 40+ recipes with tags and ratings
-   - Per-person 👍/👎 ratings
-   - Filter by member favorites, all-member liked, tags
-   - **AI recipe generation** from selected ingredients
-   - **Recipe URL import** - Import recipes from 50+ cooking websites
-   - Recipe source display with badges and external links
+5. ✅ **Recipe Library** (see #7 below for full feature list)
 
 6. ✅ **Meal Plan Generation**
    - AI-powered weekly meal plans using Claude Sonnet 4.5
    - Prioritizes expiring groceries
    - Respects dietary constraints and preferences
    - Considers recipe ratings
+   - **Generation Config** (NEW - v0.14.0): Per-member preference weights (dictatorial↔democratic), recipe source control (library/AI/mix), appliance preferences
+   - **Calendar Navigation** (NEW - v0.14.0): Week-by-week browsing with prev/next arrows, "Today" button, and plan status indicators. Past weeks are read-only.
 
-7. ✅ **Beta Testing Feedback**
+7. ✅ **Recipe Library**
+   - 40+ recipes with tags and ratings
+   - Per-person ratings
+   - Filter by member favorites, all-member liked, tags
+   - **AI recipe generation** from selected ingredients
+   - **Recipe URL import** - Import recipes from 50+ cooking websites
+   - **Recipe Photos** (NEW - v0.14.0): Photos from web scraping (og:image, schema.org), manual upload, stored on Cloudflare R2
+   - **Portion Calculator** (NEW - v0.14.0): Scale ingredients by 0.5x/1x/2x/3x with live quantity updates
+   - **Unit Conversion** (NEW - v0.14.0): Toggle between original/weight/volume units with 50+ ingredient density lookups
+
+8. ✅ **Interactive Cook Mode** (NEW - v0.14.0)
+   - Three-phase cooking session: mise en place → step-by-step → done
+   - One-instruction-at-a-time with swipe navigation
+   - Auto-detected timers from recipe instructions with audio alerts (Web Audio API)
+   - Multiple concurrent timers with localStorage persistence
+   - Claude API parses recipes into structured cooking steps
+
+9. ✅ **Beta Testing Feedback**
    - Floating bug button on all pages
    - Submit feedback, bugs, and feature requests
    - Automatic browser info and workspace ID collection
    - Linear issue creation via API
 
-8. ✅ **Admin Dashboard**
+10. ✅ **Admin Dashboard**
    - Workspace analytics and management
    - **Onboarding Analytics** - Answer distributions and per-workspace details
    - Error tracking with acknowledgment system
    - Workspace cleanup tools
 
-### In Development
-- **Onboarding V2 Polish**: Testing and refinement of starter content generation
+### Latest Features (February 2026)
+- **UI Redesign** (Feb 8): Mobile-first design with violet primary, Inter + Fraunces fonts, glassmorphic header, stacked homepage actions
+- **Recipe Photos** (Feb 8): Photo display on cards/modals, upload support, web scraping extraction
+- **Portion Calculator & Unit Conversion** (Feb 8): Scale recipes 0.5x-3x, toggle original/weight/volume
+- **Generation Config** (Feb 8): Per-member preference weights, recipe source control, appliance prefs
+- **Calendar Meal Plans** (Feb 8): Week-by-week navigation with plan status indicators
+- **Interactive Cook Mode** (Feb 8): Step-by-step cooking with auto-detected timers and audio alerts
 
-### Latest Features (January 2026)
-- **Google OAuth Auth** (Jan 16): User accounts with Google sign-in, invite code gate, workspace migration
-- **Onboarding V2** (Jan 14): 10-step wizard with starter content generation and admin analytics
+### Recent Features (January-February 2026)
+- **Empty Week Grid & Manual Planning** (Feb 1): Build plans without AI
+- **Google OAuth Auth** (Jan 16): User accounts with Google sign-in, invite code gate
+- **Onboarding V2** (Jan 14): 10-step wizard with starter content generation
 - **Shopping List V1** (Jan 14): Checklist UI with templates for recurring items
-- **Supabase Migration** (Jan 12): Moved from JSON to PostgreSQL with RLS
-- **Onboarding Wizard Backend**: API endpoints for status, submit, and skip
-- **Linear Integration**: Feedback now creates Linear issues automatically
-- **Receipt Import UI**: Improved item cards with excluded items recovery
-
-### Recent Features (December 2025)
-- **Meal Plan Customization (v0.8.0)**: Swap meals with alternatives, undo functionality
-- **Recipe Editing**: Edit existing recipes in library
-- **Recipe URL Import (v0.5.0)**: Import recipes from 50+ cooking websites
-- **Release Notes System**: Automatic "What's New" modal on version updates
 
 ---
 
@@ -138,27 +147,32 @@
 mealplanner/
 ├── backend/
 │   ├── app/
-│   │   ├── models/       # Pydantic models
-│   │   ├── routers/      # API endpoints
-│   │   ├── services/     # Business logic (Claude, RAG, meal planning)
+│   │   ├── models/       # Pydantic models (incl. generation_config.py)
+│   │   ├── routers/      # API endpoints (recipes, meal_plans, household, groceries)
+│   │   ├── services/     # Business logic (Claude, RAG, photo_storage, url_fetcher)
 │   │   └── data/         # JSON storage + Chroma manager
-│   ├── tests/            # 69 tests passing
+│   ├── tests/            # 69+ tests
 │   └── data/             # JSON data files
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/        # 5 pages (Household, Groceries, Recipes, MealPlans, Index)
-│   │   ├── components/   # 50+ shadcn-ui components
-│   │   └── lib/          # API client, utils
+│   │   ├── pages/        # 16 pages (Index, Household, Groceries, Recipes, MealPlans, CookMode, etc.)
+│   │   ├── components/   # 60+ components (35 shadcn primitives + feature components)
+│   │   │   ├── cooking/  # CookMode components (MisEnPlace, StepByStep, CookingTimer)
+│   │   │   ├── layout/   # AppLayout with glassmorphic header + bottom nav
+│   │   │   └── ui/       # shadcn-ui primitives
+│   │   └── lib/
+│   │       ├── api/      # Split API client (client, types, recipes, mealPlans, household, groceries, admin)
+│   │       ├── measurements.ts  # Unit conversion engine (50+ ingredient densities)
+│   │       └── cookingSession.ts # Cook mode session management
 │   └── package.json
 │
 └── docs/
     ├── INDEX.md          # Documentation index (start here!)
-    ├── HANDOFF.md        # Latest session summary
     ├── CURRENT_STATE.md  # This file
     ├── CHANGELOG.md      # Feature history
-    ├── reference/        # Tech stack references
-    └── archive/          # Historical planning docs
+    ├── RELEASE_NOTES.md  # User-facing release notes
+    └── KNOWN_ISSUES.md   # Active bugs
 ```
 
 ---
@@ -218,15 +232,16 @@ See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for active bugs.
 ## 📈 What's Next
 
 ### Immediate (Ready to Start)
-- **Shopping List V1.1** (AA-166): Integration polish, inventory bridge improvements
-- **Onboarding Wizard Completion**: Finish remaining 30%, add tests
-- **Produce Image Recognition**: AI-powered produce identification
+- **Cook Mode Polish**: Multi-recipe timeline coordination, timer wake lock
+- **Recipe Photos R2 Setup**: Configure Cloudflare R2 bucket for production photo storage
+- **Shopping List V1.1**: Integration polish, inventory bridge improvements
 
 ### Future (Backlog)
 - Shopping list generation from meal plan
+- Multi-recipe cook mode with coordinated timeline
 - Recipe library expansion tools
-- Meal plan history & favorites
 - Mobile PWA enhancements
+- Dark mode toggle
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed sprint history.
 

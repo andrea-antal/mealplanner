@@ -1,6 +1,6 @@
 ---
 **Summary**: Chronological feature history with technical implementation details, test results, and file changes. Authoritative source for "what was built when and how".
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-02-08
 **Status**: Current
 **Read This If**: You need detailed implementation notes for any feature or sprint
 ---
@@ -8,6 +8,80 @@
 # Meal Planner - Development Changelog
 
 This document tracks key decisions, changes, and learnings during development.
+
+---
+
+## 2026-02-08 Sprint: v0.14.0 — UI Redesign + 6 Features (Parallel Worktree Development)
+
+**Status**: Complete | **Version**: v0.14.0 | **PRs**: #2-#7
+
+### Summary
+Major release delivering a full UI redesign and 6 new features, developed in parallel using git worktrees. Features were built by sub-agents in isolated branches, merged sequentially to minimize conflicts.
+
+### Development Strategy
+- **Git worktrees** enabled parallel development without branch switching
+- Worktrees at `~/Desktop/mp-{feature}/` with shared `.env.local` symlinks
+- API client split from monolithic `api.ts` (1016 lines) into 7 domain modules to reduce merge conflicts
+- Merge order optimized by conflict risk: Photos → Measurements → Gen Config → Calendar → Cook Mode
+- Only 2 merge conflicts total (both in shared files), trivially resolved
+
+### Features Delivered
+
+#### 1. UI Redesign (PR #2)
+- **Design system**: Violet primary (262 60% 58%), turmeric gold accent, Inter + Fraunces fonts
+- **Homepage**: Time-of-day greeting, stacked action buttons, today's meals preview, household avatars
+- **AppLayout**: Glassmorphic header (`backdrop-blur-lg bg-card/80`), mobile bottom nav
+- **API split**: `api/client.ts`, `api/types.ts`, `api/recipes.ts`, `api/mealPlans.ts`, `api/household.ts`, `api/groceries.ts`, `api/admin.ts`, `api/index.ts` (barrel)
+- **Shadow system**: xs → soft → medium → lg levels
+- **Files**: index.css, tailwind.config.ts, AppLayout.tsx, Index.tsx, all 16 pages restyled
+
+#### 2. Recipe Photos (PR #3)
+- Photo display on RecipeCard (thumbnail) and RecipeModal (full)
+- Upload via PhotoUpload.tsx with drag-and-drop
+- Web scraping: `url_fetcher.py` extracts og:image, schema.org, twitter:image
+- Storage: `photo_storage.py` with Cloudflare R2 (S3-compatible) + local filesystem fallback
+- Backend endpoints: `POST/DELETE /recipes/{id}/photo`
+- **Files**: PhotoUpload.tsx (new), RecipeCard.tsx, RecipeModal.tsx, photo_storage.py (new), url_fetcher.py, recipes router
+
+#### 3. Measurements — Portions + Units (PR #4)
+- Client-side conversion engine: `measurements.ts` (426 lines)
+- Quantity parsing: fractions ("1/2"), ranges ("2-3"), mixed ("1 1/2")
+- 50+ ingredient density lookups for weight↔volume conversion
+- Category-based defaults (baking→weight, spices→volume)
+- PortionSelector.tsx: 0.5x/1x/2x/3x segmented buttons
+- UnitToggle.tsx: Original/Weight/Volume toggle
+- **Design decision**: Client-side conversion (instant, no API call) over server-side
+
+#### 4. Generation Config (PR #5)
+- GenerationConfigModal.tsx: Per-member weight sliders, recipe source radio, appliance checkboxes
+- Backend: `generation_config.py` Pydantic model, config injected into `_build_meal_plan_prompt()`
+- API: `generate()` accepts optional `config: GenerationConfig` in request body
+- **Files**: GenerationConfigModal.tsx (new), MealPlans.tsx, mealPlans.ts, claude_service.py, meal_plans router
+
+#### 5. Calendar Meal Plans (PR #6)
+- WeekSelector.tsx: prev/next arrows, "Today" button, plan status indicators (dot colors)
+- MealPlanCalendar.tsx: 7-day grid, empty state with "Generate" CTA, today highlighting
+- MealPlans.tsx rearchitected: `selectedWeekStart` state, past weeks read-only
+- Backend: `getByWeek()`, `listWeeks()` endpoints, `load_meal_plan_by_week()` in data_manager
+- **Files**: WeekSelector.tsx (new), MealPlanCalendar.tsx (new), MealPlans.tsx, mealPlans.ts, data_manager.py, meal_plans router
+
+#### 6. Interactive Cook Mode (PR #7)
+- Three-phase session: mise en place → step-by-step → done
+- CookMode.tsx: Main page with phase management
+- MisEnPlace.tsx: Ingredient/equipment checklist
+- StepByStep.tsx: Swipe navigation, auto-detected timers from instructions
+- CookingTimer.tsx: Multiple concurrent timers, Web Audio API beep, localStorage persistence
+- cookingSession.ts: Session state management
+- Backend: `parse_recipe_into_steps()` in claude_service.py, `POST /recipes/{id}/cooking-steps`
+- **Files**: CookMode.tsx (new), cooking/ dir (3 components), cookingSession.ts (new), App.tsx, RecipeModal.tsx
+
+### Merge Conflicts Resolved
+1. **RecipeModal.tsx** (Photos + Measurements): Both added state variables at same location → kept both
+2. **MealPlans.tsx** (Gen Config + Calendar): Both modified imports → merged both import sets
+
+### Verification
+- Frontend build: Passed (no TypeScript errors)
+- Backend: Tests could not run locally (import hangs on external service connections) — CI handles this
 
 ---
 

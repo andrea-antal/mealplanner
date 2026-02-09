@@ -1,11 +1,52 @@
 ---
 **Summary**: Release notes for beta testers - what's new, improved, and fixed in each version
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-02-08
 **Status**: Current
 **Read This If**: You want to see the latest updates and improvements
 ---
 
 # What's New in Meal Planner
+
+## Version 0.14.0 - February 8, 2026
+
+### UI Redesign
+
+The entire app has a fresh new look! Highlights include:
+- **New color palette** - Violet primary with warm gold accent on clean, bright backgrounds
+- **Mobile-first layout** - Stacked full-width action buttons on the homepage with time-of-day greeting
+- **New typography** - Inter for body text, Fraunces for display headings
+- **Glassmorphic header** - Frosted glass effect with blur
+- **Smoother animations** - New shadow levels and hover transitions throughout
+
+### New Features
+
+- **Recipe Photos** - Recipes now display photos! When importing from a URL, the app automatically extracts the recipe image. You can also upload your own photos directly from the recipe detail view.
+
+- **Portion Calculator** - Scale any recipe from half to triple portions. Tap the portion selector (0.5x, 1x, 2x, 3x) above the ingredient list to see quantities update in real time.
+
+- **Unit Conversion** - Toggle between Original, Weight, and Volume units for ingredients. The converter knows the density of 50+ common ingredients (flour, sugar, butter, etc.) for accurate conversions.
+
+- **Generation Config** - Customize how AI generates your meal plans:
+  - Set per-member preference weights (give one person's preferences more influence)
+  - Choose recipe source: library only, AI-generated only, or a mix
+  - Select which kitchen appliances to use this week
+
+- **Calendar Meal Plans** - Browse meal plans week by week! Navigate with prev/next arrows or jump to today. Past weeks are preserved and viewable (read-only). Each week shows a 7-day grid overview with meal type indicators.
+
+- **Interactive Cook Mode** - A hands-free cooking assistant:
+  - **Mise en place**: Checklist of ingredients and equipment before you start
+  - **Step-by-step**: One instruction at a time, swipe to advance
+  - **Auto timers**: The app detects cooking times in instructions and offers one-tap timers with audio alerts
+  - **Timer persistence**: Timers survive page reloads via localStorage
+  - Access Cook Mode from the recipe detail view via the "Cook This" button
+
+### Improvements
+
+- **Redesigned homepage** - Time-of-day greeting, today's meals preview, household member avatars
+- **Recipe cards** - Now show photo thumbnails when available
+- **Better navigation** - Bottom nav bar on mobile with active state indicators
+
+---
 
 ## Version 0.13.0 - February 1, 2026
 

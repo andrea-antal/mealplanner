@@ -1,6 +1,6 @@
 ---
 **Summary**: Active bugs, limitations, and technical debt. Updated frequently to track current issues.
-**Last Updated**: 2025-12-26
+**Last Updated**: 2026-02-08
 **Status**: Current
 **Read This If**: You're debugging, planning bug fixes, or need to know current limitations
 ---
@@ -126,6 +126,56 @@ Current favicon works functionally, just not aesthetically ideal.
 
 **Recommended Fix**:
 Option A - Export Lucide's Carrot icon as optimized SVG, or use a favicon generator service for professional multi-size output.
+
+---
+
+### 4. Backend Tests Hang Locally
+**Priority**: Medium
+**Discovered**: 2026-02-08
+**Status**: Open
+
+**Description**:
+Running `pytest` locally hangs during import of `app.main`. The backend imports trigger connections to external services (Supabase, ChromaDB) that block without the production environment. Tests pass in CI (Railway) where all services are available.
+
+**Workaround**:
+- Use `npm run build` in frontend for TypeScript checking
+- Rely on CI for backend test execution
+- For local testing, individual modules can be tested by mocking external connections
+
+**Related Files**:
+- `backend/app/main.py` (top-level imports that trigger connections)
+
+---
+
+### 5. Recipe Photos: R2 Bucket Not Configured
+**Priority**: Medium
+**Discovered**: 2026-02-08
+**Status**: Open
+
+**Description**:
+The photo upload feature uses Cloudflare R2 for storage, but the R2 bucket hasn't been configured yet. The code has env var placeholders (`R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT_URL`) and falls back to local filesystem storage when these aren't set.
+
+**Impact**:
+- Photo uploads will use local filesystem in production (not persisted across Railway deploys)
+- Web-scraped photos (og:image URLs) still work since they're just URL references
+
+**Fix Required**:
+Configure Cloudflare R2 bucket and set environment variables in Railway.
+
+---
+
+### 6. Large Frontend Bundle Size
+**Priority**: Low
+**Discovered**: 2026-02-08
+**Status**: Open
+
+**Description**:
+Frontend bundle is 1,114 KB after minification (321 KB gzipped). Vite warns about chunks larger than 500 KB. This grew with the addition of 6 new features.
+
+**Potential Fixes**:
+- Code-split with dynamic `import()` for Cook Mode page, Generation Config modal
+- Use `build.rollupOptions.output.manualChunks` for vendor splitting
+- Lazy-load measurement density data
 
 ---
 
