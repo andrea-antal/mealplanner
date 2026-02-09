@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -34,6 +34,10 @@ import {
 import { RecipeForm } from './RecipeForm';
 import { PhotoUpload } from './PhotoUpload';
 import { toast } from 'sonner';
+import { PortionSelector } from './PortionSelector';
+import { UnitToggle } from './UnitToggle';
+import type { UnitMode } from './UnitToggle';
+import { scaleAllIngredients } from '@/lib/measurements';
 
 interface RecipeModalProps {
   recipe: Recipe | null;
@@ -96,6 +100,8 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const [portionMultiplier, setPortionMultiplier] = useState(1);
+  const [unitMode, setUnitMode] = useState<UnitMode>('original');
 
   // Photo upload mutation
   const uploadPhotoMutation = useMutation({
@@ -173,6 +179,12 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
   const handleEditSubmit = (updatedRecipe: Recipe) => {
     updateMutation.mutate(updatedRecipe);
   };
+
+  // Compute scaled ingredients reactively
+  const scaledIngredients = useMemo(() => {
+    if (!recipe) return [];
+    return scaleAllIngredients(recipe.ingredients, portionMultiplier, unitMode);
+  }, [recipe, portionMultiplier, unitMode]);
 
   if (!recipe) return null;
 
@@ -285,11 +297,21 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
             </div>
           </div>
 
-          {/* Ingredients */}
+          {/* Ingredients with Portion & Unit Controls */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-3">Ingredients</h4>
+            <div className="flex flex-col gap-3 mb-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h4 className="font-display font-semibold text-lg">Ingredients</h4>
+                <UnitToggle unitMode={unitMode} onUnitModeChange={setUnitMode} />
+              </div>
+              <PortionSelector
+                multiplier={portionMultiplier}
+                onMultiplierChange={setPortionMultiplier}
+                originalServes={recipe.serves}
+              />
+            </div>
             <ul className="space-y-2">
-              {recipe.ingredients.map((ingredient, idx) => (
+              {scaledIngredients.map((ingredient, idx) => (
                 <li key={idx} className="flex items-start gap-2 text-sm">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0" />
                   <span>{ingredient}</span>
