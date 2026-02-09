@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { startOfWeek, addDays, format } from 'date-fns';
+import { startOfWeek, addDays, format, isBefore } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { mealPlansAPI, recipesAPI, onboardingAPI, type MealPlan, type Recipe, type AlternativeRecipeSuggestion } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
 import { Sparkles, Loader2, Plus, RefreshCw, Undo2, ChevronLeft, ChevronRight, Download, Trash2, GripVertical, Settings2 } from 'lucide-react';
+import { WeekSelector } from '@/components/WeekSelector';
 import {
   DndContext,
   DragOverlay,
@@ -244,7 +245,43 @@ const MealPlans = () => {
     return null;
   }
 
-  // Fetch most recent meal plan from backend
+  // ── Calendar Navigation State ──────────────────────────────────────
+  // Calculate current week's start date (Monday)
+  const currentWeekStart = useMemo(() => {
+    return format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  }, []);
+
+  // Selected week for calendar navigation
+  const [selectedWeekStart, setSelectedWeekStart] = useState(currentWeekStart);
+
+  // Derived: is the selected week the current week?
+  const isCurrentWeekSelected = selectedWeekStart === currentWeekStart;
+
+  // Derived: is the selected week in the past?
+  const isPastWeek = useMemo(() => {
+    const [y, m, d] = selectedWeekStart.split('-').map(Number);
+    const selected = new Date(y, m - 1, d);
+    const current = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return isBefore(selected, current);
+  }, [selectedWeekStart]);
+
+  // ── Data Fetching ──────────────────────────────────────────────────
+
+  // Fetch the meal plan for the selected week
+  const { data: weekPlanData, isLoading: isLoadingWeekPlan } = useQuery({
+    queryKey: ['meal-plan-week', workspaceId, selectedWeekStart],
+    queryFn: () => mealPlansAPI.getByWeek(workspaceId, selectedWeekStart),
+    enabled: !!workspaceId,
+  });
+
+  // Fetch all weeks that have saved plans (for the WeekSelector indicators)
+  const { data: availableWeeks } = useQuery({
+    queryKey: ['meal-plan-weeks', workspaceId],
+    queryFn: () => mealPlansAPI.listWeeks(workspaceId),
+    enabled: !!workspaceId,
+  });
+
+  // Also keep the old getAll query for backward compatibility with deletion logic
   const { data: mealPlans, isLoading: isLoadingMealPlans } = useQuery({
     queryKey: ['meal-plans', workspaceId],
     queryFn: () => mealPlansAPI.getAll(workspaceId),
@@ -265,28 +302,32 @@ const MealPlans = () => {
     enabled: !!workspaceId,
   });
 
-  // Use most recent meal plan (first in list, sorted by date desc)
+  // Use the week-based plan as the primary source
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
 
-  // Calculate current week's start date (Monday)
-  const currentWeekStart = useMemo(() => {
-    return format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  // Sync state with fetched week data
+  useEffect(() => {
+    if (weekPlanData !== undefined) {
+      setMealPlan(weekPlanData);
+    }
+  }, [weekPlanData]);
+
+  // Build set of weeks with plans for the WeekSelector
+  const weeksWithPlans = useMemo(() => {
+    return new Set(availableWeeks ?? []);
+  }, [availableWeeks]);
+
+  // Handle week change from WeekSelector
+  const handleWeekChange = useCallback((weekStart: string) => {
+    setSelectedWeekStart(weekStart);
+    setSelectedDayIndex(0);
   }, []);
 
-  // Sync state with fetched data - only use plans for the current week
-  useEffect(() => {
-    if (mealPlans && mealPlans.length > 0) {
-      // Find a plan for the current week
-      const currentWeekPlan = mealPlans.find(plan => plan.week_start_date === currentWeekStart);
-      setMealPlan(currentWeekPlan || null);
-    } else if (mealPlans && mealPlans.length === 0) {
-      // Clear local state when no plans exist (e.g., after deletion)
-      setMealPlan(null);
-    }
-  }, [mealPlans, currentWeekStart]);
-
-  // Date for generating empty week structure (defaults to today)
-  const [selectedDate] = useState(() => new Date());
+  // Date for generating empty week structure
+  const selectedDate = useMemo(() => {
+    const [y, m, d] = selectedWeekStart.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }, [selectedWeekStart]);
 
   // Create empty week structure when no meal plan exists
   const emptyWeekPlan = useMemo(() => {
@@ -477,6 +518,10 @@ const MealPlans = () => {
 
       if (generatedPlan) {
         setMealPlan(generatedPlan);
+        // Invalidate week-based queries so the WeekSelector updates
+        queryClient.invalidateQueries({ queryKey: ['meal-plan-week', workspaceId, selectedWeekStart] });
+        queryClient.invalidateQueries({ queryKey: ['meal-plan-weeks', workspaceId] });
+        queryClient.invalidateQueries({ queryKey: ['meal-plans', workspaceId] });
         toast.success('Meal plan generated!', {
           description: 'Your personalized 7-day meal plan is ready.',
         });
@@ -580,6 +625,8 @@ const MealPlans = () => {
       setMealPlan(updatedPlan);
       setRecipePickerOpen(false);
       queryClient.invalidateQueries({ queryKey: ['meal-plans', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['meal-plan-week', workspaceId, selectedWeekStart] });
+      queryClient.invalidateQueries({ queryKey: ['meal-plan-weeks', workspaceId] });
       toast.success('Recipe added!', {
         description: 'Added to your meal plan.',
       });
@@ -680,6 +727,8 @@ const MealPlans = () => {
       setMealPlan(null);
       setDeletePlanDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['meal-plans', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['meal-plan-week', workspaceId, selectedWeekStart] });
+      queryClient.invalidateQueries({ queryKey: ['meal-plan-weeks', workspaceId] });
 
       const deletedDate = new Date(deletedWeek).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
@@ -698,22 +747,9 @@ const MealPlans = () => {
     },
   });
 
-  // Calculate and store next Monday's date, then show week context modal
+  // Show week context modal using the currently selected week
   const showWeekContextModal = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek; // 0 = Sunday
-
-    const nextMonday = new Date(today);
-    nextMonday.setDate(today.getDate() + daysUntilMonday);
-
-    // Format date in local time (avoid timezone issues with toISOString)
-    const year = nextMonday.getFullYear();
-    const month = String(nextMonday.getMonth() + 1).padStart(2, '0');
-    const day = String(nextMonday.getDate()).padStart(2, '0');
-    const weekStartDate = `${year}-${month}-${day}`;
-
-    setPendingWeekStartDate(weekStartDate);
+    setPendingWeekStartDate(selectedWeekStart);
     setWeekContextModalOpen(true);
   };
 
@@ -1170,35 +1206,27 @@ const MealPlans = () => {
         <h1 className="font-display text-3xl font-bold text-foreground">
           Weekly Meal Plan
         </h1>
-        {displayPlan && (
-          <div className="flex items-center gap-3 mt-1">
-            <p className="text-muted-foreground">
-              Week of{' '}
-              <span className="font-medium text-foreground">
-                {new Date(displayPlan.week_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-              </span>
-            </p>
-            {/* Show count of other saved weeks when viewing a real plan */}
-            {mealPlan && mealPlans && mealPlans.length > 1 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                +{mealPlans.length - 1} past {mealPlans.length === 2 ? 'week' : 'weeks'}
-              </span>
-            )}
-            {/* Show historical count when no current week plan exists */}
-            {!mealPlan && mealPlans && mealPlans.length > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                {mealPlans.length} past {mealPlans.length === 1 ? 'week' : 'weeks'} saved
-              </span>
-            )}
-          </div>
-        )}
+        <p className="text-muted-foreground mt-1">
+          {weeksWithPlans.size > 0
+            ? `${weeksWithPlans.size} ${weeksWithPlans.size === 1 ? 'week' : 'weeks'} planned`
+            : 'Navigate weeks and plan your meals'
+          }
+        </p>
       </div>
+
+      {/* Week Navigation */}
+      <WeekSelector
+        selectedWeekStart={selectedWeekStart}
+        onWeekChange={handleWeekChange}
+        weeksWithPlans={weeksWithPlans}
+        maxFutureWeeks={4}
+      />
 
       {/* Meal Plan Content */}
       {displayPlan && (
         <>
           {/* Empty State Header - Show prominent generate button when no real plan */}
-          {!mealPlan && (
+          {!mealPlan && !isPastWeek && (
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 p-6 rounded-xl bg-card border border-border shadow-xs">
               <div className="flex items-center gap-2">
                 <Button
@@ -1229,6 +1257,12 @@ const MealPlans = () => {
                 </Button>
               </div>
               <span className="text-sm text-muted-foreground">or manually add recipes below</span>
+            </div>
+          )}
+          {/* Past week with no plan */}
+          {!mealPlan && isPastWeek && (
+            <div className="flex items-center justify-center p-8 rounded-xl bg-card border border-border shadow-xs">
+              <p className="text-muted-foreground">No meal plan was saved for this week.</p>
             </div>
           )}
           {/* Day Navigator - Minimal sticky header */}
@@ -1450,8 +1484,8 @@ const MealPlans = () => {
             </DragOverlay>
           </DndContext>
 
-          {/* Action Buttons - Below the meal plan (only show when there's a real meal plan) */}
-          {mealPlan && (
+          {/* Action Buttons - Below the meal plan (only show for current/future weeks with a real plan) */}
+          {mealPlan && !isPastWeek && (
             <div className="flex flex-wrap gap-3 pt-4 sm:justify-between">
               {/* Delete button - left side on desktop */}
               <Button
@@ -1517,6 +1551,15 @@ const MealPlans = () => {
                   )}
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* Past week read-only indicator */}
+          {mealPlan && isPastWeek && (
+            <div className="flex items-center justify-center pt-4">
+              <p className="text-sm text-muted-foreground italic">
+                Past week — view only
+              </p>
             </div>
           )}
         </>
