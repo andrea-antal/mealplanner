@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { RecipeForm } from './RecipeForm';
+import { PhotoUpload } from './PhotoUpload';
 import { toast } from 'sonner';
 
 interface RecipeModalProps {
@@ -94,6 +95,36 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
   const workspaceId = getCurrentWorkspace()!;
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+
+  // Photo upload mutation
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setIsPhotoUploading(true);
+      return recipesAPI.uploadPhoto(recipe!.id, workspaceId, file);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+      toast.success('Photo uploaded!');
+      setIsPhotoUploading(false);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to upload photo: ${error.message}`);
+      setIsPhotoUploading(false);
+    },
+  });
+
+  // Photo delete mutation
+  const deletePhotoMutation = useMutation({
+    mutationFn: () => recipesAPI.deletePhoto(recipe!.id, workspaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+      toast.success('Photo removed');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to remove photo: ${error.message}`);
+    },
+  });
 
   // Fetch household members
   const { data: household } = useQuery({
@@ -205,6 +236,18 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
 
         {/* Top Half: Recipe Details (Scrollable) */}
         <div className="flex-1 overflow-y-auto px-6 space-y-6">
+          {/* Recipe Photo */}
+          <PhotoUpload
+            currentPhotoUrl={recipe.photo_url}
+            onUpload={async (file) => {
+              await uploadPhotoMutation.mutateAsync(file);
+            }}
+            onDelete={async () => {
+              await deletePhotoMutation.mutateAsync();
+            }}
+            isUploading={isPhotoUploading}
+          />
+
           {/* Description */}
           {recipe.description && (
             <p className="text-muted-foreground">{recipe.description}</p>

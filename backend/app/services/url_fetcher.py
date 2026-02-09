@@ -19,6 +19,7 @@ class FetchResult(NamedTuple):
     source_name: str
     used_print_version: bool
     fetched_url: str  # The URL actually used (may differ from input)
+    image_url: Optional[str] = None  # Recipe image URL extracted from HTML
 
 
 # =============================================================================
@@ -334,6 +335,103 @@ async def fetch_html_from_url(url: str, timeout: int = 10) -> Tuple[str, str]:
         raise
 
 
+
+
+# =============================================================================
+# Recipe Image Extraction
+# =============================================================================
+
+
+def extract_recipe_image(html_content: str, base_url: str) -> Optional[str]:
+    """
+    Extract the main recipe image URL from HTML content.
+
+    Searches for recipe images in this priority order:
+    1. Schema.org Recipe image (JSON-LD structured data)
+    2. Open Graph og:image meta tag
+    3. Twitter card image meta tag
+
+    Args:
+        html_content: Raw HTML to search
+        base_url: Base URL for resolving relative image URLs
+
+    Returns:
+        Absolute image URL if found, None otherwise
+    """
+    image_url = None
+
+    # 1. Try Schema.org JSON-LD (highest quality, most specific)
+    import json as json_module
+    jsonld_pat = r'<script[^>]*type\s*=\s*["\x27]application/ld\+json["\x27][^>]*>(.*?)</script>'
+    jsonld_matches = re.findall(jsonld_pat, html_content, re.IGNORECASE | re.DOTALL)
+
+    for jsonld_text in jsonld_matches:
+        try:
+            data = json_module.loads(jsonld_text.strip())
+            items = data if isinstance(data, list) else [data]
+            if isinstance(data, dict) and "@graph" in data:
+                items = data["@graph"]
+
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                item_type = item.get("@type", "")
+                if isinstance(item_type, list):
+                    item_type = " ".join(item_type)
+                if "Recipe" in item_type:
+                    img = item.get("image")
+                    if isinstance(img, str):
+                        image_url = img
+                    elif isinstance(img, list) and img:
+                        image_url = img[0] if isinstance(img[0], str) else img[0].get("url", "")
+                    elif isinstance(img, dict):
+                        image_url = img.get("url", "")
+                    if image_url:
+                        break
+            if image_url:
+                break
+        except (json_module.JSONDecodeError, KeyError, TypeError):
+            continue
+
+    # 2. Try Open Graph og:image
+    if not image_url:
+        og_pat = r'<meta[^>]*property\s*=\s*["\x27]og:image["\x27][^>]*content\s*=\s*["\x27]([^"\x27]+)["\x27]'
+        og_match = re.search(og_pat, html_content, re.IGNORECASE)
+        if not og_match:
+            og_pat2 = r'<meta[^>]*content\s*=\s*["\x27]([^"\x27]+)["\x27][^>]*property\s*=\s*["\x27]og:image["\x27]'
+            og_match = re.search(og_pat2, html_content, re.IGNORECASE)
+        if og_match:
+            image_url = og_match.group(1)
+
+    # 3. Try Twitter card image
+    if not image_url:
+        tw_pat = r'<meta[^>]*name\s*=\s*["\x27]twitter:image["\x27][^>]*content\s*=\s*["\x27]([^"\x27]+)["\x27]'
+        tw_match = re.search(tw_pat, html_content, re.IGNORECASE)
+        if not tw_match:
+            tw_pat2 = r'<meta[^>]*content\s*=\s*["\x27]([^"\x27]+)["\x27][^>]*name\s*=\s*["\x27]twitter:image["\x27]'
+            tw_match = re.search(tw_pat2, html_content, re.IGNORECASE)
+        if tw_match:
+            image_url = tw_match.group(1)
+
+    if not image_url:
+        logger.debug("No recipe image found in HTML")
+        return None
+
+    # Resolve relative URLs
+    try:
+        absolute_url = urljoin(base_url, image_url)
+        parsed = urlparse(absolute_url)
+        if parsed.scheme in ('http', 'https'):
+            logger.info(f"Extracted recipe image: {absolute_url}")
+            return absolute_url
+        else:
+            logger.debug(f"Rejected non-HTTP image URL: {absolute_url}")
+            return None
+    except Exception as e:
+        logger.debug(f"Failed to resolve image URL: {e}")
+        return None
+
+
 async def fetch_recipe_html(url: str, timeout: int = 10) -> FetchResult:
     """
     Fetch recipe HTML, automatically detecting and using print-friendly versions.
@@ -388,26 +486,33 @@ async def fetch_recipe_html(url: str, timeout: int = 10) -> FetchResult:
             # Fetch the print version
             print_html, _ = await fetch_html_from_url(print_url, timeout)
             logger.info(f"Successfully fetched print version ({len(print_html)} chars)")
+            # Extract image from original HTML (print version often lacks images)
+            image_url = extract_recipe_image(html_content, cleaned_url)
             return FetchResult(
                 html_content=print_html,
                 source_name=source_name,
                 used_print_version=True,
-                fetched_url=print_url
+                fetched_url=print_url,
+                image_url=image_url
             )
         except Exception as e:
             # Fall back to original HTML on any print-fetch error
             logger.warning(f"Failed to fetch print URL, using original: {e}")
+            image_url = extract_recipe_image(html_content, cleaned_url)
             return FetchResult(
                 html_content=html_content,
                 source_name=source_name,
                 used_print_version=False,
-                fetched_url=cleaned_url
+                fetched_url=cleaned_url,
+                image_url=image_url
             )
     else:
         # No print URL found, return original
+        image_url = extract_recipe_image(html_content, cleaned_url)
         return FetchResult(
             html_content=html_content,
             source_name=source_name,
             used_print_version=False,
-            fetched_url=cleaned_url
+            fetched_url=cleaned_url,
+            image_url=image_url
         )
