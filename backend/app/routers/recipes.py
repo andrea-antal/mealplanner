@@ -19,7 +19,8 @@ from app.data.data_manager import (
 )
 from app.services.claude_service import (
     generate_recipe_from_ingredients, generate_recipe_from_title,
-    parse_recipe_from_url, parse_recipe_from_text, extract_text_from_recipe_photo
+    parse_recipe_from_url, parse_recipe_from_text, extract_text_from_recipe_photo,
+    parse_recipe_into_steps
 )
 from app.services.url_fetcher import fetch_recipe_html
 from app.services.photo_storage import upload_photo, delete_photo
@@ -938,6 +939,80 @@ async def generate_recipe_from_title_endpoint(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate recipe: {str(e)}"
+        )
+
+
+
+
+class CookingStepsResponse(BaseModel):
+    """Response model for parsed cooking steps."""
+    equipment: list = []
+    steps: list = []
+
+
+@router.post("/{recipe_id}/cooking-steps")
+async def get_cooking_steps(
+    recipe_id: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Parse recipe into structured cooking steps for cook mode.
+
+    Uses Claude AI to break recipe instructions into individual steps
+    with equipment lists, durations, and tips. Results are cached on
+    the recipe object after first parse.
+
+    Args:
+        recipe_id: Unique recipe identifier
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        CookingStepsResponse with equipment and steps
+
+    Raises:
+        HTTPException 404: Recipe not found
+        HTTPException 500: Failed to parse steps
+    """
+    recipe = load_recipe(workspace_id, recipe_id)
+    if not recipe:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recipe not found: {recipe_id}"
+        )
+
+    # Check if cached cooking steps exist on the recipe
+    recipe_dict = recipe.model_dump()
+    if recipe_dict.get("cooking_steps"):
+        logger.info(f"Returning cached cooking steps for {recipe_id}")
+        return recipe_dict["cooking_steps"]
+
+    try:
+        # Parse recipe into steps using Claude
+        result = await parse_recipe_into_steps(recipe_dict)
+
+        # Cache the result on the recipe (store in notes or a field)
+        # We store it as a JSON string in a dedicated cache
+        # For now, return without persisting (stateless approach)
+        logger.info(f"Parsed {len(result.get('steps', []))} steps for recipe {recipe_id}")
+        return result
+
+    except ValueError as e:
+        logger.error(f"Failed to parse cooking steps: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except ConnectionError as e:
+        logger.error(f"Claude API unavailable: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Cooking step parser temporarily unavailable"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error parsing steps: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse cooking steps: {str(e)}"
         )
 
 

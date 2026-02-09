@@ -428,3 +428,18 @@ export interface GenerationConfig {
   recipe_source?: 'library_only' | 'ai_generated_only' | 'mix';
   appliances?: string[];
 }
+
+
+// ── Cooking / Cook Mode ───────────────────────────────────────────────
+
+export interface CookingStep {
+  step_number: number;
+  instruction: string;
+  duration_minutes: number | null;
+  tip: string | null;
+}
+
+export interface CookingStepsResponse {
+  equipment: string[];
+  steps: CookingStep[];
+}

@@ -39,6 +39,8 @@ export type {
   Recipe,
   RecipeRating,
   RecipeReadiness,
+  CookingStep,
+  CookingStepsResponse,
   DynamicRecipeRequest,
   GenerateFromTitleRequest,
   ImportFromUrlRequest,
