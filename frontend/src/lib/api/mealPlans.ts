@@ -115,6 +115,19 @@ export const mealPlansAPI = {
     });
     return handleResponse<MealPlan>(response);
   },
+
+  async getByWeek(workspaceId: string, weekStartDate: string): Promise<MealPlan | null> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/week/${encodeURIComponent(weekStartDate)}?workspace_id=${encodeURIComponent(workspaceId)}`);
+    if (response.status === 404) {
+      return null;
+    }
+    return handleResponse<MealPlan>(response);
+  },
+
+  async listWeeks(workspaceId: string): Promise<string[]> {
+    const response = await fetch(`${API_BASE_URL}/meal-plans/weeks?workspace_id=${encodeURIComponent(workspaceId)}`);
+    return handleResponse<string[]>(response);
+  },
 };
 
 export const healthAPI = {

@@ -14,7 +14,9 @@ from app.data.data_manager import (
     load_meal_plan,
     save_meal_plan,
     list_all_meal_plans,
-    delete_meal_plan
+    delete_meal_plan,
+    load_meal_plan_by_week,
+    list_meal_plan_weeks,
 )
 from app.services.recipe_filter_service import (
     get_alternative_recipes,
@@ -241,6 +243,69 @@ async def check_readiness_endpoint(
         f"is_ready={readiness.is_ready}, missing={readiness.missing_meal_types}"
     )
     return readiness
+
+
+# ===== Week-Based Lookup Endpoints =====
+
+@router.get("/week/{week_start_date}", response_model=MealPlan)
+async def get_meal_plan_by_week_endpoint(
+    week_start_date: str,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Get a meal plan for a specific week by its start date.
+
+    Args:
+        week_start_date: ISO date string (e.g. '2026-02-02') - must be a Monday
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        MealPlan object if found
+
+    Raises:
+        HTTPException 400: Invalid date format
+        HTTPException 404: No meal plan for this week
+    """
+    logger.info(f"Getting meal plan for week {week_start_date} in workspace '{workspace_id}'")
+
+    # Parse date to validate format
+    try:
+        Date.fromisoformat(week_start_date)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid date format: {week_start_date}. Use ISO format (YYYY-MM-DD)"
+        )
+
+    meal_plan = load_meal_plan_by_week(workspace_id, week_start_date)
+
+    if not meal_plan:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No meal plan found for week starting {week_start_date}"
+        )
+
+    return meal_plan
+
+
+@router.get("/weeks", response_model=List[str])
+async def list_meal_plan_weeks_endpoint(
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    List all week start dates that have saved meal plans.
+
+    Returns dates sorted most recent first (e.g. ['2026-02-09', '2026-02-02', '2026-01-26']).
+
+    Args:
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        List of week_start_date strings
+    """
+    logger.info(f"Listing meal plan weeks for workspace '{workspace_id}'")
+    weeks = list_meal_plan_weeks(workspace_id)
+    return weeks
 
 
 # ===== Swap & Undo Endpoints =====

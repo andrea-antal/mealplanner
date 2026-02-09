@@ -917,6 +917,57 @@ def delete_meal_plan(workspace_id: str, meal_plan_id: str) -> bool:
         raise
 
 
+def load_meal_plan_by_week(workspace_id: str, week_start_date: str) -> Optional[MealPlan]:
+    """
+    Load a meal plan by week start date.
+
+    Args:
+        workspace_id: Workspace identifier
+        week_start_date: ISO date string (e.g. '2026-02-02')
+
+    Returns:
+        MealPlan if found, None otherwise
+    """
+    try:
+        supabase = _get_client()
+        response = supabase.table("meal_plans").select("*").eq("workspace_id", workspace_id).eq("week_start_date", week_start_date).maybe_single().execute()
+
+        if not response.data:
+            logger.info(f"No meal plan found for week {week_start_date} in workspace '{workspace_id}'")
+            return None
+
+        data = response.data
+        data.pop("workspace_id", None)
+        return MealPlan(**data)
+
+    except Exception as e:
+        logger.error(f"Error loading meal plan for week {week_start_date} in workspace '{workspace_id}': {e}")
+        raise
+
+
+def list_meal_plan_weeks(workspace_id: str) -> List[str]:
+    """
+    List all week_start_date values that have meal plans.
+
+    Args:
+        workspace_id: Workspace identifier
+
+    Returns:
+        List of week_start_date strings sorted most recent first
+    """
+    try:
+        supabase = _get_client()
+        response = supabase.table("meal_plans").select("week_start_date").eq("workspace_id", workspace_id).order("week_start_date", desc=True).execute()
+
+        weeks = [str(row["week_start_date"]) for row in response.data]
+        logger.info(f"Found {len(weeks)} meal plan weeks for workspace '{workspace_id}'")
+        return weeks
+
+    except Exception as e:
+        logger.error(f"Error listing meal plan weeks for workspace '{workspace_id}': {e}")
+        raise
+
+
 # ===== Recipe Embedding & Search =====
 
 def _generate_recipe_embedding(recipe: Recipe, workspace_id: Optional[str] = None) -> Optional[List[float]]:
