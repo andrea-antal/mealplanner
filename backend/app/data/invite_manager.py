@@ -9,7 +9,7 @@ import secrets
 import string
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, List
+from typing import Tuple, Dict, Optional, List
 from app.config import settings
 from app.models.invite import InviteCode, InviteRedemption
 
@@ -30,7 +30,7 @@ def _get_redemptions_file() -> Path:
     return data_dir / "invite_redemptions.json"
 
 
-def _load_invites() -> dict[str, dict]:
+def _load_invites() -> Dict[str, dict]:
     """Load all invite codes from storage."""
     invites_file = _get_invites_file()
     if not invites_file.exists():
@@ -43,7 +43,7 @@ def _load_invites() -> dict[str, dict]:
         return {}
 
 
-def _save_invites(invites: dict[str, dict]) -> None:
+def _save_invites(invites: Dict[str, dict]) -> None:
     """Save all invite codes to storage."""
     invites_file = _get_invites_file()
     with open(invites_file, 'w') as f:
@@ -158,7 +158,7 @@ def get_invite(code: str) -> Optional[InviteCode]:
     return InviteCode(**data)
 
 
-def validate_and_use_invite(code: str, email: str) -> tuple[bool, str]:
+def validate_and_use_invite(code: str, email: str) -> Tuple[bool, str]:
     """
     Validate an invite code and record its use.
     

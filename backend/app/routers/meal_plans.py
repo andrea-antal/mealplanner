@@ -20,6 +20,7 @@ from app.services.recipe_filter_service import (
     get_alternative_recipes,
     AlternativeRecipeSuggestion
 )
+from app.models.generation_config import GenerationConfig
 from app.models.recipe_readiness import RecipeReadiness
 from app.data.data_manager import list_all_recipes
 
@@ -36,6 +37,7 @@ class GenerateMealPlanRequest(BaseModel):
     week_start_date: str  # ISO format: "2025-12-08"
     num_recipes: int = 15  # Number of candidate recipes to retrieve
     week_context: Optional[str] = None  # User's description of their week (schedule, preferences, etc.)
+    generation_config: Optional[GenerationConfig] = None  # Generation configuration (preference weights, recipe source, appliances)
 
     @field_validator('week_context')
     @classmethod
@@ -132,7 +134,8 @@ async def generate_meal_plan_endpoint(
         workspace_id=workspace_id,
         week_start_date=week_start,
         num_recipes=request.num_recipes,
-        week_context=request.week_context
+        week_context=request.week_context,
+        generation_config=request.generation_config
     )
 
     if not meal_plan:

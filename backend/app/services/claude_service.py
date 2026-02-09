@@ -11,7 +11,7 @@ import logging
 import json
 import uuid
 from datetime import date as Date, timedelta
-from typing import Dict, Optional
+from typing import List, Tuple, Dict, Optional
 from anthropic import Anthropic
 from app.config import settings
 from app.models.meal_plan import MealPlan
@@ -204,6 +204,7 @@ def _build_meal_plan_prompt(context: Dict, week_start_date: str) -> str:
     groceries = context['available_groceries']
     recipes = context['candidate_recipes']
     week_context = context.get('week_context')  # Optional user context about their week
+    generation_config = context.get('generation_config')  # Optional generation configuration
 
     # Format family members
     family_info = []
@@ -420,6 +421,54 @@ Take this into account when planning:
     else:
         week_context_section = ""
 
+    # Build generation config section if provided
+    generation_config_section = ""
+    if generation_config:
+        config_parts = []
+
+        # Member preference weights
+        member_weights = generation_config.get('member_weights')
+        if member_weights:
+            weights_text = []
+            for mw in member_weights:
+                weights_text.append(f"- {mw['name']}: weight {mw['weight']}/100")
+            config_parts.append(
+                "PREFERENCE WEIGHTS:\n"
+                "When choosing meals, weight each household member's preferences according to these scores.\n"
+                "Higher weight = prioritize their likes/dislikes more heavily.\n"
+                + "\n".join(weights_text)
+            )
+
+        # Recipe source constraint
+        recipe_source = generation_config.get('recipe_source', 'mix')
+        if recipe_source == 'library_only':
+            config_parts.append(
+                "RECIPE SOURCE CONSTRAINT:\n"
+                "Use ONLY recipes from the candidate recipe list. Do NOT suggest any meals with recipe_id: null "
+                "(except for simple snacks like fruit or crackers). If the library lacks options for a meal type, "
+                "reuse a library recipe rather than inventing one."
+            )
+        elif recipe_source == 'ai_generated_only':
+            config_parts.append(
+                "RECIPE SOURCE CONSTRAINT:\n"
+                "Generate ALL meal suggestions freely. Use recipe_id: null for every meal and create original "
+                "recipe titles. Do NOT use recipe_id from the candidate list, even if candidates are provided."
+            )
+        # 'mix' is the default behavior, no extra instruction needed
+
+        # Appliance constraints
+        appliances = generation_config.get('appliances')
+        if appliances:
+            appliance_list = ", ".join(appliances)
+            config_parts.append(
+                f"APPLIANCE CONSTRAINTS:\n"
+                f"Only use recipes that require these appliances: {appliance_list}.\n"
+                f"Do NOT select recipes requiring appliances not in this list."
+            )
+
+        if config_parts:
+            generation_config_section = "\nGENERATION CONFIGURATION:\n" + "\n\n".join(config_parts) + "\n"
+
     prompt = f"""Generate a 7-day meal plan starting {week_start_date}.
 
 HOUSEHOLD INFORMATION:
@@ -436,7 +485,7 @@ Available Groceries:
 
 {recipes_section}
 {meal_type_guidance}
-{week_context_section}TASK:
+{week_context_section}{generation_config_section}TASK:
 
 Create a 7-day meal plan (breakfast, lunch, dinner, snacks) that:
 
@@ -532,7 +581,7 @@ def _parse_meal_plan_response(response_text: str, week_start_date: str) -> Optio
 
 
 async def generate_recipe_from_ingredients(
-    ingredients: list[str],
+    ingredients: List[str],
     portions: Dict[str, str],
     meal_type: str = "dinner",
     cuisine_type: Optional[str] = None,
@@ -634,7 +683,7 @@ You always:
 
 
 def _build_recipe_generation_prompt(
-    ingredients: list[str],
+    ingredients: List[str],
     portions: Dict[str, str],
     meal_type: str,
     cuisine_type: Optional[str],
@@ -907,9 +956,9 @@ IMPORTANT:
 
 async def parse_voice_to_groceries(
     transcription: str,
-    existing_groceries: list[str],
+    existing_groceries: List[str],
     model: str = None
-) -> tuple[list[dict], list[str]]:
+) -> Tuple[List[dict], List[str]]:
     """
     Parse voice transcription into structured grocery items using Claude AI.
 
@@ -919,7 +968,7 @@ async def parse_voice_to_groceries(
         model: Optional Claude model name override (defaults to HIGH_ACCURACY_MODEL_NAME for better language understanding)
 
     Returns:
-        Tuple of (proposed_items: list[dict], warnings: list[str])
+        Tuple of (proposed_items: List[dict], warnings: List[str])
         - proposed_items: List of dicts matching ProposedGroceryItem schema
         - warnings: List of user-facing warning messages
 
@@ -1043,7 +1092,7 @@ STORAGE LOCATION:
 - Default to "fridge" if uncertain (safer for perishables)"""
 
 
-def _build_voice_parse_prompt(transcription: str, existing_groceries: list[str]) -> str:
+def _build_voice_parse_prompt(transcription: str, existing_groceries: List[str]) -> str:
     """
     Build the prompt for voice parsing.
 
@@ -1215,7 +1264,7 @@ async def parse_receipt_to_groceries(
     image_base64: str,
     existing_groceries: list,
     model: str = None
-) -> tuple[list[dict], list[dict], list[str]]:
+) -> Tuple[List[dict], List[dict], List[str]]:
     """
     Parse receipt image using Claude Vision API to extract grocery items.
 
@@ -1413,7 +1462,7 @@ def _parse_receipt_response(response_text: str) -> dict:
 async def extract_text_from_recipe_photo(
     image_base64: str,
     model: str = None
-) -> tuple[str, list[dict], str, bool, list[str]]:
+) -> Tuple[str, List[dict], str, bool, List[str]]:
     """
     Extract raw text from a recipe photo using Claude Vision API.
 
@@ -1621,7 +1670,7 @@ async def parse_recipe_from_url(
     html_content: str,
     model: str = None,
     used_print_version: bool = False
-) -> tuple[Recipe, str, list[str], list[str]]:
+) -> Tuple[Recipe, str, List[str], List[str]]:
     """
     Parse recipe from HTML content using Claude AI.
 
@@ -1901,7 +1950,7 @@ def _parse_recipe_response(response_text: str) -> Optional[dict]:
 async def parse_recipe_from_text(
     recipe_text: str,
     model: str = None
-) -> tuple[Recipe, str, list[str], list[str]]:
+) -> Tuple[Recipe, str, List[str], List[str]]:
     """
     Parse recipe from free-form text using Claude AI.
 

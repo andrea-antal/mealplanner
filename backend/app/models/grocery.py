@@ -5,7 +5,7 @@ Defines Pydantic models for grocery items with optional date tracking
 and expiry management.
 """
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional, Literal
+from typing import List, Optional, Literal
 from datetime import date as Date
 
 
@@ -58,7 +58,7 @@ class GroceryItem(BaseModel):
 
 class GroceryList(BaseModel):
     """Complete grocery list"""
-    items: list[GroceryItem] = Field(default_factory=list)
+    items: List[GroceryItem] = Field(default_factory=list)
 
 
 # Voice parsing models for Sprint 4 Phase 1
@@ -100,12 +100,12 @@ class VoiceParseRequest(BaseModel):
 
 class VoiceParseResponse(BaseModel):
     """Response from voice parsing with proposed items and warnings"""
-    proposed_items: list[ProposedGroceryItem] = Field(
+    proposed_items: List[ProposedGroceryItem] = Field(
         default_factory=list,
         description="List of proposed grocery items parsed from voice"
     )
     transcription_used: str = Field(..., description="The transcription that was parsed")
-    warnings: list[str] = Field(
+    warnings: List[str] = Field(
         default_factory=list,
         description="User-facing warnings (e.g., duplicates, ambiguities)"
     )
@@ -113,17 +113,17 @@ class VoiceParseResponse(BaseModel):
 
 class BatchAddRequest(BaseModel):
     """Request to add multiple grocery items at once"""
-    items: list[GroceryItem] = Field(..., min_length=1, description="Items to add (must have at least one)")
+    items: List[GroceryItem] = Field(..., min_length=1, description="Items to add (must have at least one)")
 
 
 class BatchDeleteRequest(BaseModel):
     """Request to delete multiple grocery items at once"""
-    item_names: list[str] = Field(..., min_length=1, description="Names of items to delete (must have at least one)")
+    item_names: List[str] = Field(..., min_length=1, description="Names of items to delete (must have at least one)")
 
 
 class UpdateStorageLocationRequest(BaseModel):
     """Request to update storage location for multiple grocery items"""
-    item_names: list[str] = Field(..., min_length=1, description="Names of items to update")
+    item_names: List[str] = Field(..., min_length=1, description="Names of items to update")
     storage_location: Literal["fridge", "pantry"] = Field(..., description="New storage location")
 
 
@@ -143,17 +143,17 @@ class ExcludedReceiptItem(BaseModel):
 
 class ReceiptParseResponse(BaseModel):
     """Response from receipt OCR parsing with proposed items and metadata"""
-    proposed_items: list[ProposedGroceryItem] = Field(
+    proposed_items: List[ProposedGroceryItem] = Field(
         default_factory=list,
         description="List of proposed grocery items parsed from receipt"
     )
-    excluded_items: list[ExcludedReceiptItem] = Field(
+    excluded_items: List[ExcludedReceiptItem] = Field(
         default_factory=list,
         description="Items excluded from parsing (non-food, tax, totals, etc.)"
     )
     detected_purchase_date: Optional[Date] = Field(None, description="Purchase date from receipt header")
     detected_store: Optional[str] = Field(None, description="Store name from receipt header")
-    warnings: list[str] = Field(
+    warnings: List[str] = Field(
         default_factory=list,
         description="OCR warnings (e.g., unreadable items, low confidence)"
     )

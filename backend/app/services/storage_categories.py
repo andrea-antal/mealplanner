@@ -4,10 +4,10 @@ Storage category lookup for grocery items.
 Provides heuristic-based suggestions for whether items should be stored
 in fridge/freezer or pantry based on common grocery item names.
 """
-from typing import Literal
+from typing import Literal, Set
 
 # Common refrigerated/frozen items (case-insensitive matching)
-FRIDGE_ITEMS: set[str] = {
+FRIDGE_ITEMS: Set[str] = {
     # Dairy
     "milk", "cheese", "yogurt", "butter", "cream", "sour cream", "cream cheese",
     "cottage cheese", "ricotta", "mozzarella", "cheddar", "parmesan", "feta",
@@ -65,7 +65,7 @@ FRIDGE_ITEMS: set[str] = {
 }
 
 # Common pantry/shelf-stable items
-PANTRY_ITEMS: set[str] = {
+PANTRY_ITEMS: Set[str] = {
     # Grains & Pasta
     "rice", "pasta", "spaghetti", "penne", "linguine", "fettuccine", "macaroni",
     "lasagna noodles", "ramen", "noodles", "couscous", "quinoa", "bulgur",

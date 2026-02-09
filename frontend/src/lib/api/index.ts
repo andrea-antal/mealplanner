@@ -67,6 +67,9 @@ export type {
   WorkspaceErrorsResponse,
   OnboardingWorkspaceDetail,
   OnboardingAnalytics,
+  // Generation Config
+  MemberWeight,
+  GenerationConfig,
 } from './types';
 
 // API clients
