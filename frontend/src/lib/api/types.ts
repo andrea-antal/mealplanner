@@ -191,6 +191,8 @@ export interface Recipe {
   source_url?: string;
   source_name?: string;
   notes?: string;
+  photo_url?: string;
+  photo_urls?: string[];
 }
 
 export interface RecipeRating {

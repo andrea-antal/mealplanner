@@ -125,4 +125,30 @@ export const recipesAPI = {
     const response = await fetch(`${API_BASE_URL}/recipes/popular?workspace_id=${encodeURIComponent(workspaceId)}`);
     return handleResponse<Recipe[]>(response);
   },
+
+  async uploadPhoto(recipeId: string, workspaceId: string, file: File): Promise<{photo_url: string}> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(
+      `${API_BASE_URL}/recipes/${recipeId}/photo?workspace_id=${encodeURIComponent(workspaceId)}`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+    return handleResponse<{photo_url: string}>(response);
+  },
+
+  async deletePhoto(recipeId: string, workspaceId: string): Promise<void> {
+    const response = await fetch(
+      `${API_BASE_URL}/recipes/${recipeId}/photo?workspace_id=${encodeURIComponent(workspaceId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new APIError(response.status, `Failed to delete photo: ${errorText}`);
+    }
+  },
 };

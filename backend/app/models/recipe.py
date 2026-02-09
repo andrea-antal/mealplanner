@@ -70,6 +70,14 @@ class Recipe(BaseModel):
         default=None,
         description="Personal notes about the recipe (tips, modifications, URLs, etc.)"
     )
+    photo_url: Optional[str] = Field(
+        default=None,
+        description="URL of the primary recipe photo"
+    )
+    photo_urls: Optional[List[str]] = Field(
+        default=None,
+        description="URLs of additional recipe photos"
+    )
 
     class Config:
         json_schema_extra = {

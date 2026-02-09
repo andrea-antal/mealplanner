@@ -5,7 +5,7 @@ Provides REST API for managing recipes in the system.
 """
 import logging
 from typing import List, Dict, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, UploadFile, File
 from pydantic import BaseModel
 from app.models.recipe import (
     Recipe, DynamicRecipeRequest, ImportFromUrlRequest, ParseFromTextRequest,
@@ -22,6 +22,7 @@ from app.services.claude_service import (
     parse_recipe_from_url, parse_recipe_from_text, extract_text_from_recipe_photo
 )
 from app.services.url_fetcher import fetch_recipe_html
+from app.services.photo_storage import upload_photo, delete_photo
 from app.dependencies import verify_admin
 
 logger = logging.getLogger(__name__)
@@ -576,6 +577,10 @@ async def import_recipe_from_url(
         recipe.source_url = request.url
         recipe.source_name = source_name
 
+        # Set photo URL if extracted from HTML
+        if fetch_result.image_url:
+            recipe.photo_url = fetch_result.image_url
+
         # Return parsed data for user review (DO NOT SAVE)
         return ImportedRecipeResponse(
             recipe_data=recipe,
@@ -1012,3 +1017,145 @@ async def migrate_meal_types(
         "message": f"Migration complete for workspace '{workspace_id}'",
         "stats": stats
     }
+
+
+
+@router.post("/{recipe_id}/photo")
+async def upload_recipe_photo(
+    recipe_id: str,
+    workspace_id: str = Query(..., description="Workspace identifier"),
+    file: UploadFile = File(..., description="Image file to upload"),
+):
+    """
+    Upload a photo for a recipe.
+
+    Accepts image file uploads (JPEG, PNG, WebP, GIF). The photo is stored
+    in Cloudflare R2 (or locally if R2 is not configured) and the recipe's
+    photo_url field is updated.
+
+    Args:
+        recipe_id: Unique recipe identifier
+        workspace_id: Workspace identifier for data isolation
+        file: Image file (multipart upload)
+
+    Returns:
+        Dict with photo_url of the uploaded image
+
+    Raises:
+        HTTPException 400: Invalid file type
+        HTTPException 404: Recipe not found
+        HTTPException 500: Upload failed
+    """
+    # Validate recipe exists
+    recipe = load_recipe(workspace_id, recipe_id)
+    if not recipe:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recipe not found: {recipe_id}"
+        )
+
+    # Validate file type
+    allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type: {file.content_type}. Allowed: {', '.join(allowed_types)}"
+        )
+
+    # Limit file size (10MB)
+    file_data = await file.read()
+    max_size = 10 * 1024 * 1024  # 10MB
+    if len(file_data) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large: {len(file_data)} bytes. Maximum: {max_size} bytes (10MB)"
+        )
+
+    try:
+        # Delete old photo if exists
+        if recipe.photo_url:
+            await delete_photo(recipe.photo_url)
+
+        # Upload new photo
+        photo_url = await upload_photo(file_data, file.filename or "photo.jpg", workspace_id)
+
+        # Update recipe with photo URL
+        recipe.photo_url = photo_url
+        if recipe.photo_urls is None:
+            recipe.photo_urls = []
+        if photo_url not in recipe.photo_urls:
+            recipe.photo_urls.append(photo_url)
+
+        save_recipe(workspace_id, recipe)
+        logger.info(f"Uploaded photo for recipe {recipe_id} in workspace '{workspace_id}': {photo_url}")
+
+        return {"photo_url": photo_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to upload photo for recipe {recipe_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload photo: {str(e)}"
+        )
+
+
+@router.delete("/{recipe_id}/photo", status_code=204)
+async def delete_recipe_photo(
+    recipe_id: str,
+    workspace_id: str = Query(..., description="Workspace identifier"),
+):
+    """
+    Delete the photo for a recipe.
+
+    Removes the photo from storage and clears the recipe's photo_url field.
+
+    Args:
+        recipe_id: Unique recipe identifier
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        No content (204 status)
+
+    Raises:
+        HTTPException 404: Recipe not found or no photo to delete
+        HTTPException 500: Delete failed
+    """
+    # Validate recipe exists
+    recipe = load_recipe(workspace_id, recipe_id)
+    if not recipe:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recipe not found: {recipe_id}"
+        )
+
+    if not recipe.photo_url:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recipe {recipe_id} has no photo to delete"
+        )
+
+    try:
+        # Delete from storage
+        await delete_photo(recipe.photo_url)
+
+        # Clear photo URL from recipe
+        old_url = recipe.photo_url
+        recipe.photo_url = None
+        if recipe.photo_urls:
+            recipe.photo_urls = [url for url in recipe.photo_urls if url != old_url]
+
+        save_recipe(workspace_id, recipe)
+        logger.info(f"Deleted photo for recipe {recipe_id} in workspace '{workspace_id}'")
+
+        return None
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete photo for recipe {recipe_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete photo: {str(e)}"
+        )
