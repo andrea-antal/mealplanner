@@ -6,6 +6,7 @@ import type {
   GenerateFromTitleRequest,
   ImportedRecipeResponse,
   OCRFromPhotoResponse,
+  CookingStepsResponse,
 } from './types';
 
 export const recipesAPI = {
@@ -150,5 +151,13 @@ export const recipesAPI = {
       const errorText = await response.text();
       throw new APIError(response.status, `Failed to delete photo: ${errorText}`);
     }
+  },
+
+  async getCookingSteps(workspaceId: string, recipeId: string): Promise<CookingStepsResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/recipes/${recipeId}/cooking-steps?workspace_id=${encodeURIComponent(workspaceId)}`,
+      { method: 'POST' }
+    );
+    return handleResponse<CookingStepsResponse>(response);
   },
 };

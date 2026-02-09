@@ -2132,3 +2132,83 @@ INSTRUCTIONS:
 9. **Meal types**: Infer what meals this recipe is suitable for (breakfast, lunch, dinner, snack, side_dish)
 
 Return ONLY valid JSON, no other text."""
+
+
+
+async def parse_recipe_into_steps(recipe: dict) -> dict:
+    """Parse recipe instructions into structured cooking steps.
+
+    Args:
+        recipe: Dict with title, ingredients, and instructions.
+    Returns:
+        Dict with equipment (list) and steps (list of dicts).
+    Raises:
+        ValueError: If recipe data is missing or parsing fails.
+        ConnectionError: If Claude API is unavailable.
+    """
+    title = recipe.get("title", "")
+    ingredients = recipe.get("ingredients", [])
+    instructions = recipe.get("instructions", "")
+    if not instructions or not instructions.strip():
+        raise ValueError("Recipe instructions are required")
+    logger.info(f"Parsing recipe '{title}' into steps")
+    model = settings.MODEL_NAME
+    ing_lines = "\n".join(f"- {ing}" for ing in ingredients) if ingredients else "Not provided"
+    prompt = (
+        f"Parse this recipe into structured cooking steps.\n"
+        f"RECIPE: {title}\n"
+        f"INGREDIENTS:\n{ing_lines}\n"
+        f"INSTRUCTIONS:\n{instructions}\n\n"
+        'Return valid JSON with "equipment" (list of strings) and '
+        '"steps" (list of objects with step_number int, instruction string, '
+        "duration_minutes int or null, tip string or null). "
+        "Each step should be one clear action. Return ONLY valid JSON."
+    )
+    try:
+        response = client.messages.create(
+            model=model, max_tokens=2048, temperature=0.3,
+            system="You are a cooking instructor. Break recipes into clear steps with equipment lists.",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        parsed = _parse_cooking_steps_response(response.content[0].text)
+        if parsed:
+            logger.info(f"Parsed recipe into {len(parsed.get('steps', []))} steps")
+            return parsed
+        raise ValueError("Failed to parse cooking steps from Claude response")
+    except Exception as e:
+        logger.error(f"Error in step parsing: {e}", exc_info=True)
+        if "connection" in str(e).lower():
+            raise ConnectionError(f"Claude API unavailable: {e}")
+        raise ValueError(f"Failed to parse recipe steps: {e}")
+
+
+def _parse_cooking_steps_response(response_text: str) -> Optional[dict]:
+    """Parse Claude JSON response for cooking steps."""
+    try:
+        text = response_text
+        backtick3 = chr(96) * 3
+        json_marker = backtick3 + "json"
+        if json_marker in text:
+            s = text.find(json_marker) + len(json_marker)
+            text = text[s:text.find(backtick3, s)].strip()
+        elif backtick3 in text:
+            s = text.find(backtick3) + 3
+            text = text[s:text.find(backtick3, s)].strip()
+        data = json.loads(text)
+        if "steps" not in data:
+            return None
+        if "equipment" not in data:
+            data["equipment"] = []
+        validated = []
+        for i, step in enumerate(data["steps"]):
+            validated.append({
+                "step_number": step.get("step_number", i + 1),
+                "instruction": step.get("instruction", ""),
+                "duration_minutes": step.get("duration_minutes"),
+                "tip": step.get("tip"),
+            })
+        data["steps"] = validated
+        return data
+    except Exception as e:
+        logger.error(f"Failed to parse cooking steps: {e}")
+        return None

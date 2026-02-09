@@ -23,7 +23,7 @@ import { RecipeRating } from './RecipeRating';
 import type { Recipe } from '@/lib/api';
 import { householdAPI, recipesAPI } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Clock, Users, Trash2, RefreshCw, ExternalLink, Pencil, StickyNote, MoreHorizontal } from 'lucide-react';
+import { Clock, Users, Trash2, RefreshCw, ExternalLink, Pencil, StickyNote, MoreHorizontal, Play } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -220,6 +220,10 @@ export function RecipeModal({ recipe, open, onOpenChange, onDelete }: RecipeModa
             <DropdownMenuItem onClick={() => setShowEditForm(true)}>
               <Pencil className="h-4 w-4 mr-2" />
               Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { onOpenChange(false); navigate(`/cook/${recipe.id}`); }}>
+              <Play className="h-4 w-4 mr-2" />
+              Cook This
             </DropdownMenuItem>
             {recipe.is_generated && (
               <DropdownMenuItem onClick={() => setShowRegenerateDialog(true)}>

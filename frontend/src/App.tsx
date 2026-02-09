@@ -22,6 +22,7 @@ import Household from "./pages/Household";
 import Groceries from "./pages/Groceries";
 import CookingPreferences from "./pages/CookingPreferences";
 import Admin from "./pages/Admin";
+import CookMode from "./pages/CookMode";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -94,6 +95,7 @@ const App = () => {
 
               {/* Protected routes - require workspace to be set */}
               <Route path="/cook" element={<WorkspaceGuard><CookingPreferences /></WorkspaceGuard>} />
+              <Route path="/cook/:recipeId" element={<WorkspaceGuard><CookMode /></WorkspaceGuard>} />
               <Route path="/plan" element={<WorkspaceGuard><MealPlans /></WorkspaceGuard>} />
               <Route path="/household" element={<WorkspaceGuard><Household /></WorkspaceGuard>} />
 
