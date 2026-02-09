@@ -5,7 +5,7 @@ Shopping list items are ephemeral (per-shopping-trip).
 Templates are persistent (user's recurring favorites).
 """
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import List, Optional, Literal
 from datetime import date as Date, datetime
 from uuid import uuid4
 
@@ -84,13 +84,13 @@ class TemplateItem(BaseModel):
 class ShoppingList(BaseModel):
     """Container for shopping list items"""
 
-    items: list[ShoppingListItem] = Field(default_factory=list)
+    items: List[ShoppingListItem] = Field(default_factory=list)
 
 
 class TemplateList(BaseModel):
     """Container for template items"""
 
-    items: list[TemplateItem] = Field(default_factory=list)
+    items: List[TemplateItem] = Field(default_factory=list)
 
 
 # Request/Response models for API endpoints
@@ -108,7 +108,7 @@ class AddShoppingItemRequest(BaseModel):
 class BatchAddShoppingItemsRequest(BaseModel):
     """Request to add multiple items to shopping list"""
 
-    items: list[AddShoppingItemRequest] = Field(
+    items: List[AddShoppingItemRequest] = Field(
         ..., min_length=1, description="Items to add"
     )
 
@@ -133,7 +133,7 @@ class CheckOffRequest(BaseModel):
 class AddFromTemplatesRequest(BaseModel):
     """Request to add items from templates"""
 
-    template_ids: list[str] = Field(
+    template_ids: List[str] = Field(
         ..., min_length=1, description="Template IDs to add to shopping list"
     )
 

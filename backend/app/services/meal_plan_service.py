@@ -9,9 +9,10 @@ This service is the main entry point for meal plan generation:
 """
 import logging
 from datetime import date as Date
-from typing import Optional
+from typing import Tuple, List, Optional
 from app.models.meal_plan import MealPlan
 from app.models.household import HouseholdProfile
+from app.models.generation_config import GenerationConfig
 from app.services.rag_service import retrieve_relevant_recipes, prepare_context_for_llm
 from app.services.claude_service import generate_meal_plan_with_claude
 from app.data.data_manager import load_household_profile, load_groceries, load_recipe_ratings
@@ -24,7 +25,8 @@ def generate_meal_plan(
     week_start_date: Date,
     household: Optional[HouseholdProfile] = None,
     num_recipes: int = 15,
-    week_context: Optional[str] = None
+    week_context: Optional[str] = None,
+    generation_config: Optional[GenerationConfig] = None
 ) -> Optional[MealPlan]:
     """
     Generate a weekly meal plan.
@@ -42,6 +44,7 @@ def generate_meal_plan(
         household: Optional HouseholdProfile (loads from storage if not provided)
         num_recipes: Number of candidate recipes to retrieve (default: 15)
         week_context: Optional user description of their week (schedule, preferences, etc.)
+        generation_config: Optional generation configuration (preference weights, recipe source, appliances)
 
     Returns:
         MealPlan object if successful, None if generation fails
@@ -98,6 +101,11 @@ def generate_meal_plan(
         context['week_context'] = week_context
         logger.info(f"User provided week context ({len(week_context)} chars)")
 
+    # Add generation config if provided
+    if generation_config:
+        context['generation_config'] = generation_config.model_dump(exclude_none=True)
+        logger.info(f"User provided generation config: {context['generation_config']}")
+
     # Step 3: Generate meal plan with Claude
     logger.info("Calling Claude API to generate meal plan...")
     meal_plan = generate_meal_plan_with_claude(
@@ -121,7 +129,7 @@ def generate_meal_plan(
 def validate_meal_plan_constraints(
     meal_plan: MealPlan,
     household: HouseholdProfile
-) -> tuple[bool, list[str]]:
+) -> Tuple[bool, List[str]]:
     """
     Validate that a meal plan respects household constraints.
 
@@ -135,7 +143,7 @@ def validate_meal_plan_constraints(
         household: Household profile with constraints
 
     Returns:
-        Tuple of (is_valid: bool, violations: list[str])
+        Tuple of (is_valid: bool, violations: List[str])
 
     Note: This is a basic validator for v0.1. Production would need more comprehensive checking.
     """

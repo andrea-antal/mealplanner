@@ -2,6 +2,7 @@ import { API_BASE_URL, APIError, handleResponse } from './client';
 import type {
   MealPlan,
   MealPlanRequest,
+  GenerationConfig,
   RecipeReadiness,
   AlternativeRecipesRequest,
   AlternativeRecipeSuggestion,
@@ -13,11 +14,15 @@ import type {
 } from './types';
 
 export const mealPlansAPI = {
-  async generate(workspaceId: string, request: MealPlanRequest, options?: { signal?: AbortSignal }): Promise<MealPlan> {
+  async generate(workspaceId: string, request: MealPlanRequest, options?: { signal?: AbortSignal; config?: GenerationConfig }): Promise<MealPlan> {
+    const body: Record<string, unknown> = { ...request };
+    if (options?.config) {
+      body.generation_config = options.config;
+    }
     const response = await fetch(`${API_BASE_URL}/meal-plans/generate?workspace_id=${encodeURIComponent(workspaceId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
+      body: JSON.stringify(body),
       signal: options?.signal,
     });
     return handleResponse<MealPlan>(response);

@@ -415,3 +415,16 @@ export interface OnboardingAnalytics {
   answer_distributions: Record<string, Record<string, number>>;
   workspace_details: OnboardingWorkspaceDetail[];
 }
+
+// ── Generation Config ────────────────────────────────────────────────
+
+export interface MemberWeight {
+  name: string;
+  weight: number; // 0-100
+}
+
+export interface GenerationConfig {
+  member_weights?: MemberWeight[];
+  recipe_source?: 'library_only' | 'ai_generated_only' | 'mix';
+  appliances?: string[];
+}

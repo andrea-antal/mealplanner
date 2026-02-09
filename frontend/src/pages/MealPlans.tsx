@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { mealPlansAPI, recipesAPI, onboardingAPI, type MealPlan, type Recipe, type AlternativeRecipeSuggestion } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { Sparkles, Loader2, Plus, RefreshCw, Undo2, ChevronLeft, ChevronRight, Download, Trash2, GripVertical } from 'lucide-react';
+import { Sparkles, Loader2, Plus, RefreshCw, Undo2, ChevronLeft, ChevronRight, Download, Trash2, GripVertical, Settings2 } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -34,6 +34,8 @@ import { SwapRecipeModal } from '@/components/SwapRecipeModal';
 import { InsufficientRecipesModal } from '@/components/InsufficientRecipesModal';
 import { SaveAllRecipesModal, type SaveAllResult } from '@/components/SaveAllRecipesModal';
 import { WeekContextModal } from '@/components/WeekContextModal';
+import { GenerationConfigModal } from '@/components/GenerationConfigModal';
+import type { GenerationConfig } from '@/lib/api';
 import { RecipePickerModal } from '@/components/RecipePickerModal';
 import {
   AlertDialog,
@@ -393,6 +395,10 @@ const MealPlans = () => {
   const [weekContextModalOpen, setWeekContextModalOpen] = useState(false);
   const [pendingWeekStartDate, setPendingWeekStartDate] = useState<string | null>(null);
 
+  // Generation config modal state
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [pendingGenerationConfig, setPendingGenerationConfig] = useState<GenerationConfig | undefined>(undefined);
+
   // Remove meal confirmation dialog state
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeContext, setRemoveContext] = useState<{
@@ -439,7 +445,7 @@ const MealPlans = () => {
 
   // Mutation to generate meal plan
   const generateMutation = useMutation({
-    mutationFn: async ({ week_start_date, week_context }: { week_start_date: string; week_context?: string }) => {
+    mutationFn: async ({ week_start_date, week_context, generation_config }: { week_start_date: string; week_context?: string; generation_config?: GenerationConfig }) => {
       // Create new AbortController for this request
       abortControllerRef.current = new AbortController();
 
@@ -447,7 +453,7 @@ const MealPlans = () => {
         const result = await mealPlansAPI.generate(
           workspaceId,
           { week_start_date, num_recipes: 7, week_context },
-          { signal: abortControllerRef.current.signal }
+          { signal: abortControllerRef.current.signal, config: generation_config }
         );
         // Save to backend for persistence
         if (result) {
@@ -737,6 +743,30 @@ const MealPlans = () => {
   // Called from InsufficientRecipesModal "Generate Anyway" button
   const handleGenerateAnyway = () => {
     setInsufficientModalOpen(false);
+    showWeekContextModal();
+  };
+
+  // Called when user submits config from GenerationConfigModal
+  const handleGenerateWithConfig = async (config: GenerationConfig) => {
+    setConfigModalOpen(false);
+    setPendingGenerationConfig(config);
+
+    // Check recipe readiness before generating
+    try {
+      const readiness = await mealPlansAPI.checkReadiness(workspaceId);
+
+      if (!readiness.is_ready) {
+        setInsufficientData({
+          totalCount: readiness.total_count,
+          missingMealTypes: readiness.missing_meal_types,
+        });
+        setInsufficientModalOpen(true);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to check readiness:', error);
+    }
+
     showWeekContextModal();
   };
 
@@ -1170,23 +1200,34 @@ const MealPlans = () => {
           {/* Empty State Header - Show prominent generate button when no real plan */}
           {!mealPlan && (
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 p-6 rounded-xl bg-card border border-border shadow-xs">
-              <Button
-                variant="hero"
-                onClick={handleGenerate}
-                disabled={generateMutation.isPending}
-              >
-                {generateMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    Generate New Plan
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="hero"
+                  onClick={handleGenerate}
+                  disabled={generateMutation.isPending}
+                >
+                  {generateMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Generate New Plan
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setConfigModalOpen(true)}
+                  disabled={generateMutation.isPending}
+                  title="Generation settings"
+                >
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              </div>
               <span className="text-sm text-muted-foreground">or manually add recipes below</span>
             </div>
           )}
@@ -1448,6 +1489,16 @@ const MealPlans = () => {
                   )}
                 </Button>
                 <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setConfigModalOpen(true)}
+                  disabled={generateMutation.isPending}
+                  title="Generation settings"
+                  className="flex-none"
+                >
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+                <Button
                   variant="hero"
                   onClick={handleGenerate}
                   disabled={generateMutation.isPending}
@@ -1530,6 +1581,14 @@ const MealPlans = () => {
         onOpenChange={setWeekContextModalOpen}
         onSubmit={(context) => proceedWithGeneration(context)}
         onSkip={() => proceedWithGeneration()}
+      />
+
+      {/* Generation Config Modal */}
+      <GenerationConfigModal
+        open={configModalOpen}
+        onOpenChange={setConfigModalOpen}
+        workspaceId={workspaceId}
+        onGenerate={handleGenerateWithConfig}
       />
 
       {/* Save All Recipes Modal */}

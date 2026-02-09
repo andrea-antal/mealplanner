@@ -5,7 +5,10 @@ Creates issues in Linear for tracking feedback.
 import re
 import httpx
 from datetime import datetime
-from zoneinfo import ZoneInfo
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.config import settings
