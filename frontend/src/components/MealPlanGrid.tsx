@@ -89,7 +89,7 @@ export const MealPlanGrid = ({
           <div
             key={day.date}
             className={cn(
-              'rounded-2xl bg-card shadow-soft overflow-hidden',
+              'rounded-xl border border-border bg-card shadow-xs overflow-hidden',
               !isFirstDay && 'opacity-95'
             )}
           >
@@ -116,7 +116,7 @@ export const MealPlanGrid = ({
             </div>
 
             {/* Meals */}
-            <div className="p-6 space-y-3">
+            <div className="p-4 space-y-2">
               {day.meals.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic text-center py-4">
                   No meals planned
@@ -132,9 +132,9 @@ export const MealPlanGrid = ({
                   return (
                     <div
                       key={`${day.date}-meal-${mealIdx}`}
-                      className="rounded-lg bg-muted/50 p-4 transition-colors hover:bg-muted"
+                      className="rounded-md bg-muted/40 p-3 transition-colors hover:bg-muted/60"
                     >
-                      <p className="text-base font-medium text-foreground">
+                      <p className="text-sm font-medium text-foreground">
                         <span className="mr-2">
                           {mealTypeIcons[meal.meal_type.toLowerCase()] || '🍴'}
                         </span>

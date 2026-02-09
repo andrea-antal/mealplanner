@@ -63,11 +63,11 @@ export default function Login() {
   // Email sent confirmation
   if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <Card className="w-full max-w-md border border-border shadow-soft">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="mx-auto mb-4 w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-success" />
             </div>
             <CardTitle>Check your email</CardTitle>
             <CardDescription className="text-base">
@@ -94,8 +94,8 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <Card className="w-full max-w-md border border-border shadow-soft">
         {showEmailForm ? (
           <>
             <CardHeader className="text-center relative">

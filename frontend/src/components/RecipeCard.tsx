@@ -47,10 +47,10 @@ export function RecipeCard({ recipe, onViewDetails }: RecipeCardProps) {
   const lovedByAll = totalMembers > 0 && likes === totalMembers;
 
   return (
-    <div className="rounded-2xl bg-card shadow-soft overflow-hidden transition-all duration-300 hover:shadow-medium group cursor-pointer" onClick={() => onViewDetails(recipe)}>
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <h3 className="font-display text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+    <div className="rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-soft group cursor-pointer" onClick={() => onViewDetails(recipe)}>
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-display text-base font-semibold text-foreground group-hover:text-primary transition-colors leading-tight">
             {recipe.title}
           </h3>
           <div className="flex items-center gap-2 shrink-0">

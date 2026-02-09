@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,124 +6,133 @@
 
 @layer base {
   :root {
-    /* Italian Market - Tuscan sun, terracotta, olive groves */
-    /* High contrast, saturated, warm and inviting */
+    /* Warm Spice — playful pastels inspired by Tikka Masala label design */
+    /* Coral salmon + turmeric gold + warm cream */
 
-    --background: 45 40% 97%;
-    --foreground: 20 25% 12%;
+    --background: 0 0% 99%;
+    --foreground: 0 0% 9%;
 
-    --card: 45 50% 99%;
-    --card-foreground: 20 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 20 25% 12%;
+    --popover-foreground: 0 0% 9%;
 
-    /* Tuscan Sun - warm golden yellow */
-    --primary: 42 92% 50%;
-    --primary-soft: 45 80% 92%;
+    /* Violet — rich, playful purple */
+    --primary: 262 60% 58%;
+    --primary-soft: 262 40% 96%;
     --primary-foreground: 0 0% 100%;
 
-    /* Olive Grove - rich Italian green */
-    --secondary: 85 45% 88%;
-    --secondary-foreground: 90 50% 25%;
+    /* Soft sage — balances the warmth */
+    --secondary: 150 14% 93%;
+    --secondary-foreground: 150 18% 32%;
 
-    --muted: 40 30% 92%;
-    --muted-foreground: 20 20% 30%;
+    /* Success green */
+    --success: 152 55% 42%;
+    --success-foreground: 0 0% 100%;
 
-    /* Subtle warm neutral (was terracotta) */
-    --accent: 40 30% 92%;
-    --accent-soft: 40 25% 95%;
-    --accent-foreground: 20 25% 12%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 45%;
 
-    /* Limoncello warning */
-    --warning: 50 95% 48%;
-    --warning-foreground: 20 40% 12%;
+    /* Turmeric / mustard gold accent */
+    --accent: 38 82% 56%;
+    --accent-soft: 38 50% 96%;
+    --accent-foreground: 30 40% 14%;
 
-    /* Pomodoro destructive */
-    --destructive: 0 80% 45%;
+    /* Warm warning */
+    --warning: 42 90% 52%;
+    --warning-foreground: 30 45% 12%;
+
+    /* Red destructive */
+    --destructive: 0 68% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 25% 82%;
-    --input: 40 25% 85%;
-    --ring: 42 92% 50%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 262 60% 58%;
 
     --radius: 0.75rem;
 
-    /* Tag colors - saturated Italian palette */
-    --tag-toddler: 280 70% 52%;
-    --tag-quick: 50 95% 45%;
-    --tag-daycare: 200 80% 45%;
-    --tag-approved: 90 60% 38%;
-    --tag-onepot: 16 80% 48%;
-    --tag-batch: 170 65% 35%;
-    --tag-breakfast: 340 75% 52%;
-    --tag-leftover: 210 55% 48%;
+    /* Tag colors — warm-shifted pastels */
+    --tag-toddler: 280 45% 60%;
+    --tag-quick: 38 75% 52%;
+    --tag-daycare: 195 55% 50%;
+    --tag-approved: 152 45% 42%;
+    --tag-onepot: 18 65% 52%;
+    --tag-batch: 170 40% 42%;
+    --tag-breakfast: 345 55% 58%;
+    --tag-leftover: 215 40% 52%;
 
-    /* Shadows */
-    --shadow-soft: 0 2px 8px -2px hsl(20 30% 20% / 0.1);
-    --shadow-medium: 0 4px 16px -4px hsl(20 30% 20% / 0.15);
+    /* Shadows — neutral, soft */
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.04);
+    --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.07);
+    --shadow-medium: 0 4px 16px -4px hsl(0 0% 0% / 0.09), 0 2px 4px -2px hsl(0 0% 0% / 0.04);
+    --shadow-lg: 0 8px 24px -6px hsl(0 0% 0% / 0.11), 0 4px 8px -4px hsl(0 0% 0% / 0.04);
 
     /* Sidebar */
-    --sidebar-background: 45 35% 95%;
-    --sidebar-foreground: 20 25% 15%;
-    --sidebar-primary: 42 92% 50%;
-    --sidebar-primary-foreground: 20 30% 10%;
-    --sidebar-accent: 16 50% 92%;
-    --sidebar-accent-foreground: 16 70% 30%;
-    --sidebar-border: 40 20% 85%;
-    --sidebar-ring: 42 92% 50%;
-
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 262 60% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 94%;
+    --sidebar-accent-foreground: 0 0% 25%;
+    --sidebar-border: 0 0% 91%;
+    --sidebar-ring: 262 60% 58%;
   }
 
   .dark {
-    /* Dark mode - warm Italian evening */
-    --background: 25 30% 8%;
-    --foreground: 40 25% 92%;
+    /* Dark mode — near-black neutral with coral accents */
+    --background: 0 0% 5%;
+    --foreground: 0 0% 93%;
 
-    --card: 25 25% 12%;
-    --card-foreground: 40 25% 92%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 93%;
 
-    --popover: 25 25% 12%;
-    --popover-foreground: 40 25% 92%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 93%;
 
-    /* Golden hour yellow */
-    --primary: 45 90% 55%;
-    --primary-soft: 45 50% 18%;
-    --primary-foreground: 0 0% 100%;
+    /* Violet, lightened for dark bg */
+    --primary: 262 55% 68%;
+    --primary-soft: 262 30% 14%;
+    --primary-foreground: 0 0% 5%;
 
-    --secondary: 85 30% 18%;
-    --secondary-foreground: 85 35% 75%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 72%;
 
-    --muted: 25 20% 16%;
-    --muted-foreground: 40 15% 65%;
+    --success: 152 50% 45%;
+    --success-foreground: 0 0% 100%;
 
-    /* Subtle warm neutral (was terracotta) */
-    --accent: 25 20% 20%;
-    --accent-soft: 25 18% 22%;
-    --accent-foreground: 40 15% 90%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 55%;
 
-    --warning: 50 90% 55%;
-    --warning-foreground: 25 30% 8%;
+    --accent: 38 70% 52%;
+    --accent-soft: 38 25% 12%;
+    --accent-foreground: 0 0% 10%;
 
-    --destructive: 0 70% 50%;
+    --warning: 42 80% 55%;
+    --warning-foreground: 0 0% 8%;
+
+    --destructive: 0 60% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 25 20% 20%;
-    --input: 25 20% 20%;
-    --ring: 45 90% 55%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 262 55% 68%;
 
-    /* Shadows for dark mode */
+    /* Dark shadows */
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
     --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.35);
-    --shadow-medium: 0 4px 16px -4px hsl(0 0% 0% / 0.45);
+    --shadow-medium: 0 4px 16px -4px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 8px 24px -6px hsl(0 0% 0% / 0.5), 0 4px 8px -4px hsl(0 0% 0% / 0.25);
 
-    --sidebar-background: 25 28% 10%;
-    --sidebar-foreground: 40 20% 88%;
-    --sidebar-primary: 45 90% 55%;
-    --sidebar-primary-foreground: 25 30% 8%;
-    --sidebar-accent: 25 20% 16%;
-    --sidebar-accent-foreground: 40 20% 88%;
-    --sidebar-border: 25 18% 18%;
-    --sidebar-ring: 45 90% 55%;
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 262 55% 68%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 262 55% 68%;
   }
 }
 
@@ -135,19 +144,15 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-size: 16px;
-    line-height: 1.6;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-  }
-
-  /* Improve text contrast and readability */
-  p, span, li {
-    @apply text-foreground;
+    font-feature-settings: "cv11", "ss01";
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display;
+    @apply font-display tracking-tight;
   }
 }
 
