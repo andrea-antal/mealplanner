@@ -16,6 +16,9 @@ supabase>=2.0.0
 # OpenAI for embeddings (pgvector)
 openai>=1.0.0
 
+# Cloudflare R2 / S3-compatible storage
+boto3>=1.34.0
+
 # Utilities
 python-dotenv==1.0.0
 
