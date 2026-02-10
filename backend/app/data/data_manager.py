@@ -714,10 +714,6 @@ def save_recipe(workspace_id: str, recipe: Recipe) -> None:
         data["workspace_id"] = workspace_id
         data["updated_at"] = datetime.now().isoformat()
 
-        # Remove 'description' field until Supabase schema cache refreshes
-        # (Column was added but PostgREST cache hasn't updated yet)
-        data.pop("description", None)
-
         # Generate embedding for the recipe
         embedding = _generate_recipe_embedding(recipe, workspace_id=workspace_id)
         if embedding:
