@@ -20,9 +20,10 @@ import MealPlanPlayground from "./pages/MealPlanPlayground";
 import Recipes from "./pages/Recipes";
 import Household from "./pages/Household";
 import Groceries from "./pages/Groceries";
-import CookingPreferences from "./pages/CookingPreferences";
+import CookPage from "./pages/CookPage";
 import Admin from "./pages/Admin";
 import CookMode from "./pages/CookMode";
+import MultiCookMode from "./pages/MultiCookMode";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -94,7 +95,8 @@ const App = () => {
               <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* Protected routes - require workspace to be set */}
-              <Route path="/cook" element={<WorkspaceGuard><CookingPreferences /></WorkspaceGuard>} />
+              <Route path="/cook" element={<WorkspaceGuard><CookPage /></WorkspaceGuard>} />
+              <Route path="/cook/multi" element={<WorkspaceGuard><MultiCookMode /></WorkspaceGuard>} />
               <Route path="/cook/:recipeId" element={<WorkspaceGuard><CookMode /></WorkspaceGuard>} />
               <Route path="/plan" element={<WorkspaceGuard><MealPlans /></WorkspaceGuard>} />
               <Route path="/household" element={<WorkspaceGuard><Household /></WorkspaceGuard>} />

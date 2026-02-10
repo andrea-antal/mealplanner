@@ -443,3 +443,34 @@ export interface CookingStepsResponse {
   equipment: string[];
   steps: CookingStep[];
 }
+
+export interface TimelineStep {
+  recipe_id: string;
+  recipe_title: string;
+  step_number: number;
+  instruction: string;
+  duration_minutes: number | null;
+  tip: string | null;
+  start_offset_minutes: number;
+  is_active: boolean;
+}
+
+export interface TimelineRecipe {
+  id: string;
+  title: string;
+  color_index: number;
+}
+
+export interface TimelineIngredients {
+  recipe_id: string;
+  recipe_title: string;
+  ingredients: string[];
+}
+
+export interface CookingTimeline {
+  total_duration_minutes: number;
+  recipes: TimelineRecipe[];
+  steps: TimelineStep[];
+  equipment_needed: string[];
+  all_ingredients: TimelineIngredients[];
+}

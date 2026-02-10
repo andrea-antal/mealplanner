@@ -2212,3 +2212,138 @@ def _parse_cooking_steps_response(response_text: str) -> Optional[dict]:
     except Exception as e:
         logger.error(f"Failed to parse cooking steps: {e}")
         return None
+
+
+async def create_interleaved_timeline(
+    recipes_with_steps: list,
+    target_serve_time: Optional[str] = None,
+) -> dict:
+    """Create an interleaved cooking timeline for multiple recipes.
+
+    Uses Claude to analyze step types (active vs passive) and create an
+    optimized timeline where all recipes finish within 5 minutes of each other.
+
+    Args:
+        recipes_with_steps: List of {id, title, steps} dicts.
+        target_serve_time: Optional ISO timestamp for serving.
+
+    Returns:
+        Dict with total_duration_minutes and sorted steps list.
+
+    Raises:
+        ValueError: If timeline generation fails.
+        ConnectionError: If Claude API is unavailable.
+    """
+    recipe_count = len(recipes_with_steps)
+    logger.info(f"Creating interleaved timeline for {recipe_count} recipes")
+
+    # Build the recipe descriptions for Claude
+    recipe_descriptions = []
+    for r in recipes_with_steps:
+        steps_text = "\n".join(
+            f"  Step {s['step_number']}: {s['instruction']}"
+            + (f" ({s['duration_minutes']} min)" if s.get("duration_minutes") else "")
+            for s in r["steps"]
+        )
+        recipe_descriptions.append(
+            f"Recipe: {r['title']} (id: {r['id']})\nSteps:\n{steps_text}"
+        )
+
+    recipes_block = "\n\n".join(recipe_descriptions)
+    model = settings.MODEL_NAME
+
+    prompt = (
+        f"Create an interleaved cooking timeline for these {recipe_count} recipes.\n\n"
+        f"{recipes_block}\n\n"
+        "CONSTRAINTS:\n"
+        "- All recipes must finish within 5 minutes of each other\n"
+        "- Passive steps (baking, simmering, resting, marinating, chilling, "
+        "boiling, roasting, rising) can overlap with active steps from other recipes\n"
+        "- No two active steps should happen at the same time\n"
+        "- Each step gets a start_offset_minutes from time zero\n"
+        "- Order steps so the cook starts with prep and works toward serving\n\n"
+        "Return valid JSON with:\n"
+        '- "total_duration_minutes": integer total time\n'
+        '- "steps": array of objects, each with:\n'
+        '    "recipe_id": string,\n'
+        '    "recipe_title": string,\n'
+        '    "step_number": integer,\n'
+        '    "instruction": string,\n'
+        '    "duration_minutes": integer or null,\n'
+        '    "tip": string or null,\n'
+        '    "start_offset_minutes": integer,\n'
+        '    "is_active": boolean (false for passive waiting steps)\n\n'
+        "Sort steps by start_offset_minutes ascending. Return ONLY valid JSON."
+    )
+
+    try:
+        response = client.messages.create(
+            model=model,
+            max_tokens=4096,
+            temperature=0.3,
+            system=(
+                "You are a professional chef coordinating a multi-dish meal. "
+                "Create an efficient timeline where the cook is always doing "
+                "something useful while passive steps run in parallel."
+            ),
+            messages=[{"role": "user", "content": prompt}],
+        )
+        log_api_call("create_interleaved_timeline", model)
+
+        parsed = _parse_timeline_response(response.content[0].text)
+        if parsed:
+            logger.info(
+                f"Created timeline: {parsed['total_duration_minutes']} min, "
+                f"{len(parsed['steps'])} steps"
+            )
+            return parsed
+        raise ValueError("Failed to parse timeline from Claude response")
+
+    except Exception as e:
+        logger.error(f"Error creating timeline: {e}", exc_info=True)
+        if "connection" in str(e).lower():
+            raise ConnectionError(f"Claude API unavailable: {e}")
+        raise ValueError(f"Failed to create cooking timeline: {e}")
+
+
+def _parse_timeline_response(response_text: str) -> Optional[dict]:
+    """Parse Claude JSON response for cooking timeline."""
+    try:
+        text = response_text
+        backtick3 = chr(96) * 3
+        json_marker = backtick3 + "json"
+        if json_marker in text:
+            s = text.find(json_marker) + len(json_marker)
+            text = text[s:text.find(backtick3, s)].strip()
+        elif backtick3 in text:
+            s = text.find(backtick3) + 3
+            text = text[s:text.find(backtick3, s)].strip()
+
+        data = json.loads(text)
+        if "steps" not in data:
+            return None
+
+        total = data.get("total_duration_minutes", 0)
+        validated_steps = []
+        for step in data["steps"]:
+            validated_steps.append({
+                "recipe_id": step.get("recipe_id", ""),
+                "recipe_title": step.get("recipe_title", ""),
+                "step_number": step.get("step_number", 0),
+                "instruction": step.get("instruction", ""),
+                "duration_minutes": step.get("duration_minutes"),
+                "tip": step.get("tip"),
+                "start_offset_minutes": step.get("start_offset_minutes", 0),
+                "is_active": step.get("is_active", True),
+            })
+
+        # Sort by start offset
+        validated_steps.sort(key=lambda s: s["start_offset_minutes"])
+
+        return {
+            "total_duration_minutes": total,
+            "steps": validated_steps,
+        }
+    except Exception as e:
+        logger.error(f"Failed to parse timeline response: {e}")
+        return None

@@ -78,6 +78,10 @@ class Recipe(BaseModel):
         default=None,
         description="URLs of additional recipe photos"
     )
+    cooking_steps: Optional[Dict] = Field(
+        default=None,
+        description="Cached parsed cooking steps (equipment + steps) from Claude"
+    )
 
     class Config:
         json_schema_extra = {

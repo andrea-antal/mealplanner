@@ -4,13 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { recipesAPI } from '@/lib/api';
 import type { CookingStepsResponse } from '@/lib/api';
 import { getCurrentWorkspace } from '@/lib/workspace';
-import { loadSession, saveSession, clearSession, createSession } from '@/lib/cookingSession';
+import {
+  loadSession, saveSession, clearSession, createSession,
+  loadCachedSteps, saveCachedSteps,
+} from '@/lib/cookingSession';
 import type { CookingSession } from '@/lib/cookingSession';
 import type { TimerInstance } from '@/components/cooking/CookingTimer';
 import { MisEnPlace } from '@/components/cooking/MisEnPlace';
 import { StepByStep } from '@/components/cooking/StepByStep';
 import { CookingTimer } from '@/components/cooking/CookingTimer';
-import { Loader2, ArrowLeft, PartyPopper } from 'lucide-react';
+import { SimulatedProgress } from '@/components/cooking/SimulatedProgress';
+import { ArrowLeft, PartyPopper, ChefHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CookMode = () => {
@@ -25,20 +29,34 @@ const CookMode = () => {
     if (!workspaceId) navigate('/');
   }, [workspaceId, navigate]);
 
-  // Fetch recipe
+  // Fetch recipe (fast — comes from DB)
   const { data: recipe, isLoading: recipeLoading } = useQuery({
     queryKey: ['recipe', workspaceId, recipeId],
     queryFn: () => recipesAPI.getById(workspaceId!, recipeId!),
     enabled: !!workspaceId && !!recipeId,
   });
 
-  // Fetch cooking steps
-  const { data: cookingSteps, isLoading: stepsLoading, error: stepsError } = useQuery({
+  // Check localStorage cache before hitting the API
+  const cachedSteps = recipeId ? loadCachedSteps(recipeId) : null;
+
+  // Fetch cooking steps — skip if cached locally
+  const { data: fetchedSteps, isLoading: stepsLoading, error: stepsError } = useQuery({
     queryKey: ['cookingSteps', workspaceId, recipeId],
     queryFn: () => recipesAPI.getCookingSteps(workspaceId!, recipeId!),
-    enabled: !!workspaceId && !!recipeId,
-    staleTime: 1000 * 60 * 30, // Cache for 30 min
+    enabled: !!workspaceId && !!recipeId && !cachedSteps,
+    staleTime: Infinity, // Steps never go stale — parsed from static instructions
   });
+
+  // Resolve the steps from either cache or API
+  const cookingSteps: CookingStepsResponse | null =
+    (cachedSteps as CookingStepsResponse | null) ?? fetchedSteps ?? null;
+
+  // Persist steps to localStorage when received from API
+  useEffect(() => {
+    if (fetchedSteps && recipeId) {
+      saveCachedSteps(recipeId, fetchedSteps);
+    }
+  }, [fetchedSteps, recipeId]);
 
   // Initialize or restore session
   useEffect(() => {
@@ -117,13 +135,26 @@ const CookMode = () => {
 
   if (!workspaceId || !recipeId) return null;
 
-  const isLoading = recipeLoading || stepsLoading;
-
-  if (isLoading) {
+  // Loading state — recipe-aware with simulated progress
+  if (recipeLoading || (stepsLoading && !cachedSteps)) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-muted-foreground">Preparing your cooking steps...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 max-w-sm mx-auto">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+          <ChefHat className="h-8 w-8 text-primary" />
+        </div>
+        <div className="text-center space-y-1">
+          <h2 className="font-display text-lg font-semibold">
+            {recipe?.title ?? 'Loading recipe...'}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {recipeLoading
+              ? 'Fetching recipe details...'
+              : 'Claude is breaking down the recipe into steps...'}
+          </p>
+        </div>
+        {!recipeLoading && (
+          <SimulatedProgress durationSeconds={15} label="Usually takes 10-15 seconds" />
+        )}
       </div>
     );
   }

@@ -20,7 +20,7 @@ from app.data.data_manager import (
 from app.services.claude_service import (
     generate_recipe_from_ingredients, generate_recipe_from_title,
     parse_recipe_from_url, parse_recipe_from_text, extract_text_from_recipe_photo,
-    parse_recipe_into_steps
+    parse_recipe_into_steps, create_interleaved_timeline
 )
 from app.services.url_fetcher import fetch_recipe_html
 from app.services.photo_storage import upload_photo, delete_photo
@@ -990,10 +990,10 @@ async def get_cooking_steps(
         # Parse recipe into steps using Claude
         result = await parse_recipe_into_steps(recipe_dict)
 
-        # Cache the result on the recipe (store in notes or a field)
-        # We store it as a JSON string in a dedicated cache
-        # For now, return without persisting (stateless approach)
-        logger.info(f"Parsed {len(result.get('steps', []))} steps for recipe {recipe_id}")
+        # Persist parsed steps on the recipe for future instant loads
+        recipe.cooking_steps = result
+        save_recipe(workspace_id, recipe)
+        logger.info(f"Parsed and cached {len(result.get('steps', []))} steps for recipe {recipe_id}")
         return result
 
     except ValueError as e:
@@ -1014,6 +1014,125 @@ async def get_cooking_steps(
             status_code=500,
             detail=f"Failed to parse cooking steps: {str(e)}"
         )
+
+
+class CookingTimelineRequest(BaseModel):
+    """Request model for multi-recipe cooking timeline."""
+    recipe_ids: List[str]
+    target_serve_time: Optional[str] = None  # ISO timestamp or null for "start now"
+
+
+class TimelineStep(BaseModel):
+    """A single step in the interleaved cooking timeline."""
+    recipe_id: str
+    recipe_title: str
+    step_number: int
+    instruction: str
+    duration_minutes: Optional[int] = None
+    tip: Optional[str] = None
+    start_offset_minutes: int = 0
+    is_active: bool = True  # False for passive steps (baking, simmering)
+
+
+class CookingTimelineResponse(BaseModel):
+    """Response for a multi-recipe cooking timeline."""
+    total_duration_minutes: int
+    recipes: List[Dict]  # [{id, title, color_index}]
+    steps: List[Dict]    # TimelineStep dicts sorted by start_offset_minutes
+    equipment_needed: List[str]
+    all_ingredients: List[Dict]  # [{recipe_id, recipe_title, ingredients: [str]}]
+
+
+@router.post("/cooking-timeline")
+async def get_cooking_timeline(
+    request: CookingTimelineRequest,
+    workspace_id: str = Query(..., description="Workspace identifier")
+):
+    """
+    Create an interleaved cooking timeline for multiple recipes.
+
+    Takes 2+ recipe IDs, gets/parses steps for each, then uses Claude
+    to create an optimized timeline where passive steps overlap with
+    active steps from other recipes so all dishes finish together.
+
+    Args:
+        request: Recipe IDs and optional target serve time
+        workspace_id: Workspace identifier for data isolation
+
+    Returns:
+        CookingTimelineResponse with interleaved steps and metadata
+    """
+    if len(request.recipe_ids) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="At least 2 recipes are required for a timeline"
+        )
+
+    # Load all recipes and their steps
+    recipes_with_steps = []
+    all_equipment = set()
+    all_ingredients = []
+
+    for recipe_id in request.recipe_ids:
+        recipe = load_recipe(workspace_id, recipe_id)
+        if not recipe:
+            raise HTTPException(status_code=404, detail=f"Recipe not found: {recipe_id}")
+
+        recipe_dict = recipe.model_dump()
+
+        # Get or parse cooking steps (uses cache from Phase 1)
+        if recipe_dict.get("cooking_steps"):
+            steps_data = recipe_dict["cooking_steps"]
+        else:
+            try:
+                steps_data = await parse_recipe_into_steps(recipe_dict)
+                recipe.cooking_steps = steps_data
+                save_recipe(workspace_id, recipe)
+            except Exception as e:
+                logger.error(f"Failed to parse steps for {recipe_id}: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to parse steps for recipe '{recipe.title}': {str(e)}"
+                )
+
+        all_equipment.update(steps_data.get("equipment", []))
+        all_ingredients.append({
+            "recipe_id": recipe_id,
+            "recipe_title": recipe.title,
+            "ingredients": recipe.ingredients,
+        })
+        recipes_with_steps.append({
+            "id": recipe_id,
+            "title": recipe.title,
+            "steps": steps_data.get("steps", []),
+        })
+
+    # Call Claude to interleave the timelines
+    try:
+        timeline = await create_interleaved_timeline(
+            recipes_with_steps,
+            target_serve_time=request.target_serve_time,
+        )
+    except Exception as e:
+        logger.error(f"Timeline creation failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create cooking timeline: {str(e)}"
+        )
+
+    # Build response
+    recipe_meta = [
+        {"id": r["id"], "title": r["title"], "color_index": i}
+        for i, r in enumerate(recipes_with_steps)
+    ]
+
+    return CookingTimelineResponse(
+        total_duration_minutes=timeline.get("total_duration_minutes", 0),
+        recipes=recipe_meta,
+        steps=timeline.get("steps", []),
+        equipment_needed=sorted(all_equipment),
+        all_ingredients=all_ingredients,
+    )
 
 
 # Keywords for inferring meal types

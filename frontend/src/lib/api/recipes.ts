@@ -7,6 +7,7 @@ import type {
   ImportedRecipeResponse,
   OCRFromPhotoResponse,
   CookingStepsResponse,
+  CookingTimeline,
 } from './types';
 
 export const recipesAPI = {
@@ -159,5 +160,24 @@ export const recipesAPI = {
       { method: 'POST' }
     );
     return handleResponse<CookingStepsResponse>(response);
+  },
+
+  async getCookingTimeline(
+    workspaceId: string,
+    recipeIds: string[],
+    targetServeTime?: string | null
+  ): Promise<CookingTimeline> {
+    const response = await fetch(
+      `${API_BASE_URL}/recipes/cooking-timeline?workspace_id=${encodeURIComponent(workspaceId)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipe_ids: recipeIds,
+          target_serve_time: targetServeTime ?? null,
+        }),
+      }
+    );
+    return handleResponse<CookingTimeline>(response);
   },
 };
