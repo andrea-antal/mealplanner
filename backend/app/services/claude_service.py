@@ -2288,7 +2288,14 @@ async def create_interleaved_timeline(
             ),
             messages=[{"role": "user", "content": prompt}],
         )
-        log_api_call("create_interleaved_timeline", model)
+        log_api_call(
+            provider="claude",
+            workspace_id=None,
+            operation="create_interleaved_timeline",
+            model=model,
+            input_tokens=response.usage.input_tokens if hasattr(response, 'usage') else None,
+            output_tokens=response.usage.output_tokens if hasattr(response, 'usage') else None,
+        )
 
         parsed = _parse_timeline_response(response.content[0].text)
         if parsed:
