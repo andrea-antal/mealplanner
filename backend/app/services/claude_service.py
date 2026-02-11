@@ -529,6 +529,7 @@ Example: On a daycare day, you might have two "lunch" entries - one for the chil
 IMPORTANT:
 - Return ONLY valid JSON, no other text
 - When using library recipes, use recipe IDs and titles EXACTLY as provided in candidate recipes
+- When reusing a recipe later in the week (batch cooking, leftovers, repeats), use the SAME recipe_id and recipe_title as the original day — do NOT invent a new title like "from Tuesday batch"
 - Follow the recipe usage instructions above based on library coverage
 - If no candidate recipe fits perfectly, choose the closest match and note in "notes" field
 - Include 7 consecutive days starting from {week_start_date} (Monday through Sunday)
