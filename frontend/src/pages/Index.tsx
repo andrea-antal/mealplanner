@@ -231,8 +231,8 @@ const Index = () => {
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-primary/80">
                     {meal.meal_type}
                   </span>
-                  <p className="mt-1 font-medium text-foreground text-sm leading-snug line-clamp-2">
-                    {meal.name || meal.title || 'Untitled'}
+                  <p className="mt-1 font-medium text-foreground text-sm leading-snug line-clamp-3">
+                    {meal.recipe_title || 'Untitled'}
                   </p>
                 </div>
               ))}

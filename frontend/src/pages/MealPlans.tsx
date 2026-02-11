@@ -81,6 +81,7 @@ interface SortableMealProps {
   onRemoveClick: (dayIndex: number, mealIdx: number, mealType: string, recipeTitle: string) => void;
   isUndoPending: boolean;
   isRemovePending: boolean;
+  showDragHandle: boolean;
 }
 
 const SortableMeal = ({
@@ -99,6 +100,7 @@ const SortableMeal = ({
   onRemoveClick,
   isUndoPending,
   isRemovePending,
+  showDragHandle,
 }: SortableMealProps) => {
   const {
     attributes,
@@ -127,14 +129,16 @@ const SortableMeal = ({
       )}
     >
       {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-muted-foreground hover:text-foreground touch-none"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      {showDragHandle && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-muted-foreground hover:text-foreground touch-none"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
 
       {/* Meal content - clickable area */}
       <div
@@ -1445,6 +1449,7 @@ const MealPlans = () => {
                               onRemoveClick={handleRemoveClick}
                               isUndoPending={undoSwapMutation.isPending}
                               isRemovePending={removeMealMutation.isPending}
+                              showDragHandle={visibleDayCount > 1}
                             />
                           );
                         })}
@@ -1473,7 +1478,7 @@ const MealPlans = () => {
             <DragOverlay dropAnimation={dropAnimation}>
               {activeDragId && getActiveMeal() && (
                 <div className="rounded-lg bg-card p-4 shadow-xl ring-2 ring-primary flex items-center gap-3 scale-105">
-                  <GripVertical className="h-4 w-4 text-primary" />
+                  {visibleDayCount > 1 && <GripVertical className="h-4 w-4 text-primary" />}
                   <p className="text-base font-medium text-foreground">
                     <span className="mr-2">{mealTypeIcons[getActiveMeal()!.meal_type.toLowerCase()]}</span>
                     <span className="text-muted-foreground capitalize">{getActiveMeal()!.meal_type}:</span>
